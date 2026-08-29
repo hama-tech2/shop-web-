@@ -4,6 +4,7 @@
 -- Proves, against the real database:
 --   * a new shop gets a 1 month free trial
 --   * paying during the trial adds 2 bonus months
+--   * a product can be posted without a category
 --   * day 1 after expiry (grace) is still public
 --   * day 4 after expiry is hidden, and nothing is deleted
 --   * max 10 images per product   (trigger, not frontend)
@@ -57,7 +58,7 @@ begin
   perform set_config('role', 'authenticated', false);
   perform set_config('request.jwt.claims',
     json_build_object('sub', adm, 'role', 'authenticated')::text, false);
-  perform public.admin_apply_payment(s, 'months_6', 50000, 'IQD', 'fib', 'REF1', null);
+  perform public.admin_apply_payment(s, 'months_6', 50000, 'fib', 'REF1', null);
   perform set_config('role', 'none', false);
   perform set_config('request.jwt.claims', '', false);
 
@@ -69,6 +70,19 @@ begin
   result := format('bonus_months=%s, expires in %s days',
                    v_bonus, round(extract(epoch from v_exp - now()) / 86400));
   ok := (v_bonus = 2 and v_exp > now() + interval '235 days');
+  return next;
+
+  -- ---------- a category is optional ----------
+  begin
+    insert into public.products (shop_id, title, description, price)
+    values (s, 'no category', 'posted without picking a category', 5000);
+    v_err := 'accepted';
+  exception when others then
+    v_err := sqlerrm;
+  end;
+  check_name := 'a product can be posted without a category';
+  result := v_err;
+  ok := (v_err = 'accepted');
   return next;
 
   -- ---------- 10 images per product ----------
@@ -103,8 +117,9 @@ begin
   return next;
 
   -- ---------- 1000 products per shop ----------
+  -- the 'no category' row above already counts, so top up to exactly 1000
   insert into public.products (shop_id, platform_category_id, title, description, price)
-  select s, cat, 'bulk ' || g, 'desc', 1000 from generate_series(1, 1000) g;
+  select s, cat, 'bulk ' || g, 'desc', 1000 from generate_series(1, 999) g;
 
   begin
     insert into public.products (shop_id, platform_category_id, title, description, price)

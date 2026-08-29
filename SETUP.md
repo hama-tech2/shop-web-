@@ -59,7 +59,7 @@ insert into public.admins (user_id, role) values ('<auth-user-uuid>', 'superadmi
 Only an admin can move money or time:
 
 ```sql
-select public.admin_apply_payment('<shop_id>', 'months_6', 50000, 'IQD', 'fib');
+select public.admin_apply_payment('<shop_id>', 'months_6', 50000, 'fib');  -- amount is IQD
 -- 'months_6' or 'year_1'; +2 bonus months applied automatically if still on trial
 ```
 
