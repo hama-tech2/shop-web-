@@ -12,3 +12,15 @@ max_rows = 200
 
 [auth]
 enable_signup = true
+
+# Email + password only. No phone OTP, no SMS — there is no SMS provider
+# and every message costs money. Revisit later.
+[auth.email]
+enable_signup = true
+# Off so signup is one step. Supabase's built-in SMTP is rate limited to a
+# handful of mails an hour, so turning confirmations on means wiring up a
+# real SMTP provider first.
+enable_confirmations = false
+
+[auth.sms]
+enable_signup = false

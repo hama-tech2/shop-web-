@@ -38,6 +38,34 @@ SUPABASE_SERVICE_ROLE_KEY=... npm run test:security
 Both `.sql` files also run as-is in the Supabase SQL editor, and both clean up
 after themselves.
 
+## Decisions locked in
+
+| | |
+| --- | --- |
+| Auth | **Email + password only.** No phone OTP, no SMS — no provider, and every message costs money. |
+| Routing | **Multi-page, not an SPA.** `assets.not_found_handling` is `"none"`, so any path with no matching static file falls through to the Worker. `/@slug` is server-rendered there so a link shared to WhatsApp or Facebook carries real OG tags and shows a preview image. |
+| Currency | IQD everywhere. There is no currency column. |
+| Category | Optional on a product. |
+| Shops per seller | One (`shops.owner_id` is unique). |
+
+## R2 key layout
+
+Enforced by CHECK constraints, not by convention:
+
+```
+products/<shop_id>/<product_id>/<name>     product_images.r2_key
+shops/<shop_id>/<name>                     shops.logo_key, shops.cover_key
+```
+
+A key outside its own row's prefix is rejected, and `..` is banned outright.
+
+## Reserved slugs
+
+A shop cannot take a slug the router wants:
+
+`admin api login signup img app www shop store search saved help support
+about terms privacy sitemap robots assets static cdn null undefined`
+
 ## Keys
 
 | Key | Where it may live |

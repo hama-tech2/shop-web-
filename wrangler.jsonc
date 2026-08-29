@@ -7,11 +7,14 @@
   "compatibility_date": "2026-08-01",
   "compatibility_flags": ["nodejs_compat"],
 
-  // Static front-end (built in a later session). Empty for now.
+  // Multi-page, not an SPA. "none" means a request that matches no
+  // static asset falls through to the Worker, which is what lets it
+  // server-render /@slug — the shared link has to carry real OG tags
+  // so WhatsApp and Facebook can show a preview image.
   "assets": {
     "directory": "./public",
     "binding": "ASSETS",
-    "not_found_handling": "single-page-application"
+    "not_found_handling": "none"
   },
 
   // Every image lives in R2. Nothing goes to Supabase Storage.
