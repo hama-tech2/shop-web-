@@ -1,0 +1,13 @@
+# Copy to .dev.vars (git-ignored) for local `wrangler dev`.
+#
+# SERVER SIDE ONLY. The service_role key bypasses Row Level Security —
+# it must never be shipped to the browser, never appear in /public,
+# and never be committed. In production set it with:
+#   wrangler secret put SUPABASE_SERVICE_ROLE_KEY
+SUPABASE_SERVICE_ROLE_KEY=
+
+# R2 credentials for the deleted_objects queue drain, if the job ever
+# runs outside the Worker's R2 binding.
+R2_ACCOUNT_ID=
+R2_ACCESS_KEY_ID=
+R2_SECRET_ACCESS_KEY=

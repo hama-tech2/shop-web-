@@ -1,0 +1,36 @@
+{
+  // Shop Web — Cloudflare Worker with static assets (NOT Pages).
+  // This is a NEW project. It does not touch any existing Worker.
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "shop-web",
+  "main": "worker/index.js",
+  "compatibility_date": "2026-08-01",
+  "compatibility_flags": ["nodejs_compat"],
+
+  // Static front-end (built in a later session). Empty for now.
+  "assets": {
+    "directory": "./public",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application"
+  },
+
+  // Every image lives in R2. Nothing goes to Supabase Storage.
+  "r2_buckets": [
+    {
+      "binding": "IMAGES",
+      "bucket_name": "shop-web-images"
+    }
+  ],
+
+  "observability": { "enabled": true },
+
+  // Public values only. The Supabase publishable key is safe in the
+  // browser because RLS is what actually protects the data.
+  // The service_role key is a SECRET — `wrangler secret put` only,
+  // and it must never appear in front-end code or in this file.
+  "vars": {
+    "SUPABASE_URL": "https://kvwgiobnpwrjwyevadvc.supabase.co",
+    "SUPABASE_PUBLISHABLE_KEY": "sb_publishable_j6YHgYneV4Bfox79hrxH7g_0r28MsBg",
+    "R2_BUCKET": "shop-web-images"
+  }
+}

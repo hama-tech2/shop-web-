@@ -1,0 +1,14 @@
+project_id = "kvwgiobnpwrjwyevadvc"
+
+[db]
+major_version = 17
+
+[api]
+# Only `public` is exposed. The `app` schema holds the security helper
+# functions and is intentionally unreachable from the browser.
+schemas = ["public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 200
+
+[auth]
+enable_signup = true
