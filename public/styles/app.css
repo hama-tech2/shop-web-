@@ -370,3 +370,15 @@
     transition-duration: 0.01ms !important;
   }
 }
+
+/* The whole card is tappable; the heart sits above the stretched link. */
+.card { position: relative; }
+
+.card__hit {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+}
+
+.card__heart { z-index: 2; }
+.card__media, .card__body { position: relative; }

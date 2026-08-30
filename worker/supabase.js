@@ -84,6 +84,7 @@ function toCard(row) {
     id: row.id,
     title: row.title,
     price: Number(row.price),
+    categoryId: row.platform_category_id ?? null,
     images: images.length ? images : [null],
     shopName: row.shops?.name ?? '',
     shopSlug: row.shops?.slug ?? '',
@@ -126,4 +127,79 @@ export async function asUser(env, token, path, { method = 'GET', body, prefer, s
 export async function slugAvailable(env, slug) {
   const rows = await get(env, 'rpc/slug_available', { p_slug: slug });
   return rows?.[0] ?? { available: false, reason: 'format' };
+}
+
+/* ---------------------------------------------------------------
+   The public shop page.
+   --------------------------------------------------------------- */
+
+/**
+ * A shop's public header.
+ *
+ * Goes through an RPC rather than a plain select because RLS hides an
+ * expired shop from anon completely — correct for its products, wrong
+ * for the page itself. The seller's link has to keep working.
+ * `products_visible` is false once the grace period is over.
+ */
+export async function getShopProfile(env, slug) {
+  const rows = await get(env, 'rpc/shop_public_profile', { p_slug: slug });
+  return rows?.[0] ?? null;
+}
+
+/** Active products of one shop. RLS returns nothing once a shop lapses. */
+export async function getShopProducts(env, shopId, categoryId) {
+  const search = {
+    select: SELECT_CARD,
+    shop_id: `eq.${shopId}`,
+    status: 'eq.active',
+    order: 'sort_order.asc,created_at.desc',
+    limit: 60,
+  };
+  if (categoryId) search.platform_category_id = `eq.${categoryId}`;
+
+  const rows = await get(env, 'products', search);
+  return rows.map(toCard);
+}
+
+/** One product, with every image and its shop. Anon sees active only. */
+export async function getProduct(env, id) {
+  const rows = await get(env, 'products', {
+    select:
+      'id,title,price,description,status,shop_id,platform_category_id,' +
+      'shops!inner(id,name,slug,logo_key,whatsapp,city),' +
+      'product_images(r2_key,r2_key_full,position)',
+    id: `eq.${id}`,
+    status: 'eq.active',
+    limit: 1,
+  });
+
+  const row = rows?.[0];
+  if (!row) return null;
+
+  const images = (row.product_images ?? [])
+    .slice()
+    .sort((a, b) => a.position - b.position);
+
+  return {
+    id: row.id,
+    title: row.title,
+    price: Number(row.price),
+    description: row.description ?? '',
+    categoryId: row.platform_category_id,
+    images: images.map((i) => ({ card: i.r2_key, full: i.r2_key_full || i.r2_key })),
+    shop: row.shops,
+  };
+}
+
+/** The "more from this seller" row. */
+export async function getMoreFromShop(env, shopId, excludeId, limit = 6) {
+  const rows = await get(env, 'products', {
+    select: SELECT_CARD,
+    shop_id: `eq.${shopId}`,
+    status: 'eq.active',
+    id: `neq.${excludeId}`,
+    order: 'created_at.desc',
+    limit,
+  });
+  return rows.map(toCard);
 }

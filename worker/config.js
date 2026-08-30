@@ -212,3 +212,52 @@ export const IMAGE_VARIANTS = {
 
 export const MAX_IMAGES = 10;
 export const MAX_UPLOAD_BYTES = 4 * 1024 * 1024;
+
+/** The public shop page and the product page — the shared link. */
+export const SHOP = {
+  productsTitle: 'بەرهەمەکان',
+  all: 'هەموو',
+  whatsappOrder: 'داوای کاڵا لەم واتەسابە',
+  whatsappShop: 'پەیوەندی بە واتساپ',
+  call: 'پەیوەندی',
+  instagram: 'ئینستاگرام',
+  tiktok: 'تیک تۆک',
+  facebook: 'فەیسبووک',
+  share: 'بڵاوکردنەوە',
+  save: 'پاشەکەوتکردن',
+  linkCopied: 'لینک کۆپی کرا',
+
+  expiredTitle: 'ئەم دوکانە لە ئێستادا نوێ نەکراوەتەوە',
+  expiredBody: 'بەرهەمەکان کاتییانە شاراوەن. دەتوانیت هێشتا پەیوەندی بە خاوەن دوکان بکەیت.',
+
+  emptyTitle: 'بەم زووانە',
+  emptyBody: 'ئەم دوکانە هێشتا بەرهەمی زیاد نەکردووە. پەیوەندی بکە بۆ زانیاری زیاتر.',
+
+  notFoundTitle: 'ئەم دوکانە نەدۆزرایەوە',
+  notFoundBody: 'لەوانەیە لینکەکە هەڵە بێت.',
+
+  moreFromShop: 'زیاتر لەم دوکانە',
+  viewShop: 'بینینی دوکان',
+  backToShop: 'گەڕانەوە',
+
+  /** wa.me needs digits only. */
+  waNumber: (raw) => String(raw || '').replace(/[^0-9]/g, ''),
+
+  /** Pre-filled Sorani order message. Product name, then the link. */
+  orderText: (productTitle, url) =>
+    `سڵاو 👋\nحەزم لەم بەرهەمەیە: ${productTitle}\n${url}\nهێشتا بەردەستە؟`,
+
+  shopText: (shopName, url) =>
+    `سڵاو 👋\nدوکانەکەتم بینی: ${shopName}\n${url}`,
+};
+
+/** City slug -> Sorani label, for the pin under the shop name. */
+export const CITY_LABEL = {
+  erbil: 'هەولێر',
+  sulaymaniyah: 'سلێمانی',
+  duhok: 'دهۆک',
+  kirkuk: 'کەرکووک',
+  halabja: 'هەڵەبجە',
+  zakho: 'زاخۆ',
+  other: '',
+};

@@ -15,6 +15,7 @@ import * as authRoutes from './routes/auth.js';
 import * as onboarding from './routes/onboarding.js';
 import { appGet } from './routes/app.js';
 import * as products from './routes/products.js';
+import { productGet, shopGet } from './routes/shop.js';
 
 const IMG_CACHE = 'public, max-age=31536000, immutable';
 const HTML_CACHE = 'public, max-age=0, s-maxage=60, stale-while-revalidate=300';
@@ -31,6 +32,16 @@ export default {
       if (path === '/api/feed') return feedFragment(env, url);
       if (path === '/api/slug-check') return onboarding.slugCheck(env, url);
       if (path === '/') return feedPage(env, url);
+
+      // ---- the public shop link: /@slug and /@slug/p/<id> ----
+      const shopPath = path.match(
+        /^\/@([a-z0-9][a-z0-9-]{1,38}[a-z0-9])(?:\/p\/([0-9a-f-]{36}))?$/i,
+      );
+      if (shopPath) {
+        return shopPath[2]
+          ? productGet(env, url, shopPath[1], shopPath[2])
+          : shopGet(env, url, shopPath[1]);
+      }
 
       // ---- auth ----
       if (path === '/signup') {

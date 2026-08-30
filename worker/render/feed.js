@@ -13,8 +13,11 @@ const imgUrl = (key) => `/img/${key.split('/').map(encodeURIComponent).join('/')
  * `src` once the card is fully on screen. That keeps a cheap Android
  * phone from decoding images nobody has looked at.
  */
-export function cardHtml(product, index) {
+export function cardHtml(product, index, { linked = true } = {}) {
   const [first, ...rest] = product.images;
+  const href = linked && product.shopSlug
+    ? `/@${encodeURIComponent(product.shopSlug)}/p/${encodeURIComponent(product.id)}`
+    : null;
   const multi = product.images.length > 1;
   const eager = index < 2;
 
@@ -47,6 +50,11 @@ export function cardHtml(product, index) {
 
   return (
     `<article class="card">` +
+    // A stretched link rather than wrapping the card: the heart is a
+    // button, and a button inside an anchor is invalid and untappable.
+    (href
+      ? `<a class="card__hit" href="${esc(href)}" aria-label="${esc(product.title)}"></a>`
+      : '') +
     `<div class="card__media"${multi ? ` data-multi="${product.images.length}"` : ''}>` +
     firstImg +
     restImgs +

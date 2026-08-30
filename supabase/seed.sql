@@ -42,15 +42,26 @@ from (values
 ) as u(id, email, full_name);
 
 -- ---------- shops (each gets a 1 month trial from the shops trigger) ----------
-insert into public.shops (id, owner_id, slug, name, bio, whatsapp, city) values
+-- cover_key points at the bundled public/seed/banner.jpg through the
+-- /img fallback, so the shop page and its OG preview have a real banner.
+insert into public.shops (id, owner_id, slug, name, bio, whatsapp, city,
+                          cover_key, instagram, tiktok, facebook, phone) values
   ('11111111-aaaa-4aaa-8aaa-000000000001', '11111111-bbbb-4bbb-8bbb-000000000001',
-   'hewler-scent', 'HEWLÊR SCENT', 'عەتری ئەسڵی بۆ ژنان و پیاوان.', '+9647510000001', 'erbil'),
+   'hewler-scent', 'HEWLÊR SCENT', 'عەتری ئەسڵی بۆ ژنان و پیاوان. گەیاندن بۆ هەموو هەولێر.',
+   '+9647510000001', 'erbil',
+   'shops/11111111-aaaa-4aaa-8aaa-000000000001/banner.jpg', 'hewlerscent', 'hewlerscent', null, '+9647510000001'),
   ('11111111-aaaa-4aaa-8aaa-000000000002', '11111111-bbbb-4bbb-8bbb-000000000002',
-   'nafin-boutique', 'بۆتیکی نافین', 'جل و بەرگ و چانتای ژنانە.', '+9647510000002', 'erbil'),
+   'nafin-boutique', 'بۆتیکی نافین', 'جل و بەرگ و چانتای ژنانە، هەڵبژاردەی تازە هەموو هەفتەیەک.',
+   '+9647510000002', 'erbil',
+   'shops/11111111-aaaa-4aaa-8aaa-000000000002/banner.jpg', 'nafinboutique', 'nafin.boutique', 'nafinboutique', null),
   ('11111111-aaaa-4aaa-8aaa-000000000003', '11111111-bbbb-4bbb-8bbb-000000000003',
-   'mall-hazar', 'ماڵی هەزار', 'کەلوپەلی ماڵەوە و ئامێری بچووک.', '+9647510000003', 'erbil'),
+   'mall-hazar', 'ماڵی هەزار', 'کەلوپەلی ماڵەوە و ئامێری بچووک بە نرخێکی گونجاو.',
+   '+9647510000003', 'erbil',
+   'shops/11111111-aaaa-4aaa-8aaa-000000000003/banner.jpg', 'mallhazar', null, null, null),
   ('11111111-aaaa-4aaa-8aaa-000000000004', '11111111-bbbb-4bbb-8bbb-000000000004',
-   'shirini-dayk', 'شیرینی خانەی دایک', 'شیرینی ماڵەوەی تازە.', '+9647510000004', 'erbil');
+   'shirini-dayk', 'شیرینی خانەی دایک', 'شیرینی ماڵەوەی تازە، ڕۆژانە دروستدەکرێت.',
+   '+9647510000004', 'erbil',
+   'shops/11111111-aaaa-4aaa-8aaa-000000000004/banner.jpg', 'shirinidayk', null, null, null);
 
 -- ---------- products ----------
 -- created_at is staggered so the feed's first page matches the mockup order.
