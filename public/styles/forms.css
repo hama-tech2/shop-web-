@@ -1,0 +1,253 @@
+/* ============================================================
+   Shop Web — auth, onboarding and app shell.
+   Tokens come from design-system.css. Big touch targets: every
+   control is at least 52px tall, which is what a thumb needs.
+   ============================================================ */
+
+.auth {
+  max-width: 460px;
+  margin-inline: auto;
+  padding: var(--s-8) var(--s-5) var(--s-6);
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+}
+
+.auth__brand {
+  font-family: var(--font-head);
+  font-size: var(--fs-xl);
+  font-weight: var(--fw-bold);
+  text-align: center;
+  margin-bottom: var(--s-6);
+}
+
+.auth__title {
+  font-size: var(--fs-lg);
+  margin-bottom: var(--s-2);
+}
+
+.auth__sub {
+  color: var(--muted);
+  margin: 0 0 var(--s-6);
+}
+
+.auth__foot {
+  margin-top: var(--s-6);
+  text-align: center;
+  color: var(--muted);
+}
+
+.auth__foot a { color: var(--accent); font-weight: var(--fw-bold); }
+
+/* ---------- fields ---------- */
+
+.field { margin-bottom: var(--s-4); }
+
+.field__label {
+  display: block;
+  margin-bottom: var(--s-2);
+  font-size: var(--fs-base);
+  font-weight: var(--fw-medium);
+}
+
+.field__input {
+  width: 100%;
+  height: 54px;
+  padding-inline: var(--s-4);
+  background: var(--surface-2);
+  border-radius: var(--r-field);
+  font-size: var(--fs-md);
+}
+
+.field__input::placeholder { color: var(--muted); }
+
+.field__input[aria-invalid="true"] { background: #F6E7E4; }
+
+.field__hint { margin: var(--s-2) 0 0; font-size: var(--fs-sm); color: var(--muted); }
+.field__hint[data-state="ok"]   { color: var(--accent); }
+.field__hint[data-state="bad"]  { color: #A2402F; }
+
+/* the slug field shows the live URL as a prefix */
+.slug-row {
+  display: flex;
+  align-items: center;
+  background: var(--surface-2);
+  border-radius: var(--r-field);
+  direction: ltr;
+  overflow: hidden;
+}
+
+.slug-row__prefix {
+  padding-inline: var(--s-3);
+  color: var(--muted);
+  font-size: var(--fs-sm);
+  white-space: nowrap;
+  flex: none;
+}
+
+.slug-row .field__input {
+  border-radius: 0;
+  background: none;
+  padding-inline: 0 var(--s-4);
+  text-align: left;
+}
+
+.slug-url {
+  margin-top: var(--s-2);
+  font-size: var(--fs-sm);
+  color: var(--muted);
+  direction: ltr;
+  text-align: left;
+  word-break: break-all;
+}
+
+/* ---------- buttons ---------- */
+
+.btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s-2);
+  width: 100%;
+  min-height: 54px;
+  padding: var(--s-3) var(--s-4);
+  border-radius: var(--r-field);
+  font-family: var(--font-head);
+  font-size: var(--fs-md);
+  font-weight: var(--fw-bold);
+  text-align: center;
+  transition: opacity var(--t-fast);
+}
+
+.btn:active { opacity: 0.85; }
+.btn[disabled] { opacity: 0.5; pointer-events: none; }
+
+.btn--primary { background: var(--accent); color: var(--accent-ink); }
+.btn--quiet   { background: var(--surface-2); color: var(--text); }
+.btn--ghost   { background: none; color: var(--muted); min-height: 44px; }
+
+.btn + .btn { margin-top: var(--s-3); }
+
+/* ---------- divider ---------- */
+
+.divider {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  margin: var(--s-5) 0;
+  color: var(--muted);
+  font-size: var(--fs-sm);
+}
+
+.divider::before,
+.divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--surface-2);
+}
+
+/* ---------- alerts ---------- */
+
+.alert {
+  padding: var(--s-3) var(--s-4);
+  border-radius: var(--r-field);
+  margin-bottom: var(--s-4);
+  font-size: var(--fs-base);
+}
+
+.alert--error { background: #F6E7E4; color: #7C2D1B; }
+.alert--ok    { background: #E4EFE9; color: var(--accent); }
+
+/* ---------- wizard ---------- */
+
+.wizard { max-width: 460px; margin-inline: auto; padding: var(--s-6) var(--s-5) var(--s-8); }
+
+.wizard__steps {
+  display: flex;
+  gap: var(--s-2);
+  margin-bottom: var(--s-6);
+}
+
+.wizard__step {
+  flex: 1;
+  height: 4px;
+  border-radius: var(--r-pill);
+  background: var(--surface-2);
+}
+
+.wizard__step[data-done="true"] { background: var(--accent); }
+
+.wizard__count { color: var(--muted); font-size: var(--fs-sm); margin: 0 0 var(--s-2); }
+.wizard__title { font-size: var(--fs-lg); margin-bottom: var(--s-2); }
+.wizard__sub   { color: var(--muted); margin: 0 0 var(--s-5); }
+.wizard__actions { margin-top: var(--s-6); }
+
+/* ---------- logo picker ---------- */
+
+.logo-pick {
+  display: grid;
+  place-items: center;
+  gap: var(--s-3);
+  padding: var(--s-6);
+  background: var(--surface-2);
+  border-radius: var(--r-card);
+  text-align: center;
+  color: var(--muted);
+}
+
+.logo-pick__preview {
+  width: 96px;
+  height: 96px;
+  border-radius: var(--r-pill);
+  object-fit: cover;
+  background: var(--surface);
+}
+
+/* ---------- app shell ---------- */
+
+.shell {
+  max-width: var(--page-max);
+  margin-inline: auto;
+  padding: var(--s-5) var(--s-4)
+           calc(var(--nav-h) + env(safe-area-inset-bottom) + var(--s-6));
+}
+
+.shell__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3);
+  margin-bottom: var(--s-5);
+}
+
+.shell__title { font-size: var(--fs-xl); }
+
+.card-block {
+  background: var(--surface);
+  border-radius: var(--r-card);
+  padding: var(--s-5) var(--s-4);
+  margin-bottom: var(--s-3);
+}
+
+.card-block__label { color: var(--muted); font-size: var(--fs-sm); margin: 0 0 var(--s-1); }
+.card-block__value { font-family: var(--font-head); font-weight: var(--fw-bold); }
+
+/* Phone numbers and URLs are latin: forced into their own direction so
+   a leading "+" does not jump to the end of the string. */
+.card-block__value--ltr { direction: ltr; text-align: right; }
+
+.link-row {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  direction: ltr;
+  background: var(--surface-2);
+  border-radius: var(--r-field);
+  padding: var(--s-3) var(--s-4);
+  margin-top: var(--s-3);
+  font-size: var(--fs-sm);
+  overflow-wrap: anywhere;
+}
+
+.copy-btn { flex: none; color: var(--accent); font-weight: var(--fw-bold); font-size: var(--fs-sm); }

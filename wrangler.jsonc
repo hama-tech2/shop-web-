@@ -1,0 +1,46 @@
+{
+  // Shop Web — Cloudflare Worker with static assets (NOT Pages).
+  // This is a NEW project. It does not touch any existing Worker.
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "shop-web",
+  "main": "worker/index.js",
+  "compatibility_date": "2026-08-01",
+  "compatibility_flags": ["nodejs_compat"],
+
+  // Multi-page, not an SPA. "none" means a request that matches no
+  // static asset falls through to the Worker, which is what lets it
+  // server-render /@slug — the shared link has to carry real OG tags
+  // so WhatsApp and Facebook can show a preview image.
+  "assets": {
+    "directory": "./public",
+    "binding": "ASSETS",
+    "not_found_handling": "none"
+  },
+
+  // Every image lives in R2. Nothing goes to Supabase Storage.
+  "r2_buckets": [
+    {
+      "binding": "IMAGES",
+      "bucket_name": "shop-web-images"
+    }
+  ],
+
+  // The nightly sweep: drains the R2 delete queue, removes draft
+  // uploads whose product was never saved, and expires lapsed
+  // subscriptions. 02:00 UTC is 05:00 in Erbil — the quietest hour.
+  "triggers": {
+    "crons": ["0 2 * * *"]
+  },
+
+  "observability": { "enabled": true },
+
+  // Public values only. The Supabase publishable key is safe in the
+  // browser because RLS is what actually protects the data.
+  // The service_role key is a SECRET — `wrangler secret put` only,
+  // and it must never appear in front-end code or in this file.
+  "vars": {
+    "SUPABASE_URL": "https://kvwgiobnpwrjwyevadvc.supabase.co",
+    "SUPABASE_PUBLISHABLE_KEY": "sb_publishable_j6YHgYneV4Bfox79hrxH7g_0r28MsBg",
+    "R2_BUCKET": "shop-web-images"
+  }
+}

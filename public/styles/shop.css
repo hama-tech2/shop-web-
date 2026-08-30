@@ -1,0 +1,300 @@
+/* ============================================================
+   Shop Web — the public shop page and the product page.
+   This is the link a seller pastes into TikTok and Instagram,
+   so it carries no app chrome: no tab bar, no search.
+   ============================================================ */
+
+.page--shop { padding-bottom: var(--s-8); }
+
+/* ---------- banner ---------- */
+
+.shop-head { margin-bottom: var(--s-5); }
+
+.shop-banner {
+  position: relative;
+  aspect-ratio: 8 / 3;
+  background: var(--surface-2);
+  overflow: visible;
+}
+
+.shop-banner__img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.shop-banner__img--empty { background: var(--surface-2); }
+
+/* Overlaps the banner's bottom edge on the right, where the RTL text
+   below it starts. */
+.shop-logo {
+  position: absolute;
+  bottom: -30px;
+  right: var(--s-4);
+  width: 88px;
+  height: 88px;
+  border-radius: var(--r-pill);
+  object-fit: cover;
+  background: var(--surface);
+  padding: 3px;
+}
+
+.shop-logo--initial {
+  display: grid;
+  place-items: center;
+  font-family: var(--font-head);
+  font-size: var(--fs-xl);
+  font-weight: var(--fw-bold);
+  color: var(--muted);
+  background: var(--surface-2);
+  box-shadow: 0 0 0 3px var(--bg);
+}
+
+.shop-id { padding: calc(30px + var(--s-3)) var(--s-4) 0; }
+
+.shop-name {
+  font-size: var(--fs-xl);
+  line-height: var(--lh-tight);
+}
+
+.shop-city {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin: var(--s-2) 0 0;
+  color: var(--muted);
+  font-size: var(--fs-sm);
+}
+
+.shop-bio {
+  margin: var(--s-3) 0 0;
+  color: var(--muted);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* ---------- contact ---------- */
+
+.shop-actions { padding: var(--s-5) var(--s-4) 0; }
+
+.btn--whatsapp {
+  background: var(--whatsapp);
+  color: #FFFFFF;
+  gap: var(--s-2);
+}
+
+.round-row {
+  display: flex;
+  gap: var(--s-2);
+  margin-top: var(--s-3);
+}
+
+.round-btn {
+  width: 48px;
+  height: 48px;
+  border-radius: var(--r-pill);
+  background: var(--surface-2);
+  color: var(--text);
+  display: grid;
+  place-items: center;
+  flex: none;
+  transition: background var(--t-fast);
+}
+
+.round-btn:active { background: var(--bg); }
+.round-btn--pale { background: var(--surface-2); }
+
+/* ---------- notices ---------- */
+
+.notice {
+  margin: var(--s-6) var(--s-4);
+  padding: var(--s-6) var(--s-5);
+  border-radius: var(--r-card);
+  background: var(--surface);
+  text-align: center;
+  color: var(--muted);
+}
+
+.notice--tall { margin-top: var(--s-8); display: grid; gap: var(--s-4); justify-items: center; }
+
+.notice__title {
+  font-family: var(--font-head);
+  font-weight: var(--fw-bold);
+  color: var(--text);
+  margin: 0 0 var(--s-2);
+}
+
+.page--shop .grid { margin-top: var(--s-2); }
+.page--shop .chips { padding-top: var(--s-5); }
+
+/* ============================================================
+   product page
+   ============================================================ */
+
+.page--pdp { padding-bottom: calc(96px + env(safe-area-inset-bottom)); }
+
+.pdp-back {
+  position: absolute;
+  inset-block-start: calc(var(--s-4) + env(safe-area-inset-top));
+  inset-inline-start: var(--s-4);
+  z-index: 5;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--r-pill);
+  background: var(--veil);
+  display: grid;
+  place-items: center;
+}
+
+/* Scroll-snap strip: swipes natively, works with JS off. */
+.carousel {
+  display: flex;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+  aspect-ratio: 4 / 5;
+  background: var(--surface-2);
+}
+
+.carousel::-webkit-scrollbar { display: none; }
+
+.carousel__img {
+  flex: 0 0 100%;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  scroll-snap-align: center;
+}
+
+.carousel__img--empty { background: var(--surface-2); }
+
+.dots--pdp {
+  position: static;
+  margin-top: calc(var(--s-3) * -1 - 8px);
+  margin-bottom: var(--s-3);
+  position: relative;
+  z-index: 2;
+}
+
+.dots--pdp .dot { background: var(--text); opacity: 0.25; width: 6px; height: 6px; }
+.dots--pdp .dot.is-active { opacity: 1; background: var(--accent); }
+
+.pdp-body { padding: var(--s-4) var(--s-4) 0; }
+
+.pdp-title { font-size: var(--fs-lg); line-height: var(--lh-tight); }
+
+.pdp-price {
+  display: flex;
+  direction: ltr;
+  justify-content: flex-end;
+  align-items: baseline;
+  gap: 6px;
+  margin: var(--s-3) 0 0;
+}
+
+.pdp-amount {
+  font-family: var(--font-head);
+  font-size: 26px;
+  font-weight: var(--fw-bold);
+}
+
+.pdp-desc {
+  margin: var(--s-4) 0 0;
+  color: var(--muted);
+  white-space: pre-line;
+}
+
+/* ---------- shop row ---------- */
+
+.shop-row {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  margin-top: var(--s-5);
+  padding: var(--s-3);
+  border-radius: var(--r-card);
+  background: var(--surface);
+}
+
+.shop-row__logo {
+  width: 44px;
+  height: 44px;
+  border-radius: var(--r-pill);
+  object-fit: cover;
+  flex: none;
+  background: var(--surface-2);
+}
+
+.shop-row__logo--initial {
+  display: grid;
+  place-items: center;
+  font-family: var(--font-head);
+  font-weight: var(--fw-bold);
+  color: var(--muted);
+}
+
+.shop-row__body { flex: 1; min-width: 0; }
+
+.shop-row__name {
+  display: block;
+  font-family: var(--font-head);
+  font-weight: var(--fw-bold);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.shop-row__city {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--muted);
+  font-size: var(--fs-sm);
+  margin-top: 2px;
+}
+
+.shop-row__go { color: var(--accent); font-size: var(--fs-sm); font-weight: var(--fw-bold); flex: none; }
+
+/* ---------- more from this seller ---------- */
+
+.more { margin-top: var(--s-6); }
+
+.more__title {
+  font-size: var(--fs-md);
+  padding-inline: var(--s-4);
+  margin-bottom: var(--s-3);
+}
+
+.more__rail {
+  display: flex;
+  gap: var(--s-3);
+  overflow-x: auto;
+  scrollbar-width: none;
+  padding-inline: var(--s-4);
+  scroll-padding-inline: var(--s-4);
+}
+
+.more__rail::-webkit-scrollbar { display: none; }
+.more__item { flex: 0 0 46%; max-width: 200px; }
+
+/* ---------- sticky order bar ---------- */
+
+.pdp-bar {
+  position: fixed;
+  inset-block-end: 0;
+  inset-inline: 0;
+  z-index: 20;
+  max-width: var(--page-max);
+  margin-inline: auto;
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  padding: var(--s-3) var(--s-4);
+  padding-block-end: calc(var(--s-3) + env(safe-area-inset-bottom));
+  background: var(--bg);
+}
+
+.pdp-bar .btn { flex: 1; min-height: 52px; }

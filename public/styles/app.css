@@ -1,0 +1,384 @@
+/* ============================================================
+   Shop Web — components. Tokens come from design-system.css.
+   Mobile first, RTL base.
+   ============================================================ */
+
+.page {
+  max-width: var(--page-max);
+  margin-inline: auto;
+  padding-bottom: calc(var(--nav-h) + env(safe-area-inset-bottom) + var(--s-6));
+}
+
+/* ---------- header ---------- */
+
+.header {
+  padding: var(--s-5) var(--s-4) var(--s-3);
+}
+
+.header__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3);
+  margin-bottom: var(--s-4);
+}
+
+.header__name {
+  font-family: var(--font-head);
+  font-size: var(--fs-xl);
+  font-weight: var(--fw-bold);
+}
+
+.icon-btn {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--r-pill);
+  background: var(--surface-2);
+  display: grid;
+  place-items: center;
+  flex: none;
+  transition: background var(--t-fast);
+}
+
+.icon-btn:active { background: var(--bg); }
+
+/* ---------- search ---------- */
+
+.search {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  background: var(--surface-2);
+  border-radius: var(--r-field);
+  padding-inline: var(--s-3);
+  height: 46px;
+}
+
+.search__icon { flex: none; color: var(--muted); }
+
+.search__input {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  background: none;
+  font-size: var(--fs-md);
+}
+
+.search__input::placeholder { color: var(--muted); }
+
+.search__clear { color: var(--muted); font-size: var(--fs-sm); flex: none; }
+
+/* ---------- category chips ---------- */
+
+.chips {
+  display: flex;
+  gap: var(--s-2);
+  overflow-x: auto;
+  scrollbar-width: none;
+  padding: 0 var(--s-4) var(--s-4);
+  scroll-padding-inline: var(--s-4);
+}
+
+.chips::-webkit-scrollbar { display: none; }
+
+.chip {
+  flex: none;
+  padding: 9px var(--s-4);
+  border-radius: var(--r-pill);
+  background: var(--surface-2);
+  color: var(--text);
+  font-size: var(--fs-base);
+  white-space: nowrap;
+  transition: background var(--t-fast), color var(--t-fast);
+}
+
+.chip[aria-current="true"] {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+
+/* ---------- product grid ---------- */
+
+.grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--s-3);
+  padding-inline: var(--s-4);
+}
+
+.card {
+  background: var(--surface);
+  border-radius: var(--r-card);
+  overflow: hidden;
+  padding-bottom: var(--s-3);
+}
+
+/* media: fixed 4:5 box so the grid never reflows while images load */
+.card__media {
+  position: relative;
+  aspect-ratio: 4 / 5;
+  background: var(--surface-2);
+  border-radius: var(--r-img);
+  overflow: hidden;
+  margin: var(--s-2) var(--s-2) var(--s-3);
+}
+
+.card__img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0;
+  transition: opacity var(--t-slide);
+}
+
+.card__img.is-active { opacity: 1; }
+
+/* one image: no transition cost at all */
+.card__media:not([data-multi]) .card__img { opacity: 1; transition: none; }
+
+.card__heart {
+  position: absolute;
+  inset-block-start: 10px;
+  inset-inline-end: 10px;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--r-pill);
+  background: var(--veil);
+  display: grid;
+  place-items: center;
+  color: var(--text);
+}
+
+.card__heart[aria-pressed="true"] { color: var(--accent); }
+
+.dots {
+  position: absolute;
+  inset-block-end: 8px;
+  inset-inline: 0;
+  display: flex;
+  justify-content: center;
+  gap: 5px;
+  pointer-events: none;
+}
+
+.dot {
+  width: 5px;
+  height: 5px;
+  border-radius: var(--r-pill);
+  background: var(--veil);
+  opacity: 0.55;
+  transition: opacity var(--t-fast);
+}
+
+.dot.is-active { opacity: 1; }
+
+.card__body { padding-inline: var(--s-3); }
+
+.card__title {
+  font-family: var(--font-head);
+  font-size: var(--fs-base);
+  font-weight: var(--fw-bold);
+  line-height: var(--lh-tight);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  min-height: calc(var(--fs-base) * var(--lh-tight) * 2);
+}
+
+/* The price group reads left-to-right — "35,000 IQD" — even though the
+   card is RTL, then sits flush against the card's start (right) edge. */
+.card__price {
+  margin-top: var(--s-2);
+  margin-bottom: 0;
+  display: flex;
+  direction: ltr;
+  justify-content: flex-end;
+  align-items: baseline;
+  gap: 5px;
+}
+
+.card__amount {
+  font-family: var(--font-head);
+  font-size: var(--fs-lg);
+  font-weight: var(--fw-bold);
+}
+
+.card__currency {
+  font-size: var(--fs-xs);
+  color: var(--muted);
+}
+
+.card__shop {
+  margin-top: var(--s-3);
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  min-width: 0;
+}
+
+.shop-avatar {
+  width: 22px;
+  height: 22px;
+  border-radius: var(--r-pill);
+  flex: none;
+  object-fit: cover;
+  background: var(--surface-2);
+  display: grid;
+  place-items: center;
+  font-size: 10px;
+  font-weight: var(--fw-bold);
+  color: var(--muted);
+  text-transform: uppercase;
+}
+
+.card__shop-name {
+  font-size: var(--fs-sm);
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ---------- load more ---------- */
+
+.load-more-wrap {
+  padding: var(--s-5) var(--s-4) 0;
+  display: flex;
+  justify-content: center;
+}
+
+.load-more {
+  width: 100%;
+  padding: 14px;
+  border-radius: var(--r-field);
+  background: var(--surface-2);
+  color: var(--accent);
+  font-family: var(--font-head);
+  font-weight: var(--fw-bold);
+  font-size: var(--fs-base);
+  text-align: center;
+}
+
+.load-more[disabled] { color: var(--muted); }
+
+/* ---------- empty state ---------- */
+
+.empty {
+  padding: var(--s-8) var(--s-6);
+  text-align: center;
+  color: var(--muted);
+}
+
+.empty__title {
+  font-family: var(--font-head);
+  font-weight: var(--fw-bold);
+  color: var(--text);
+  margin-bottom: var(--s-2);
+}
+
+/* ---------- bottom nav ---------- */
+
+.nav {
+  position: fixed;
+  inset-block-end: 0;
+  inset-inline: 0;
+  z-index: 20;
+  background: var(--surface);
+  padding-block-end: env(safe-area-inset-bottom);
+}
+
+.nav__inner {
+  max-width: var(--page-max);
+  margin-inline: auto;
+  height: var(--nav-h);
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+}
+
+.nav__tab {
+  display: grid;
+  place-items: center;
+  gap: 3px;
+  font-size: var(--fs-xs);
+  color: var(--muted);
+}
+
+.nav__tab[aria-current="page"] { color: var(--accent); }
+
+/* ---------- language sheet ---------- */
+
+.sheet-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  background: var(--scrim);
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity var(--t-slide), visibility var(--t-slide);
+}
+
+.sheet {
+  position: fixed;
+  inset-block-end: 0;
+  inset-inline: 0;
+  z-index: 31;
+  max-width: var(--page-max);
+  margin-inline: auto;
+  background: var(--surface);
+  border-start-start-radius: var(--r-sheet);
+  border-start-end-radius: var(--r-sheet);
+  padding: var(--s-5) var(--s-4) calc(var(--s-5) + env(safe-area-inset-bottom));
+  transform: translateY(100%);
+  transition: transform var(--t-slide);
+}
+
+.sheet[data-open="true"] { transform: translateY(0); }
+.sheet-scrim[data-open="true"] { opacity: 1; visibility: visible; }
+
+.sheet__title {
+  font-family: var(--font-head);
+  font-size: var(--fs-md);
+  font-weight: var(--fw-bold);
+  margin-bottom: var(--s-4);
+}
+
+.lang {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3);
+  padding: 14px var(--s-3);
+  border-radius: var(--r-field);
+  text-align: start;
+  font-size: var(--fs-md);
+}
+
+.lang + .lang { margin-top: var(--s-2); }
+.lang[aria-current="true"] { background: var(--surface-2); color: var(--accent); font-weight: var(--fw-bold); }
+.lang[disabled] { color: var(--muted); }
+.lang__soon { font-size: var(--fs-xs); color: var(--muted); }
+
+/* ---------- motion preferences ---------- */
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* The whole card is tappable; the heart sits above the stretched link. */
+.card { position: relative; }
+
+.card__hit {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+}
+
+.card__heart { z-index: 2; }
+.card__media, .card__body { position: relative; }

@@ -1,0 +1,21 @@
+{
+  "name": "shop-web",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Shop Web — Kurdish (Sorani) social shopping app for sellers in Erbil",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "r2:create": "wrangler r2 bucket create shop-web-images",
+    "db:push": "supabase db push",
+    "db:diff": "supabase db diff",
+    "test:security": "node scripts/security-test.mjs"
+  },
+  "devDependencies": {
+    "wrangler": "^4.42.0"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.58.0"
+  }
+}
