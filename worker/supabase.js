@@ -90,3 +90,40 @@ function toCard(row) {
     shopLogo: row.shops?.logo_key ?? null,
   };
 }
+
+/* ---------------------------------------------------------------
+   Writes on behalf of a signed-in seller.
+   The seller's own access token is the bearer, so RLS applies as them
+   and the Worker never needs elevated credentials.
+   --------------------------------------------------------------- */
+
+export async function asUser(env, token, path, { method = 'GET', body, prefer, search } = {}) {
+  const url = new URL(`${env.SUPABASE_URL}/rest/v1/${path}`);
+  if (search) for (const [k, v] of Object.entries(search)) url.searchParams.set(k, v);
+
+  const headers = {
+    apikey: env.SUPABASE_PUBLISHABLE_KEY,
+    authorization: `Bearer ${token}`,
+    accept: 'application/json',
+  };
+  if (body !== undefined) headers['content-type'] = 'application/json';
+  if (prefer) headers.prefer = prefer;
+
+  const res = await fetch(url, {
+    method,
+    headers,
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
+
+  const text = await res.text();
+  let data = null;
+  try { data = text ? JSON.parse(text) : null; } catch { data = { raw: text }; }
+
+  return { ok: res.ok, status: res.status, data };
+}
+
+/** Public RPC: is this slug free? Answers without exposing the shops table. */
+export async function slugAvailable(env, slug) {
+  const rows = await get(env, 'rpc/slug_available', { p_slug: slug });
+  return rows?.[0] ?? { available: false, reason: 'format' };
+}

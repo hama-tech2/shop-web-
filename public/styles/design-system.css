@@ -92,6 +92,10 @@ h1, h2, h3 {
 
 img { display: block; max-width: 100%; }
 
+/* `img { display: block }` above outranks the UA rule for [hidden],
+   so restore it explicitly or hidden images still paint. */
+[hidden] { display: none !important; }
+
 a { color: inherit; text-decoration: none; }
 
 button,

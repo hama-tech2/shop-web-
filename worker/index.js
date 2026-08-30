@@ -11,6 +11,9 @@ import { getCategories, getFeed } from './supabase.js';
 import { cardsFragment, feedHtml, feedTitle } from './render/feed.js';
 import { layout } from './render/layout.js';
 import { APP_TAGLINE } from './config.js';
+import * as authRoutes from './routes/auth.js';
+import * as onboarding from './routes/onboarding.js';
+import { appGet } from './routes/app.js';
 
 const IMG_CACHE = 'public, max-age=31536000, immutable';
 const HTML_CACHE = 'public, max-age=0, s-maxage=60, stale-while-revalidate=300';
@@ -19,10 +22,65 @@ export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
 
+    const method = request.method.toUpperCase();
+    const path = url.pathname.replace(/\/+$/, '') || '/';
+
     try {
-      if (url.pathname.startsWith('/img/')) return serveImage(request, env, url);
-      if (url.pathname === '/api/feed') return feedFragment(env, url);
-      if (url.pathname === '/') return feedPage(env, url);
+      if (path.startsWith('/img/')) return serveImage(request, env, url);
+      if (path === '/api/feed') return feedFragment(env, url);
+      if (path === '/api/slug-check') return onboarding.slugCheck(env, url);
+      if (path === '/') return feedPage(env, url);
+
+      // ---- auth ----
+      if (path === '/signup') {
+        return method === 'POST'
+          ? authRoutes.signupPost(request, env)
+          : authRoutes.signupGet(request, url);
+      }
+      if (path === '/login') {
+        return method === 'POST'
+          ? authRoutes.loginPost(request, env)
+          : authRoutes.loginGet(request, url);
+      }
+      if (path === '/logout' && method === 'POST') return authRoutes.logoutPost(request, env);
+      if (path === '/auth/google') return authRoutes.googleStart(request, env, url);
+      if (path === '/auth/callback') return authRoutes.authCallback(request, env, url);
+      if (path === '/forgot') {
+        return method === 'POST'
+          ? authRoutes.forgotPost(request, env, url)
+          : authRoutes.forgotGet();
+      }
+      if (path === '/reset') {
+        return method === 'POST'
+          ? authRoutes.resetPost(request, env)
+          : authRoutes.resetGet(request, env);
+      }
+
+      // ---- onboarding wizard ----
+      if (path === '/onboarding') {
+        return method === 'POST'
+          ? onboarding.namePost(request, env)
+          : onboarding.nameGet(request, env);
+      }
+      if (path === '/onboarding/name' && method === 'POST') return onboarding.namePost(request, env);
+      if (path === '/onboarding/slug') {
+        return method === 'POST'
+          ? onboarding.slugPost(request, env, url)
+          : onboarding.slugGet(request, env, url);
+      }
+      if (path === '/onboarding/contact') {
+        return method === 'POST'
+          ? onboarding.contactPost(request, env)
+          : onboarding.contactGet(request, env);
+      }
+      if (path === '/onboarding/logo') {
+        return method === 'POST'
+          ? onboarding.logoPost(request, env)
+          : onboarding.logoGet(request, env);
+      }
+
+      // ---- protected seller area ----
+      if (path === '/app' || path.startsWith('/app/')) return appGet(request, env, url);
     } catch (err) {
       return new Response(`error: ${err.message}`, {
         status: 502,

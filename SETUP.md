@@ -114,3 +114,70 @@ Nothing deletes from R2 inline. Deleting a product, an image row, or a shop
 enqueues the object keys into `deleted_objects`. A Worker cron drains that
 queue with the `IMAGES` binding (later session). `deleted_objects` has RLS on,
 no policies, and no grants — service_role only.
+
+---
+
+# Supabase Auth — settings you must change yourself
+
+The code cannot set these; they live in the Supabase dashboard. Project is
+**shop web** (`kvwgiobnpwrjwyevadvc`).
+
+Replace `SITE` below with your deployed Worker origin, e.g.
+`https://shop-web.<your-subdomain>.workers.dev`. Everything else is literal.
+
+## 1. Authentication → URL Configuration
+
+| Field | Value to paste |
+| --- | --- |
+| Site URL | `SITE` |
+| Redirect URLs | `SITE/auth/callback` |
+| Redirect URLs (add a second) | `http://localhost:8787/auth/callback` |
+
+The second one is for `wrangler dev`. Supabase rejects any `redirect_to`
+that is not on this list, so Google sign-in and the password-reset link
+both fail without it.
+
+## 2. Authentication → Sign In / Providers → Email
+
+| Setting | Value |
+| --- | --- |
+| Enable email provider | **on** |
+| Confirm email | **off** — signup stays one step, as decided |
+| Minimum password length | **8** — matches the check in the forms |
+| Enable email signup | **on** |
+
+## 3. Authentication → Sign In / Providers → Google
+
+Turn the provider **on**, then paste the two values from Google Cloud
+Console → APIs & Services → Credentials → OAuth 2.0 Client ID (type:
+Web application):
+
+- Client ID
+- Client Secret
+
+Then, **in Google Cloud Console**, on that same OAuth client:
+
+| Google field | Value to paste |
+| --- | --- |
+| Authorized JavaScript origins | `https://kvwgiobnpwrjwyevadvc.supabase.co` |
+| Authorized redirect URIs | `https://kvwgiobnpwrjwyevadvc.supabase.co/auth/v1/callback` |
+
+That redirect URI is Supabase's, not ours — Google returns to Supabase,
+Supabase returns to `SITE/auth/callback`. Getting this one wrong is the
+usual cause of `redirect_uri_mismatch`.
+
+## 4. Email delivery (before real sellers use it)
+
+Password reset goes out over Supabase's built-in SMTP, which is rate
+limited to a handful of messages an hour and is meant for testing. Before
+launch, set a real sender under **Project Settings → Authentication →
+SMTP Settings** (Resend, Brevo, SendGrid — any of them). Until then,
+`/forgot` will work for you and then quietly start throttling.
+
+## 5. If auth calls return 401
+
+The Worker sends `SUPABASE_PUBLISHABLE_KEY` (the `sb_publishable_…` key) as
+the `apikey` header. If your project has not enabled the new API keys for
+Auth, swap that var in `wrangler.jsonc` for the legacy `anon` JWT key from
+Project Settings → API. Nothing else changes — both are public keys and
+RLS is what protects the data either way.
