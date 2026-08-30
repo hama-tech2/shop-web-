@@ -50,6 +50,7 @@ export function layout({
     `<link rel="stylesheet" href="/styles/product.css">` +
     `<link rel="stylesheet" href="/styles/shop.css">` +
     `<link rel="stylesheet" href="/styles/account.css">` +
+    `<link rel="stylesheet" href="/styles/admin.css">` +
     `</head>` +
     `<body>${body}` +
     scripts.map((src) => `<script src="${esc(src)}" defer></script>`).join('') +

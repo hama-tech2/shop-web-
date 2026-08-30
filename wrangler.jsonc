@@ -25,6 +25,13 @@
     }
   ],
 
+  // The nightly sweep: drains the R2 delete queue, removes draft
+  // uploads whose product was never saved, and expires lapsed
+  // subscriptions. 02:00 UTC is 05:00 in Erbil — the quietest hour.
+  "triggers": {
+    "crons": ["0 2 * * *"]
+  },
+
   "observability": { "enabled": true },
 
   // Public values only. The Supabase publishable key is safe in the

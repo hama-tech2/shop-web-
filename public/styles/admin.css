@@ -1,0 +1,219 @@
+/* ============================================================
+   Shop Web — /admin.
+
+   A work surface, not a shop window: denser than the rest of the app,
+   same tokens, no new colours except the three status tints.
+   ============================================================ */
+
+.adm {
+  max-width: 720px;
+  margin-inline: auto;
+  padding: var(--s-4) var(--s-4) 64px;
+}
+
+.adm__head { margin-bottom: var(--s-4); }
+.adm__title { font-size: var(--fs-xl); }
+
+.adm-h1 { font-size: var(--fs-lg); margin: var(--s-5) 0 var(--s-2); }
+.adm-h2 {
+  font-size: var(--fs-md);
+  color: var(--muted);
+  margin: var(--s-6) 0 var(--s-3);
+}
+
+/* ---------- tabs ---------- */
+
+.adm-tabs {
+  display: flex;
+  gap: var(--s-2);
+  overflow-x: auto;
+  scrollbar-width: none;
+  margin-bottom: var(--s-4);
+}
+.adm-tabs::-webkit-scrollbar { display: none; }
+
+.adm-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  flex: 0 0 auto;
+  padding: 10px var(--s-4);
+  border-radius: var(--r-pill);
+  background: var(--surface-2);
+  color: var(--text);
+  font-size: var(--fs-sm);
+  text-decoration: none;
+}
+.adm-tab.is-on { background: var(--accent); color: #fff; }
+
+.adm-tab__n {
+  background: rgba(0, 0, 0, .12);
+  border-radius: var(--r-pill);
+  padding: 1px 7px;
+  font-size: var(--fs-xs);
+}
+.adm-tab.is-on .adm-tab__n { background: rgba(255, 255, 255, .22); }
+
+/* ---------- stats ---------- */
+
+.adm-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--s-2);
+}
+
+.adm-stat {
+  background: var(--surface);
+  border-radius: var(--r-card);
+  padding: var(--s-3);
+  text-align: center;
+}
+.adm-stat__n {
+  font-family: var(--font-head);
+  font-weight: var(--fw-bold);
+  font-size: var(--fs-lg);
+  direction: ltr;
+}
+.adm-stat__l { color: var(--muted); font-size: var(--fs-xs); margin-top: 2px; }
+
+/* ---------- search + filters ---------- */
+
+/* .btn is width:100% app-wide. In an action row the buttons sit side
+   by side, so there — and only there — they size to their label. */
+.adm-actions .btn,
+.adm-search .btn { width: auto; min-height: 44px; }
+
+.adm-search {
+  display: flex;
+  gap: var(--s-2);
+  margin-bottom: var(--s-3);
+}
+.adm-search .field__input { flex: 1 1 auto; min-width: 0; }
+.adm-search .btn { flex: 0 0 auto; padding-inline: var(--s-5); }
+
+.adm-chips {
+  display: flex;
+  gap: var(--s-2);
+  overflow-x: auto;
+  scrollbar-width: none;
+  margin-bottom: var(--s-3);
+}
+.adm-chips::-webkit-scrollbar { display: none; }
+
+/* ---------- rows ---------- */
+
+.adm-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--s-3);
+  background: var(--surface);
+  border-radius: var(--r-card);
+  padding: var(--s-3) var(--s-4);
+  margin-bottom: var(--s-2);
+  color: var(--text);
+  text-decoration: none;
+}
+
+.adm-row__main { min-width: 0; }
+.adm-row__name {
+  font-family: var(--font-head);
+  font-weight: var(--fw-bold);
+  font-size: var(--fs-md);
+}
+
+/* A slug and an email are latin: without their own direction the
+   leading "/@" and the "-" jump to the wrong end. */
+.ltr,
+.adm-row__slug { direction: ltr; text-align: start; unicode-bidi: isolate; }
+
+.adm-row__slug { color: var(--muted); font-size: var(--fs-sm); }
+.adm-row__meta { color: var(--muted); font-size: var(--fs-xs); margin-top: 2px; }
+
+/* The side column sits at the page's far edge, so it aligns to that
+   edge — `end`, which is the left in an RTL page. */
+.adm-row__side { text-align: end; flex: 0 0 auto; }
+.adm-row__days { font-size: var(--fs-sm); margin-top: var(--s-1); }
+.adm-late { color: #A2402F; }
+
+/* ---------- status pills ---------- */
+
+.adm-pill {
+  display: inline-block;
+  border-radius: var(--r-pill);
+  padding: 3px 10px;
+  font-size: var(--fs-xs);
+}
+.adm-pill--ok   { background: #E4EFE9; color: var(--accent); }
+.adm-pill--warn { background: #F3EBD8; color: #7A5B12; }
+.adm-pill--bad  { background: #F5E3DF; color: #A2402F; }
+.adm-pill--off  { background: var(--surface-2); color: var(--muted); }
+
+/* ---------- cards, forms, actions ---------- */
+
+.adm-card {
+  background: var(--surface);
+  border-radius: var(--r-card);
+  padding: var(--s-4);
+  margin-bottom: var(--s-3);
+}
+.adm-card .btn { margin-top: var(--s-3); }
+.adm-card .field__input { width: 100%; }
+
+.adm-line {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--s-3);
+  padding: 7px 0;
+  font-size: var(--fs-sm);
+}
+.adm-line__l { color: var(--muted); }
+.adm-line__v { text-align: start; }
+
+.adm-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-2);
+  margin-bottom: var(--s-4);
+}
+.adm-actions .btn { margin-top: 0; }
+.adm-actions form { margin: 0; }
+.adm-actions .btn--danger { background: #F5E3DF; }
+
+.adm-intent__shop {
+  font-family: var(--font-head);
+  font-weight: var(--fw-bold);
+  font-size: var(--fs-md);
+  color: var(--text);
+  text-decoration: none;
+}
+.adm-intent__line { font-size: var(--fs-sm); margin-top: var(--s-2); }
+.adm-intent__line a { color: var(--accent); }
+.adm-report__details {
+  font-size: var(--fs-sm);
+  color: var(--muted);
+  margin-top: var(--s-2);
+  white-space: pre-wrap;
+}
+.adm-intent .adm-actions { margin: var(--s-3) 0 0; }
+
+.adm-back,
+.adm-more {
+  display: inline-block;
+  color: var(--accent);
+  font-size: var(--fs-sm);
+  text-decoration: none;
+  margin-bottom: var(--s-3);
+}
+
+.adm-empty {
+  color: var(--muted);
+  font-size: var(--fs-sm);
+  padding: var(--s-5) 0;
+  text-align: center;
+}
+
+@media (max-width: 380px) {
+  .adm-stats { grid-template-columns: repeat(2, 1fr); }
+}

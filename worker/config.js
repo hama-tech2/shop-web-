@@ -362,6 +362,109 @@ export const PLANS = [
 /** The number a seller reaches us on from the subscription page. */
 export const SUPPORT_WHATSAPP = '+9647500000000';
 
+/**
+ * The admin screen. Not linked from anywhere in the app — a seller who
+ * guesses the URL gets the same 404 as any other unknown path.
+ */
+export const ADMIN = {
+  title: 'بەڕێوەبردن',
+  overview: 'گشتی',
+  shops: 'دوکانەکان',
+  intents: 'داواکاری پارەدان',
+  reports: 'ڕاپۆرتەکان',
+  back: 'گەڕانەوە',
+  all: 'هەموو',
+
+  statShops: 'کۆی دوکانەکان',
+  statActive: 'چالاک',
+  statTrial: 'لە مانگی بەخۆڕایی',
+  statExpired: 'بەسەرچوو',
+  statSuspended: 'ڕاگیراو',
+  statProducts: 'کۆی بەرهەمەکان',
+  statIntents: 'داواکاری کراوە',
+  statReports: 'ڕاپۆرتی کراوە',
+
+  searchLabel: 'گەڕان',
+  searchPlaceholder: 'ناو، لینک یان ئیمەیڵ',
+  search: 'گەڕان',
+
+  colShop: 'دوکان',
+  colCity: 'شار',
+  colPlan: 'پلان',
+  colStatus: 'دۆخ',
+  colDays: 'ڕۆژی ماوە',
+  colProducts: 'بەرهەم',
+  colSignup: 'تۆمارکردن',
+
+  statusActive: 'چالاک',
+  statusTrial: 'بەخۆڕایی',
+  statusExpired: 'بەسەرچوو',
+  statusSuspended: 'ڕاگیراو',
+  statusBanned: 'قەدەغەکراو',
+  statusHidden: 'شاراوە',
+
+  // The number is isolated LTR and the unit stays RTL beside it —
+  // one string carrying both flips the two around.
+  dayUnit: 'ڕۆژ',
+  dayUnitOver: 'ڕۆژ بەسەرچووە',
+
+  shopsEmpty: 'هیچ دوکانێک نەدۆزرایەوە.',
+
+  intentsTitle: 'داواکاری پارەدانی کراوە',
+  intentsEmpty: 'هیچ داواکارییەکی کراوە نییە.',
+  intentPlan: 'پلان',
+  intentAmount: 'بڕ',
+  intentDate: 'بەروار',
+  intentWhatsapp: 'واتساپ',
+  intentActivate: 'چالاککردنی پلان',
+  intentConfirm: 'دڵنیایت؟ پلانەکە چالاک دەکرێت و داواکارییەکە دەبێتە پارەدراو.',
+  intentDone: 'پلانەکە چالاک کرا.',
+  intentFailed: 'چالاککردن سەرکەوتوو نەبوو.',
+
+  detailTitle: 'دوکان',
+  owner: 'خاوەن',
+  signedUp: 'تۆمارکراوە',
+  viewShop: 'بینینی دوکان',
+  suspend: 'ڕاگرتنی دوکان',
+  unsuspend: 'کردنەوەی دوکان',
+  suspendConfirm: 'دڵنیایت؟ دوکانەکە بۆ گشت پەڕەکان دەشاردرێتەوە.',
+  expiryTitle: 'بەرواری کۆتایی',
+  expiryLabel: 'بەرواری نوێ',
+  expirySave: 'پاشەکەوتکردن',
+  expiryHint: 'دەستکاری بە دەست. لە audit_log تۆمار دەکرێت.',
+  notesTitle: 'تێبینی',
+  notesPlaceholder: 'تێبینی ناوخۆیی. فرۆشیار نایبینێت.',
+  notesSave: 'پاشەکەوتکردن',
+  productsTitle: 'بەرهەمەکان',
+  productsEmpty: 'هیچ بەرهەمێک نییە.',
+  saved: 'پاشەکەوت کرا',
+
+  reportsTitle: 'ڕاپۆرتەکان',
+  reportsEmpty: 'هیچ ڕاپۆرتێکی کراوە نییە.',
+  reportReason: 'هۆکار',
+  reportTarget: 'ڕاپۆرتکراو',
+  reportHide: 'شاردنەوەی بەرهەم',
+  reportDismiss: 'پشتگوێخستن',
+  reportHideConfirm: 'بەرهەمەکە بشاردرێتەوە؟',
+};
+
+/** Report reasons, as the queue shows them. */
+export const REPORT_REASONS = {
+  fake: 'ساختە',
+  scam: 'فێڵ',
+  offensive: 'ناشیرین',
+  stolen_photos: 'وێنەی دزراو',
+  wrong_price: 'نرخی هەڵە',
+  other: 'ئەوانی تر',
+};
+
+/** Plan keys as they appear in the database. */
+export const PLAN_LABEL = {
+  trial: 'بەخۆڕایی',
+  months_6: '٦ مانگ',
+  year_1: '١ ساڵ',
+};
+
 /** Profile image variants. One size each — a banner needs no thumbnail. */
 export const PROFILE_VARIANTS = {
   banner: { width: 1200, height: 450, quality: 0.8,  ratio: 450 / 1200 },

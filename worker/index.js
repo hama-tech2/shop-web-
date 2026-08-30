@@ -17,6 +17,8 @@ import { appGet } from './routes/app.js';
 import * as products from './routes/products.js';
 import { productGet, shopGet } from './routes/shop.js';
 import * as account from './routes/account.js';
+import * as admin from './routes/admin.js';
+import { scheduled } from './cron.js';
 
 const IMG_CACHE = 'public, max-age=31536000, immutable';
 const HTML_CACHE = 'public, max-age=0, s-maxage=60, stale-while-revalidate=300';
@@ -40,8 +42,13 @@ export default {
       );
       if (shopPath) {
         return shopPath[2]
-          ? productGet(env, url, shopPath[1], shopPath[2])
-          : shopGet(env, url, shopPath[1]);
+          ? productGet(request, env, url, shopPath[1], shopPath[2], ctx)
+          : shopGet(request, env, url, shopPath[1], ctx);
+      }
+
+      // ---- admin (404s for everybody else) ----
+      if (path === '/admin' || path.startsWith('/admin/')) {
+        return adminRoute(request, env, url, path, method);
       }
 
       // ---- auth ----
@@ -158,7 +165,47 @@ export default {
 
     return env.ASSETS.fetch(request);
   },
+
+  scheduled,
 };
+
+/**
+ * Every /admin path, including one that matches nothing, ends at the
+ * same guard — so an unknown admin path and an unauthorised one are the
+ * same 404, and neither confirms that /admin exists.
+ */
+function adminRoute(request, env, url, path, method) {
+  if (method === 'GET') {
+    if (path === '/admin') return admin.homeGet(request, env);
+    if (path === '/admin/shops') return admin.shopsGet(request, env, url);
+    if (path === '/admin/intents') return admin.intentsGet(request, env);
+    if (path === '/admin/reports') return admin.reportsGet(request, env);
+
+    const shop = path.match(/^\/admin\/shops\/([0-9a-f-]{36})$/i);
+    if (shop) return admin.shopGet(request, env, url, shop[1]);
+  }
+
+  if (method === 'POST') {
+    const shop = path.match(/^\/admin\/shops\/([0-9a-f-]{36})\/(status|expiry|note)$/i);
+    if (shop) {
+      if (shop[2] === 'status') return admin.shopStatusPost(request, env, shop[1]);
+      if (shop[2] === 'expiry') return admin.shopExpiryPost(request, env, shop[1]);
+      return admin.shopNotePost(request, env, shop[1]);
+    }
+
+    const intent = path.match(/^\/admin\/intents\/([0-9a-f-]{36})\/activate$/i);
+    if (intent) return admin.intentActivatePost(request, env, intent[1]);
+
+    const report = path.match(/^\/admin\/reports\/([0-9a-f-]{36})\/(hide|dismiss)$/i);
+    if (report) {
+      return report[2] === 'hide'
+        ? admin.reportHidePost(request, env, report[1])
+        : admin.reportDismissPost(request, env, report[1]);
+    }
+  }
+
+  return env.ASSETS.fetch(request);
+}
 
 const redirectTo = (location) =>
   new Response(null, { status: 303, headers: { location, 'cache-control': 'no-store' } });

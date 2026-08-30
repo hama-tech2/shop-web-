@@ -111,9 +111,53 @@ select public.admin_apply_payment('<shop_id>', 'months_6', 50000, 'fib');  -- am
 ## R2 deletes
 
 Nothing deletes from R2 inline. Deleting a product, an image row, or a shop
-enqueues the object keys into `deleted_objects`. A Worker cron drains that
-queue with the `IMAGES` binding (later session). `deleted_objects` has RLS on,
-no policies, and no grants — service_role only.
+enqueues the object keys into `deleted_objects`. The cron below drains that
+queue with the `IMAGES` binding. `deleted_objects` has RLS on, no policies,
+and no grants — service_role only.
+
+## The admin screen
+
+`/admin` is visible only to a user with a row in `admins`. Anyone else — a
+signed-out visitor or an ordinary seller — gets the same 404 as any unknown
+path; there is no redirect and no link to it anywhere in the app.
+
+It shows the merchant list (search + filter by status), open payment intents
+with a one-click activate, a shop detail page (suspend / reopen, manual expiry
+override, admin-only notes, that shop's products), and the reports queue.
+Every write lands in `audit_log` through the table triggers.
+
+Admin-only notes live in `shop_notes`, not on `shops`: anon can select every
+column of a publicly visible shop, so a note column there would be public.
+
+## The cron
+
+`wrangler.jsonc` sets one trigger, `0 2 * * *` (05:00 in Erbil). Each run:
+
+1. drains `deleted_objects` — up to 200 keys, five attempts each;
+2. deletes draft uploads older than 24 hours whose product row never existed
+   (`/app/new` mints the product id before the row, so an abandoned form
+   leaves objects behind);
+3. calls `expire_lapsed_subscriptions()` and prunes `view_dedupe`.
+
+It needs the service_role key, which is the only place in the codebase that
+uses it:
+
+```sh
+npx wrangler secret put SUPABASE_SERVICE_ROLE_KEY
+npx wrangler secret put VIEW_SALT      # any long random string
+```
+
+Run it by hand against the deployed Worker with
+`npx wrangler dev --test-scheduled` then `curl "http://localhost:8787/__scheduled"`.
+
+## View counting
+
+`/@slug` and `/@slug/p/<id>` call `record_view()` after the response is sent.
+The IP never reaches the database: the Worker sends `sha256(ip|date|VIEW_SALT)`,
+and `record_view` refuses a token under 16 characters, counts one token once
+per target per day (`view_dedupe`), and ignores anything not publicly visible.
+`VIEW_SALT` is optional — without it the salt falls back to `SUPABASE_URL`,
+which still works but is guessable.
 
 ---
 

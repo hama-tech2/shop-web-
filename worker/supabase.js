@@ -206,6 +206,54 @@ export async function getMoreFromShop(env, shopId, excludeId, limit = 6) {
   return rows.map(toCard);
 }
 
+/* ---------------------------------------------------------------
+   view counting
+   --------------------------------------------------------------- */
+
+/**
+ * An opaque per-visitor, per-day token.
+ *
+ * The IP never leaves the Worker: what goes to the database is a hash
+ * of it with the date and a salt, so the counter can tell one visitor
+ * from another without storing anything that identifies them, and a
+ * token stops being usable at midnight.
+ */
+export async function viewToken(request, env) {
+  const ip =
+    request.headers.get('cf-connecting-ip') ||
+    request.headers.get('x-forwarded-for') ||
+    '';
+  if (!ip) return null;
+
+  const salt = env.VIEW_SALT || env.SUPABASE_URL || '';
+  const day = new Date().toISOString().slice(0, 10);
+  const digest = await crypto.subtle.digest(
+    'SHA-256',
+    new TextEncoder().encode(`${ip}|${day}|${salt}`),
+  );
+  return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, '0')).join('');
+}
+
+/**
+ * Count one page view. Fire-and-forget: a counter is never a reason to
+ * make a seller's page slower, or to fail it.
+ *
+ * The rate limiting is the database's job — record_view ignores a
+ * repeat token, a missing one, and anything not publicly visible.
+ */
+export async function recordView(env, { shop = null, product = null, token }) {
+  if (!token) return;
+  try {
+    await fetch(`${env.SUPABASE_URL}/rest/v1/rpc/record_view`, {
+      method: 'POST',
+      headers: { ...headers(env), 'content-type': 'application/json' },
+      body: JSON.stringify({ p_shop: shop, p_product: product, p_token: token }),
+    });
+  } catch {
+    /* a lost view is not worth an error page */
+  }
+}
+
 /** A shop's own categories, for the chips on its public page. */
 export async function getShopCategories(env, shopId) {
   return get(env, 'categories', {

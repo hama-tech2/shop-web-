@@ -13,7 +13,7 @@ import { shopDescription, shopNotFound, shopPage } from '../render/shop.js';
 import { productDescription, productPage } from '../render/product-page.js';
 import {
   getCategories, getMoreFromShop, getProduct, getShopCategories,
-  getShopProducts, getShopProfile,
+  getShopProducts, getShopProfile, recordView, viewToken,
 } from '../supabase.js';
 
 const PUBLIC_CACHE = 'public, max-age=0, s-maxage=120, stale-while-revalidate=600';
@@ -53,9 +53,22 @@ const notFound = () =>
    /@slug
    ============================================================ */
 
-export async function shopGet(env, url, slug) {
+/**
+ * Counting happens after the response is on its way, so a slow write
+ * never delays the page. `record_view` drops a repeat token itself.
+ */
+function count(request, env, ctx, target) {
+  if (!ctx?.waitUntil) return;
+  ctx.waitUntil(
+    viewToken(request, env).then((token) => recordView(env, { ...target, token })),
+  );
+}
+
+export async function shopGet(request, env, url, slug, ctx) {
   const shop = await getShopProfile(env, slug);
   if (!shop) return notFound();
+
+  count(request, env, ctx, { shop: shop.id });
 
   // A chip key is either a platform slug or "c<uuid>" for one of the
   // seller's own categories.
@@ -101,7 +114,7 @@ export async function shopGet(env, url, slug) {
    /@slug/p/<id>
    ============================================================ */
 
-export async function productGet(env, url, slug, id) {
+export async function productGet(request, env, url, slug, id, ctx) {
   const shop = await getShopProfile(env, slug);
   if (!shop) return notFound();
 
@@ -111,6 +124,8 @@ export async function productGet(env, url, slug, id) {
   if (!product || product.shop?.slug?.toLowerCase() !== slug.toLowerCase()) {
     return notFound();
   }
+
+  count(request, env, ctx, { product: product.id });
 
   const more = await getMoreFromShop(env, product.shop.id, product.id);
   const ogKey = product.images[0]?.full || product.images[0]?.card || shop.cover_key || null;
