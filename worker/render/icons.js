@@ -70,3 +70,16 @@ export const iconFacebook = (s = 18) =>
     '<path d="M22 12a10 10 0 1 0-11.6 9.9v-7H7.9V12h2.5V9.8c0-2.5 1.5-3.9 3.8-3.9a15 15 0 0 1 2.2.2v2.5h-1.2c-1.2 0-1.6.8-1.6 1.6V12h2.7l-.4 2.9h-2.3v7A10 10 0 0 0 22 12Z"/>',
     s,
   );
+
+export const iconCamera = (s = 20) =>
+  svg('<path d="M4 8.5h3l1.4-2h7.2L17 8.5h3v10H4z"/><circle cx="12" cy="13" r="3.2"/>', s);
+
+export const iconCheck = (s = 16) => svg('<path d="m5 12.5 4.5 4.5L19 7.5"/>', s);
+export const iconGift = (s = 20) =>
+  svg('<path d="M4 11h16v9H4zM3 7.5h18V11H3z"/><path d="M12 7.5V20"/>' +
+      '<path d="M12 7.5S10.6 4 8.6 4a2 2 0 0 0 0 3.5Zm0 0S13.4 4 15.4 4a2 2 0 0 1 0 3.5Z"/>', s);
+export const iconPlus = (s = 20) => svg('<path d="M12 5v14M5 12h14"/>', s);
+export const iconTrash = (s = 18) =>
+  svg('<path d="M5 7h14M9.5 7V5h5v2M6.5 7l.8 12h9.4l.8-12"/>', s);
+export const iconArrowUp = (s = 18) => svg('<path d="M12 19V6M6 12l6-6 6 6"/>', s);
+export const iconArrowDown = (s = 18) => svg('<path d="M12 5v13M6 12l6 6 6-6"/>', s);

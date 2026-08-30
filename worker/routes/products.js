@@ -20,7 +20,7 @@ import { redirect } from './auth.js';
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 const PRODUCT_SELECT =
-  'id,title,price,description,status,platform_category_id,created_at,' +
+  'id,title,price,description,status,platform_category_id,category_id,created_at,' +
   'product_images(r2_key,r2_key_full,position)';
 
 function page(body, title, headers) {
@@ -29,7 +29,7 @@ function page(body, title, headers) {
   h.set('cache-control', 'no-store');
   return new Response(
     layout({ title: `${title} — ${APP_NAME}`, description: APP_NAME, body,
-             scripts: ['/js/product.js'] }),
+             scripts: ['/js/crop.js', '/js/product.js'] }),
     { headers: h },
   );
 }
@@ -162,6 +162,15 @@ async function categoryIdFor(env, slug) {
   return categories.find((c) => c.slug === slug)?.id ?? null;
 }
 
+/** The seller's own categories, for the picker on the form. */
+async function ownCategories(env, token, shopId) {
+  const res = await asUser(env, token, 'categories', {
+    search: { select: 'id,name', shop_id: `eq.${shopId}`,
+              order: 'sort_order.asc,name.asc', limit: '20' },
+  });
+  return res.ok ? res.data ?? [] : [];
+}
+
 async function readForm(request, env, shopId, productId) {
   const f = await form(request);
   const images = cleanImages(f.images, shopId, productId);
@@ -173,6 +182,7 @@ async function readForm(request, env, shopId, productId) {
     description: (f.description || '').trim(),
     category: f.category || '',
     status: f.status === 'hidden' ? 'hidden' : 'active',
+    ownCategory: UUID.test(String(f.own_category || '')) ? f.own_category : '',
     images: images || [],
   };
 
@@ -190,6 +200,10 @@ async function readForm(request, env, shopId, productId) {
       description: values.description || null,
       status: values.status,
       platform_category_id: await categoryIdFor(env, values.category),
+      // A category belonging to another shop is rejected by the
+      // products_category_same_shop trigger, so an id from the form is
+      // safe to pass straight through.
+      category_id: values.ownCategory || null,
     },
     images,
   };
@@ -208,6 +222,7 @@ export async function newGet(request, env) {
       mode: 'new',
       draftId: crypto.randomUUID(),
       categories: await getCategories(env),
+      shopCategories: await ownCategories(env, g.token, g.shop.id),
       values: { status: 'active', images: [] },
     }),
     T.newTitle, g.headers,
@@ -228,7 +243,9 @@ export async function newPost(request, env) {
 
   if (parsed.error) {
     return page(
-      productForm({ mode: 'new', draftId, categories, values: parsed.values, error: parsed.error }),
+      productForm({ mode: 'new', draftId, categories,
+                    shopCategories: await ownCategories(env, g.token, g.shop.id),
+                    values: parsed.values, error: parsed.error }),
       T.newTitle, g.headers,
     );
   }
@@ -241,7 +258,9 @@ export async function newPost(request, env) {
 
   if (!created.ok) {
     return page(
-      productForm({ mode: 'new', draftId, categories, values: parsed.values, error: T.errSave }),
+      productForm({ mode: 'new', draftId, categories,
+                    shopCategories: await ownCategories(env, g.token, g.shop.id),
+                    values: parsed.values, error: T.errSave }),
       T.newTitle, g.headers,
     );
   }
@@ -272,6 +291,7 @@ async function loadProduct(env, token, id) {
 }
 
 const toValues = (product, categories) => ({
+  ownCategory: product.category_id ?? '',
   title: product.title,
   price: String(product.price ?? ''),
   description: product.description ?? '',
@@ -293,7 +313,9 @@ export async function editGet(request, env, id) {
 
   const categories = await getCategories(env);
   return page(
-    productForm({ mode: 'edit', draftId: id, categories, values: toValues(product, categories) }),
+    productForm({ mode: 'edit', draftId: id, categories,
+                  shopCategories: await ownCategories(env, g.token, g.shop.id),
+                  values: toValues(product, categories) }),
     T.editTitle, g.headers,
   );
 }
@@ -309,7 +331,9 @@ export async function editPost(request, env, id) {
 
   if (parsed.error) {
     return page(
-      productForm({ mode: 'edit', draftId: id, categories, values: parsed.values, error: parsed.error }),
+      productForm({ mode: 'edit', draftId: id, categories,
+                    shopCategories: await ownCategories(env, g.token, g.shop.id),
+                    values: parsed.values, error: parsed.error }),
       T.editTitle, g.headers,
     );
   }
@@ -321,7 +345,9 @@ export async function editPost(request, env, id) {
   });
   if (!updated.ok) {
     return page(
-      productForm({ mode: 'edit', draftId: id, categories, values: parsed.values, error: T.errSave }),
+      productForm({ mode: 'edit', draftId: id, categories,
+                    shopCategories: await ownCategories(env, g.token, g.shop.id),
+                    values: parsed.values, error: T.errSave }),
       T.editTitle, g.headers,
     );
   }

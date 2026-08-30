@@ -16,6 +16,7 @@ import * as onboarding from './routes/onboarding.js';
 import { appGet } from './routes/app.js';
 import * as products from './routes/products.js';
 import { productGet, shopGet } from './routes/shop.js';
+import * as account from './routes/account.js';
 
 const IMG_CACHE = 'public, max-age=31536000, immutable';
 const HTML_CACHE = 'public, max-age=0, s-maxage=60, stale-while-revalidate=300';
@@ -89,6 +90,39 @@ export default {
         return method === 'POST'
           ? onboarding.logoPost(request, env)
           : onboarding.logoGet(request, env);
+      }
+
+      // ---- account screens (before the /app catch-all) ----
+      if (path === '/app/profile') {
+        return method === 'POST'
+          ? account.profilePost(request, env, url)
+          : account.profileGet(request, env, url);
+      }
+      if (path === '/app/profile/image' && method === 'POST') {
+        return account.profileImagePost(request, env);
+      }
+      if (path === '/app/categories') return account.categoriesGet(request, env, url);
+      if (path === '/app/categories/add' && method === 'POST') {
+        return account.categoryAddPost(request, env);
+      }
+
+      const category = path.match(
+        /^\/app\/categories\/([0-9a-f-]{36})(\/delete|\/move)?$/i,
+      );
+      if (category && method === 'POST') {
+        const id = category[1];
+        if (category[2] === '/delete') return account.categoryDeletePost(request, env, id);
+        if (category[2] === '/move') return account.categoryMovePost(request, env, id);
+        return account.categoryRenamePost(request, env, id);
+      }
+
+      if (path === '/app/subscription') {
+        return method === 'POST'
+          ? account.subscriptionPost(request, env)
+          : account.subscriptionGet(request, env, url);
+      }
+      if (path === '/app/subscription/requested') {
+        return account.subscriptionRequestedGet(request, env, url);
       }
 
       // ---- products (must be matched before the /app catch-all) ----

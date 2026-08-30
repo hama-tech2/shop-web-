@@ -261,3 +261,109 @@ export const CITY_LABEL = {
   zakho: 'زاخۆ',
   other: '',
 };
+
+/** Profile, categories and subscription — the seller's account screens. */
+export const PROFILE = {
+  title: 'پرۆفایلی فرۆشیار',
+  save: 'پاشەکەوتکردن',
+  saving: 'پاشەکەوت دەکرێت…',
+  saved: 'پاشەکەوت کرا',
+
+  linkLabel: 'لینکی دوکانەکەت',
+  copy: 'کۆپی',
+  copied: 'کۆپی کرا',
+  viewShop: 'بینینی دوکانەکەم',
+
+  changeBanner: 'گۆڕینی بەنەر',
+  changeLogo: 'گۆڕینی لۆگۆ',
+
+  nameLabel: 'ناوی دوکان',
+  bioLabel: 'بایۆ',
+  bioPlaceholder: 'بە کورتی باسی دوکانەکەت بکە…',
+  cityLabel: 'شار',
+  whatsappLabel: 'ژمارەی واتساپ',
+  phoneLabel: 'ژمارەی تەلەفۆن',
+  socialLabel: 'سۆشیال',
+
+  errName: 'ناوی دوکان دەبێت لانیکەم ٢ پیت بێت.',
+  errWhatsapp: 'ژمارەی واتساپ بەم شێوەیە بنووسە: 07501234567',
+  errPhone: 'ژمارەی تەلەفۆن دروست نییە.',
+  errHandle: 'تەنها پیت، ژمارە، . و _ بەکاربهێنە.',
+  errImage: 'ناردنی وێنە سەرکەوتوو نەبوو.',
+  errType: 'تەنها JPG، PNG یان WebP.',
+};
+
+export const BIO_MAX = 120;
+
+export const CATEGORIES_UI = {
+  title: 'جۆرەکانی دوکانەکەم',
+  intro: 'جۆرەکانی خۆت دروست بکە. لە پەڕەی دوکانەکەت وەک چیپ دەردەکەون.',
+  nameLabel: 'ناوی جۆر',
+  placeholder: 'بۆ نموونە: عەتری ژنانە',
+  add: 'زیادکردن',
+  rename: 'گۆڕینی ناو',
+  remove: 'سڕینەوە',
+  up: 'بۆ سەرەوە',
+  down: 'بۆ خوارەوە',
+  save: 'پاشەکەوتکردن',
+  counter: (n, max) => `${n} / ${max}`,
+  removeConfirm: 'دڵنیایت؟ بەرهەمەکان ناسڕێنەوە، تەنها لەم جۆرە دەردەچن.',
+  emptyTitle: 'هێشتا هیچ جۆرێکت نییە',
+  emptyBody: 'یەکەم جۆرت زیاد بکە.',
+  errName: 'ناوێک بنووسە (١ بۆ ٦٠ پیت).',
+  errDuplicate: 'ئەم ناوە پێشتر هەیە.',
+  errLimit: 'تەنها ٢٠ جۆر هەتایە.',
+  productCategory: 'جۆری دوکانەکەت',
+  none: 'هیچ',
+};
+
+export const MAX_CATEGORIES = 20;
+
+export const SUBSCRIPTION = {
+  title: 'پلانی بەشداریکردن',
+  daysLeft: (n) => `تەنها ${n} ڕۆژ لە مانگی بەخۆڕایی ماوە`,
+  daysLeftOne: 'ڕۆژی کۆتایی مانگی بەخۆڕاییە',
+  expired: 'مانگی بەخۆڕایی تەواو بووە',
+  inGrace: (n) => `${n} ڕۆژ ماوە پێش ئەوەی بەرهەمەکانت بشاردرێنەوە`,
+  activeUntil: (d) => `چالاکە تا ${d}`,
+
+  best: 'باشترین نرخ',
+  perMonth: (n) => `${n} مانگانە`,
+  yearName: '١ ساڵ',
+  sixName: '٦ مانگ',
+  savings: 'لە بەرامبەر ٦ مانگ پاشەکەوت دەکەیت',
+
+  whatYouGet: 'چی وەردەگریت',
+  benefits: [
+    'تا ١٠٠٠ بەرهەم بەبێ سنوور',
+    'بەستەری تایبەت بۆ دوکانەکەت',
+    'دەرکەوتن لە بەشی بۆ تۆ',
+    'پشتگیری خێرا',
+  ],
+
+  offer: 'لە مانگی بەخۆڕاییدا پارە بدە و ٢ مانگی زیادە بەخۆڕایی وەربگرە',
+  pay: 'پارەدان',
+  payVia: 'پارەدان لە ڕێگەی FIB',
+  startFree: 'مانگی بەخۆڕاییەکەت بەکاربهێنە',
+
+  requestedTitle: 'داواکەت تۆمار کرا',
+  requestedBody: 'هێشتا پارەدانی ئۆتۆماتیکی نییە. تیمەکەمان لە ڕێگەی واتساپەوە پەیوەندیت پێوە دەکات بۆ تەواوکردنی پارەدان.',
+  requestedPlan: 'پلانی هەڵبژێردراو',
+  contactUs: 'پەیوەندیمان پێوە بکە',
+  backToPlans: 'گەڕانەوە بۆ پلانەکان',
+};
+
+/** Advertised prices. The monthly figure is display only. */
+export const PLANS = [
+  { key: 'year_1',   name: '١ ساڵ', amount: 90000, monthly: 7500, best: true  },
+  { key: 'months_6', name: '٦ مانگ', amount: 55000, monthly: 9200, best: false },
+];
+
+/** The number a seller reaches us on from the subscription page. */
+export const SUPPORT_WHATSAPP = '+9647500000000';
+
+/** Profile image variants. One size each — a banner needs no thumbnail. */
+export const PROFILE_VARIANTS = {
+  banner: { width: 1200, height: 450, quality: 0.8,  ratio: 450 / 1200 },
+  logo:   { width: 400,  height: 400, quality: 0.85, ratio: 1 },
+};

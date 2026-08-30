@@ -12,10 +12,12 @@ import { layout } from '../render/layout.js';
 import { shopDescription, shopNotFound, shopPage } from '../render/shop.js';
 import { productDescription, productPage } from '../render/product-page.js';
 import {
-  getCategories, getMoreFromShop, getProduct, getShopProducts, getShopProfile,
+  getCategories, getMoreFromShop, getProduct, getShopCategories,
+  getShopProducts, getShopProfile,
 } from '../supabase.js';
 
 const PUBLIC_CACHE = 'public, max-age=0, s-maxage=120, stale-while-revalidate=600';
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /** OG images must be absolute — a relative path is silently dropped. */
 const absolute = (origin, key) =>
@@ -55,17 +57,25 @@ export async function shopGet(env, url, slug) {
   const shop = await getShopProfile(env, slug);
   if (!shop) return notFound();
 
-  const categorySlug = url.searchParams.get('category') || null;
+  // A chip key is either a platform slug or "c<uuid>" for one of the
+  // seller's own categories.
+  const chipKey = url.searchParams.get('category') || null;
   const categories = await getCategories(env);
-  const categoryId = categorySlug
-    ? categories.find((c) => c.slug === categorySlug)?.id ?? null
+  const ownCategoryId = chipKey?.startsWith('c') && UUID.test(chipKey.slice(1))
+    ? chipKey.slice(1)
+    : null;
+  const categoryId = !ownCategoryId && chipKey
+    ? categories.find((c) => c.slug === chipKey)?.id ?? null
     : null;
 
   // Empty once the grace period is over — RLS sees to that — which is
   // exactly what the "not renewed" notice keys off.
-  const products = shop.products_visible
-    ? await getShopProducts(env, shop.id, categoryId)
-    : [];
+  const [products, shopCategories] = shop.products_visible
+    ? await Promise.all([
+        getShopProducts(env, shop.id, categoryId, ownCategoryId),
+        getShopCategories(env, shop.id),
+      ])
+    : [[], []];
 
   // The banner is the share image. Fall back to the logo, then to the
   // first product, so a link never previews as a bare text card.
@@ -75,7 +85,8 @@ export async function shopGet(env, url, slug) {
   const isBanner = ogKey && ogKey === shop.cover_key;
 
   return page({
-    body: shopPage({ shop, products, categories, activeCategory: categorySlug, origin: url.origin }),
+    body: shopPage({ shop, products, categories, shopCategories,
+                     activeCategory: chipKey, origin: url.origin }),
     title: `${shop.name} — ${APP_NAME}`,
     description: shopDescription(shop, products.length),
     canonical: `${url.origin}/@${shop.slug}`,

@@ -1,4 +1,4 @@
-import { APP_UI, AUTH, UI } from '../config.js';
+import { APP_UI, AUTH, CATEGORIES_UI, PRODUCT, PROFILE, SUBSCRIPTION, UI } from '../config.js';
 import { esc } from './html.js';
 import { iconHome, iconUser } from './icons.js';
 
@@ -16,6 +16,10 @@ export function bottomNav(active) {
     `</div></nav>`
   );
 }
+
+const menuLink = (href, label) =>
+  `<a class="app-menu__item" href="${esc(href)}">` +
+  `<span>${esc(label)}</span><span class="app-menu__go">‹</span></a>`;
 
 /**
  * The seller's area. Deliberately close to empty — this session builds
@@ -50,7 +54,13 @@ export function appShell({ shop, origin }) {
     row(APP_UI.city, shop.city) +
     row(APP_UI.whatsapp, shop.whatsapp, true) +
 
-    `<p class="empty">${esc(APP_UI.soon)}</p>` +
+    `<nav class="app-menu">` +
+    menuLink('/app/products', PRODUCT.listTitle) +
+    menuLink('/app/new', PRODUCT.add) +
+    menuLink('/app/profile', PROFILE.title) +
+    menuLink('/app/categories', CATEGORIES_UI.title) +
+    menuLink('/app/subscription', SUBSCRIPTION.title) +
+    `</nav>` +
     `</div>` +
     bottomNav('account')
   );

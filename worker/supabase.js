@@ -8,7 +8,7 @@
  */
 
 const SELECT_CARD =
-  'id,title,price,created_at,platform_category_id,' +
+  'id,title,price,created_at,platform_category_id,category_id,' +
   'shops!inner(name,slug,logo_key),' +
   'product_images(r2_key,position)';
 
@@ -85,6 +85,7 @@ function toCard(row) {
     title: row.title,
     price: Number(row.price),
     categoryId: row.platform_category_id ?? null,
+    ownCategoryId: row.category_id ?? null,
     images: images.length ? images : [null],
     shopName: row.shops?.name ?? '',
     shopSlug: row.shops?.slug ?? '',
@@ -147,7 +148,7 @@ export async function getShopProfile(env, slug) {
 }
 
 /** Active products of one shop. RLS returns nothing once a shop lapses. */
-export async function getShopProducts(env, shopId, categoryId) {
+export async function getShopProducts(env, shopId, categoryId, ownCategoryId) {
   const search = {
     select: SELECT_CARD,
     shop_id: `eq.${shopId}`,
@@ -156,6 +157,7 @@ export async function getShopProducts(env, shopId, categoryId) {
     limit: 60,
   };
   if (categoryId) search.platform_category_id = `eq.${categoryId}`;
+  if (ownCategoryId) search.category_id = `eq.${ownCategoryId}`;
 
   const rows = await get(env, 'products', search);
   return rows.map(toCard);
@@ -202,4 +204,14 @@ export async function getMoreFromShop(env, shopId, excludeId, limit = 6) {
     limit,
   });
   return rows.map(toCard);
+}
+
+/** A shop's own categories, for the chips on its public page. */
+export async function getShopCategories(env, shopId) {
+  return get(env, 'categories', {
+    select: 'id,name,sort_order',
+    shop_id: `eq.${shopId}`,
+    order: 'sort_order.asc,name.asc',
+    limit: 20,
+  });
 }

@@ -1,7 +1,8 @@
-import { IMAGE_VARIANTS, MAX_IMAGES, PRODUCT as T } from '../config.js';
+import { CATEGORIES_UI as C, IMAGE_VARIANTS, MAX_IMAGES, PRODUCT as T } from '../config.js';
 import { esc, price as fmtPrice } from './html.js';
 import { alert, field } from './forms.js';
 import { bottomNav } from './appshell.js';
+import { cropSheet } from './crop-sheet.js';
 
 /**
  * One column, no tabs. The gallery, the crop sheet and the price
@@ -9,7 +10,7 @@ import { bottomNav } from './appshell.js';
  * cannot add images — which is why the server refuses a product without
  * one rather than silently creating an empty listing.
  */
-export function productForm({ mode, draftId, categories, values, error }) {
+export function productForm({ mode, draftId, categories, shopCategories = [], values, error }) {
   const isEdit = mode === 'edit';
   const images = values.images ?? [];
 
@@ -89,6 +90,22 @@ export function productForm({ mode, draftId, categories, values, error }) {
     `<div class="chips chips--inline" id="category-chips">${chips}</div>` +
     `</div>` +
 
+    (shopCategories.length
+      ? `<div class="field">` +
+        `<label class="field__label" for="f-own-category">${esc(C.productCategory)} ` +
+        `<span class="field__optional">${esc(T.optional)}</span></label>` +
+        `<select class="field__input" id="f-own-category" name="own_category">` +
+        `<option value="">${esc(C.none)}</option>` +
+        shopCategories
+          .map(
+            (c) =>
+              `<option value="${esc(c.id)}"` +
+              `${values.ownCategory === c.id ? ' selected' : ''}>${esc(c.name)}</option>`,
+          )
+          .join('') +
+        `</select></div>`
+      : '') +
+
     `<div class="field">` +
     `<label class="field__label" for="f-description">${esc(T.descriptionLabel)} ` +
     `<span class="field__optional">${esc(T.optional)}</span></label>` +
@@ -131,28 +148,6 @@ function thumbHtml(img, index) {
     (index === 0 ? `<span class="thumb__badge">${esc(T.cover)}</span>` : '') +
     `<button class="thumb__x" type="button" aria-label="${esc(T.removePhoto)}">✕</button>` +
     `<span class="thumb__bar" hidden><span class="thumb__bar-fill"></span></span>` +
-    `</div>`
-  );
-}
-
-/** The 4:5 crop sheet. Hidden until a file is picked. */
-function cropSheet() {
-  return (
-    `<div class="crop" id="crop" hidden>` +
-    `<div class="crop__bar">` +
-    `<button class="crop__action" type="button" id="crop-cancel">${esc(T.cropCancel)}</button>` +
-    `<span class="crop__title">${esc(T.cropTitle)}</span>` +
-    `<button class="crop__action crop__action--go" type="button" id="crop-done">` +
-    `${esc(T.cropDone)}</button>` +
-    `</div>` +
-    `<div class="crop__stage" id="crop-stage">` +
-    `<canvas class="crop__canvas" id="crop-canvas"></canvas>` +
-    `<div class="crop__frame" aria-hidden="true"></div>` +
-    `</div>` +
-    `<div class="crop__tools">` +
-    `<p class="crop__hint">${esc(T.cropHint)}</p>` +
-    `<button class="btn btn--quiet" type="button" id="crop-rotate">${esc(T.rotate)}</button>` +
-    `</div>` +
     `</div>`
   );
 }

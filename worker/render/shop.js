@@ -79,11 +79,19 @@ export function shopHeader({ shop, origin }) {
    the page
    ============================================================ */
 
-export function shopPage({ shop, products, categories, activeCategory, origin }) {
-  // "The seller's own categories" — only the ones they actually have
-  // products in, not the whole platform list.
-  const used = new Set(products.map((p) => p.categoryId).filter(Boolean));
-  const chips = categories.filter((c) => used.has(c.id));
+export function shopPage({ shop, products, categories, shopCategories, activeCategory, origin }) {
+  // The seller's own categories win when they have set any up. Only the
+  // ones that actually hold a product are shown — an empty chip is a
+  // dead end. Shops with no categories fall back to the platform ones
+  // their products already use, so the row is never empty for nothing.
+  const ownUsed = new Set(products.map((p) => p.ownCategoryId).filter(Boolean));
+  const own = (shopCategories ?? []).filter((c) => ownUsed.has(c.id));
+
+  const platformUsed = new Set(products.map((p) => p.categoryId).filter(Boolean));
+  const chips = own.length
+    ? own.map((c) => ({ key: `c${c.id}`, label: c.name }))
+    : categories.filter((c) => platformUsed.has(c.id))
+        .map((c) => ({ key: c.slug, label: c.name_ckb }));
 
   const base = `/@${encodeURIComponent(shop.slug)}`;
   const chipRow =
@@ -94,9 +102,9 @@ export function shopPage({ shop, products, categories, activeCategory, origin })
         chips
           .map(
             (c) =>
-              `<a class="chip" href="${esc(`${base}?category=${encodeURIComponent(c.slug)}`)}"` +
-              `${activeCategory === c.slug ? ' aria-current="true"' : ''}>` +
-              `${esc(c.name_ckb)}</a>`,
+              `<a class="chip" href="${esc(`${base}?category=${encodeURIComponent(c.key)}`)}"` +
+              `${activeCategory === c.key ? ' aria-current="true"' : ''}>` +
+              `${esc(c.label)}</a>`,
           )
           .join('') +
         `</nav>`
