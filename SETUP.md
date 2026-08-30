@@ -38,6 +38,23 @@ SUPABASE_SERVICE_ROLE_KEY=... npm run test:security
 Both `.sql` files also run as-is in the Supabase SQL editor, and both clean up
 after themselves.
 
+## Running it
+
+```bash
+npm install
+npx wrangler dev            # http://localhost:8787
+npx wrangler deploy         # needs `wrangler login` on your machine
+```
+
+The feed reads Supabase over PostgREST with the **publishable** key only.
+RLS is what protects the data, so the anon role already sees exactly the
+right rows. The service_role key is not used anywhere in the Worker.
+
+Seed data (4 shops, 8 products) lives in `supabase/seed.sql` and is
+already applied. The seed images are bundled in `public/seed/`; `/img/<key>`
+serves from R2 and falls back to those files until real uploads exist.
+**Remove that fallback once uploads are built.**
+
 ## Decisions locked in
 
 | | |
