@@ -33,6 +33,7 @@ export function layout({ title, description, body, canonical, ogImage, scripts =
     `<link rel="stylesheet" href="/styles/design-system.css">` +
     `<link rel="stylesheet" href="/styles/app.css">` +
     `<link rel="stylesheet" href="/styles/forms.css">` +
+    `<link rel="stylesheet" href="/styles/product.css">` +
     `</head>` +
     `<body>${body}` +
     scripts.map((src) => `<script src="${esc(src)}" defer></script>`).join('') +

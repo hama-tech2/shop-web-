@@ -143,3 +143,72 @@ export const CITIES = [
   { value: 'zakho',      label: 'زاخۆ' },
   { value: 'other',      label: 'شوێنێکی تر' },
 ];
+
+/** Add / edit product, and the products list. */
+export const PRODUCT = {
+  newTitle: 'زیادکردنی بەرهەم',
+  editTitle: 'دەستکاری بەرهەم',
+  listTitle: 'بەرهەمەکانم',
+  add: 'زیادکردنی بەرهەم',
+
+  photos: 'وێنەکان',
+  photosHint: 'یەکەم وێنە دەبێتە وێنەی سەرەکی.',
+  cover: 'سەرەکی',
+  addPhoto: 'زیادکردنی وێنە',
+  removePhoto: 'لابردنی وێنە',
+  counter: (n, max) => `${n} / ${max}`,
+  onlyTen: 'تەنها ١٠ وێنە هەتایە.',
+
+  cropTitle: 'ڕێکخستنی وێنە',
+  cropHint: 'ڕایبکێشە و گەورەی بکە.',
+  rotate: 'سووڕاندن',
+  cropCancel: 'لابردن',
+  cropDone: 'دواتر',
+
+  titleLabel: 'ناوی بەرهەم',
+  titlePlaceholder: 'بۆ نموونە: کراسی کوردی',
+  priceLabel: 'نرخ',
+  pricePlaceholder: '25,000',
+  categoryLabel: 'جۆر',
+  categoryNone: 'بێ جۆر',
+  descriptionLabel: 'وەسف',
+  descriptionPlaceholder: 'زانیاری زیاتر لەسەر بەرهەمەکە…',
+  optional: 'ئارەزوومەندانە',
+  visibility: 'دەرکەوتن',
+  visible: 'دیارە',
+  hidden: 'شاراوەیە',
+
+  save: 'پاشەکەوتکردن',
+  saving: 'پاشەکەوت دەکرێت…',
+  uploading: 'ناردن…',
+  delete: 'سڕینەوە',
+  deleteConfirm: 'دڵنیایت لە سڕینەوەی ئەم بەرهەمە؟',
+  edit: 'دەستکاری',
+
+  errNoImage: 'لانیکەم یەک وێنە زیاد بکە.',
+  errTitle: 'ناوی بەرهەم دەبێت لانیکەم ٢ پیت بێت.',
+  errPrice: 'نرخێکی دروست بنووسە.',
+  errUpload: 'ناردنی وێنە سەرکەوتوو نەبوو. دووبارە هەوڵ بدەرەوە.',
+  errType: 'تەنها JPG، PNG یان WebP.',
+  errSave: 'پاشەکەوتکردن سەرکەوتوو نەبوو.',
+
+  emptyTitle: 'هێشتا هیچ بەرهەمێکت نییە',
+  emptyBody: 'یەکەم بەرهەمت زیاد بکە و لینکەکەت بڵاوبکەرەوە.',
+};
+
+/** Filter chips on the products list. */
+export const PRODUCT_FILTERS = [
+  { key: 'all',      label: 'هەموو',    status: null },
+  { key: 'visible',  label: 'دیارەکان', status: 'active' },
+  { key: 'hidden',   label: 'شاراوەکان', status: 'hidden' },
+  { key: 'archived', label: 'ئەرشیف',   status: 'archived' },
+];
+
+/** Browser-side resize targets. Never upscale past the source. */
+export const IMAGE_VARIANTS = {
+  card: { width: 800,  height: 1000, quality: 0.75 },
+  full: { width: 1200, height: 1500, quality: 0.82 },
+};
+
+export const MAX_IMAGES = 10;
+export const MAX_UPLOAD_BYTES = 4 * 1024 * 1024;

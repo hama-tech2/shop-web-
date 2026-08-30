@@ -2,12 +2,13 @@
 -- Shop Web — RLS security test
 --
 -- Creates seller A and seller B, then, acting as seller A, attempts
--- five things that MUST fail:
+-- six things that MUST fail:
 --   1. read seller B's hidden products
 --   2. edit seller B's product
 --   3. insert a product under seller B's shop
 --   4. make itself an admin
 --   5. extend its own subscription expiry
+--   6. attach images to seller B's product
 --
 -- "Fail" means either a permission error OR zero rows affected with the
 -- data provably unchanged — both are a correct denial, so the test
@@ -194,6 +195,30 @@ begin
     v_result := v_result || ' — EXPIRY CHANGED';
   end if;
   n := 5; test := 'seller A extends its own expiry';
+  expected := 'denied'; outcome := v_result; passed := v_ok;
+  return next;
+
+  -- ---------- 6. attach images to seller B's product ----------
+  begin
+    perform set_config('role', 'authenticated', false);
+    perform set_config('request.jwt.claims',
+      json_build_object('sub', a_user, 'role', 'authenticated')::text, false);
+
+    perform public.save_product_images(b_prod, jsonb_build_array(jsonb_build_object(
+      'card', 'products/' || b_shop || '/' || b_prod || '/x-card.webp',
+      'full', 'products/' || b_shop || '/' || b_prod || '/x-full.webp')));
+    v_ok := false;
+    v_result := 'SUCCEEDED';
+  exception when others then
+    v_ok := true;
+    v_result := format('%s (%s)', sqlerrm, sqlstate);
+  end;
+  perform set_config('role', 'none', false);
+  if exists (select 1 from public.product_images where product_id = b_prod) then
+    v_ok := false;
+    v_result := v_result || ' — ROWS EXIST';
+  end if;
+  n := 6; test := 'seller A attaches images to seller B product';
   expected := 'denied'; outcome := v_result; passed := v_ok;
   return next;
 

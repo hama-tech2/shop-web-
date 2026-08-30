@@ -14,6 +14,7 @@ import { APP_TAGLINE } from './config.js';
 import * as authRoutes from './routes/auth.js';
 import * as onboarding from './routes/onboarding.js';
 import { appGet } from './routes/app.js';
+import * as products from './routes/products.js';
 
 const IMG_CACHE = 'public, max-age=31536000, immutable';
 const HTML_CACHE = 'public, max-age=0, s-maxage=60, stale-while-revalidate=300';
@@ -79,6 +80,28 @@ export default {
           : onboarding.logoGet(request, env);
       }
 
+      // ---- products (must be matched before the /app catch-all) ----
+      if (path === '/app/upload' && method === 'POST') return products.uploadPost(request, env);
+      if (path === '/app/new') {
+        return method === 'POST'
+          ? products.newPost(request, env)
+          : products.newGet(request, env);
+      }
+      if (path === '/app/products') return products.listGet(request, env, url);
+
+      const product = path.match(/^\/app\/products\/([0-9a-f-]{36})(\/delete)?$/i);
+      if (product) {
+        const id = product[1];
+        if (product[2]) {
+          return method === 'POST'
+            ? products.deletePost(request, env, id)
+            : redirectTo('/app/products');
+        }
+        return method === 'POST'
+          ? products.editPost(request, env, id)
+          : products.editGet(request, env, id);
+      }
+
       // ---- protected seller area ----
       if (path === '/app' || path.startsWith('/app/')) return appGet(request, env, url);
     } catch (err) {
@@ -91,6 +114,9 @@ export default {
     return env.ASSETS.fetch(request);
   },
 };
+
+const redirectTo = (location) =>
+  new Response(null, { status: 303, headers: { location, 'cache-control': 'no-store' } });
 
 /* ============================================================
    /img/<key> — the only way an R2 object reaches a browser
