@@ -88,6 +88,7 @@ export function productPage({ product, more, origin }) {
     ` target="_blank" rel="noopener">${iconWhatsapp()}` +
     `<span>${esc(T.whatsappOrder)}</span></a>` +
     `<button class="round-btn round-btn--pale" type="button" id="pdp-heart"` +
+    ` data-fav="${esc(product.id)}"` +
     ` aria-pressed="false" aria-label="${esc(T.save)}">${iconHeart(20)}</button>` +
     `<button class="round-btn round-btn--pale" type="button" id="share-btn"` +
     ` data-url="${esc(pageUrl)}" data-title="${esc(product.title)}"` +

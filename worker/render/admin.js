@@ -268,6 +268,12 @@ function intentList(intents, limit) {
         `<form method="post" action="/admin/intents/${esc(i.id)}/activate">` +
         `<button class="btn btn--primary" type="submit"` +
         ` data-confirm="${esc(A.intentConfirm)}">${esc(A.intentActivate)}</button>` +
+        `</form>` +
+        // Someone who asks and never pays should not sit in the queue
+        // for ever. Cancelling moves no money and no time.
+        `<form method="post" action="/admin/intents/${esc(i.id)}/cancel">` +
+        `<button class="btn btn--danger" type="submit"` +
+        ` data-confirm="${esc(A.intentCancelConfirm)}">${esc(A.intentCancel)}</button>` +
         `</form></div></div>`
       );
     })

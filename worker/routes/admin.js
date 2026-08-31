@@ -312,6 +312,17 @@ export async function intentActivatePost(request, env, id) {
   return redirect(`/admin/intents${res.ok ? '' : '?e=1'}`, g.headers);
 }
 
+export async function intentCancelPost(request, env, id) {
+  const g = await post(request, env, id);
+  if (g.deny) return g.deny;
+
+  const res = await asUser(env, g.token, 'rpc/admin_cancel_intent', {
+    method: 'POST', body: { p_intent: id, p_note: 'cancelled from the admin screen' },
+  });
+
+  return redirect(`/admin/intents${res.ok ? '' : '?e=1'}`, g.headers);
+}
+
 /* ---------- reports ---------- */
 
 export async function reportHidePost(request, env, id) {

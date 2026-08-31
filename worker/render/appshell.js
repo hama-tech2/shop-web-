@@ -1,8 +1,13 @@
-import { APP_UI, AUTH, CATEGORIES_UI, PRODUCT, PROFILE, SUBSCRIPTION, UI } from '../config.js';
+import {
+  APP_UI, AUTH, CATEGORIES_UI, PRODUCT, PROFILE, SAVED, SUBSCRIPTION, UI,
+} from '../config.js';
 import { esc } from './html.js';
-import { iconHome, iconUser } from './icons.js';
+import { iconHeart, iconHome, iconUser } from './icons.js';
 
-/** Bottom nav, shared with the feed. `active` is 'feed' or 'account'. */
+/**
+ * Bottom nav, shared by the feed, /saved and the seller's area.
+ * `active` is 'feed', 'saved' or 'account'.
+ */
 export function bottomNav(active) {
   const tab = (href, key, icon, label) =>
     `<a class="nav__tab" href="${esc(href)}"` +
@@ -12,6 +17,7 @@ export function bottomNav(active) {
   return (
     `<nav class="nav" aria-label="ناڤیگەیشن"><div class="nav__inner">` +
     tab('/', 'feed', iconHome(), UI.tabFeed) +
+    tab('/saved', 'saved', iconHeart(22), SAVED.tab) +
     tab('/app', 'account', iconUser(), UI.tabAccount) +
     `</div></nav>`
   );
