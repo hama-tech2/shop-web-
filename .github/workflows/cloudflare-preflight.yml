@@ -1,0 +1,46 @@
+name: Cloudflare preflight
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  preflight:
+    runs-on: ubuntu-latest
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Cloudflare credential availability
+        id: creds
+        shell: bash
+        run: |
+          if [ -n "$CLOUDFLARE_API_TOKEN" ]; then echo "token=yes" >> "$GITHUB_OUTPUT"; else echo "token=no" >> "$GITHUB_OUTPUT"; fi
+          if [ -n "$CLOUDFLARE_ACCOUNT_ID" ]; then echo "account=yes" >> "$GITHUB_OUTPUT"; else echo "account=no" >> "$GITHUB_OUTPUT"; fi
+      - name: Read-only Cloudflare checks
+        if: steps.creds.outputs.token == 'yes'
+        shell: bash
+        run: |
+          echo '=== WHOAMI ==='
+          npx wrangler whoami
+          echo '=== R2 BUCKETS ==='
+          npx wrangler r2 bucket list
+          echo '=== WORKER DEPLOYMENTS ==='
+          npx wrangler deployments list || true
+          echo '=== WORKER SECRET NAMES ==='
+          npx wrangler secret list || true
+      - name: No credentials present
+        if: steps.creds.outputs.token != 'yes'
+        run: |
+          echo 'CLOUDFLARE_API_TOKEN is not configured in this GitHub repository.'
+          echo 'Cloudflare account resources cannot be inspected from CI yet.'
