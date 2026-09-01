@@ -150,6 +150,48 @@ npx wrangler secret put VIEW_SALT      # any long random string
 Run it by hand against the deployed Worker with
 `npx wrangler dev --test-scheduled` then `curl "http://localhost:8787/__scheduled"`.
 
+## Search
+
+`/search` has two tabs, products and shops, both backed by RPCs that run as
+the caller — so RLS hides a suspended or lapsed shop from search exactly as it
+does from the feed.
+
+`app.ku_normalize` is the one definition of "the same word": it unifies
+ك→ک, ي/ى→ی, ة/ە→ه, folds Arabic-Indic digits and strips tatweel, ZWNJ and
+diacritics. Both the stored text and the query go through it, so they cannot
+drift. Collapsing ه and ە loses the h/e distinction, which is deliberate:
+people type them interchangeably on Arabic keyboards, and a search that keeps
+them apart simply fails to match.
+
+A query gets three chances: the full-text index, a substring match, then
+`word_similarity >= 0.35` for a misspelling. It is `word_similarity` rather
+than `similarity` because a one-word query against a three-word title scores
+far below any useful threshold on the whole string. The threshold is spelled
+out rather than using the `<%` operator: its GUC is not settable on Supabase.
+
+Changing `ku_normalize` means rebuilding `products.title_norm` and
+`products.search_tsv` — replacing the function does not rewrite values already
+stored. Migration 0021 drops and re-adds both columns for exactly that reason.
+
+## Favourites
+
+Signed out, a heart is a product id in `localStorage` under
+`shopweb:favorites` — it works on the first tap, with no account. Signed in,
+the same tap also writes to `favorites`, and on the next page load the browser
+posts whatever it was holding to `merge_favorites`, which skips anything not
+publicly visible and anything already there. Only once that succeeds is the
+local copy dropped.
+
+`/saved` is server-rendered for a signed-in customer and an empty shell for a
+signed-out one — a server cannot read `localStorage`, so the script fills it
+from `/api/favorites/cards`. Either way the URL and the empty state are the
+same.
+
+```sh
+npm i -D playwright-core
+npm run test:favorites      # 15 checks, real browser, API stubbed
+```
+
 ## View counting
 
 `/@slug` and `/@slug/p/<id>` call `record_view()` after the response is sent.

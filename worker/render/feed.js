@@ -1,6 +1,7 @@
 import { APP_NAME, APP_TAGLINE, CHIPS, LOCALES, SLIDE_MS, UI } from '../config.js';
 import { attr, esc, price } from './html.js';
-import { iconGlobe, iconHeart, iconHome, iconSearch, iconUser } from './icons.js';
+import { iconGlobe, iconHeart, iconSearch } from './icons.js';
+import { bottomNav } from './appshell.js';
 
 /** R2 keys are stored, never URLs. This is the only place one becomes a URL. */
 const imgUrl = (key) => `/img/${key.split('/').map(encodeURIComponent).join('/')}`;
@@ -13,7 +14,7 @@ const imgUrl = (key) => `/img/${key.split('/').map(encodeURIComponent).join('/')
  * `src` once the card is fully on screen. That keeps a cheap Android
  * phone from decoding images nobody has looked at.
  */
-export function cardHtml(product, index, { linked = true } = {}) {
+export function cardHtml(product, index, { linked = true, saved = false } = {}) {
   const [first, ...rest] = product.images;
   const href = linked && product.shopSlug
     ? `/@${encodeURIComponent(product.shopSlug)}/p/${encodeURIComponent(product.id)}`
@@ -59,7 +60,8 @@ export function cardHtml(product, index, { linked = true } = {}) {
     firstImg +
     restImgs +
     dots +
-    `<button class="card__heart" type="button" aria-pressed="false"` +
+    `<button class="card__heart" type="button" aria-pressed="${saved ? 'true' : 'false'}"` +
+    ` data-fav="${esc(product.id)}"` +
     ` aria-label="${esc(UI.save)}">${iconHeart()}</button>` +
     `</div>` +
     `<div class="card__body">` +
@@ -76,8 +78,8 @@ export function cardHtml(product, index, { linked = true } = {}) {
 }
 
 /** The cards-only fragment the load-more button appends. */
-export function cardsFragment(products, startIndex) {
-  return products.map((p, i) => cardHtml(p, startIndex + i)).join('');
+export function cardsFragment(products, startIndex, options) {
+  return products.map((p, i) => cardHtml(p, startIndex + i, options)).join('');
 }
 
 function headerHtml({ query }) {
@@ -92,7 +94,9 @@ function headerHtml({ query }) {
     `<button class="icon-btn" type="button" id="lang-btn"` +
     ` aria-haspopup="dialog" aria-label="${esc(UI.language)}">${iconGlobe()}</button>` +
     `</div>` +
-    `<form class="search" role="search" action="/" method="get">` +
+    // Submits to /search, which has the tabs and the typo-tolerant
+    // matching. /?q= still renders, so old links keep working.
+    `<form class="search" role="search" action="/search" method="get">` +
     `<span class="search__icon">${iconSearch()}</span>` +
     `<input class="search__input" type="search" name="q"` +
     ` value="${esc(query ?? '')}" placeholder="${esc(UI.searchPlaceholder)}"` +
@@ -118,18 +122,6 @@ function chipsHtml({ category, query }) {
   }).join('');
 
   return `<nav class="chips" aria-label="جۆرەکان">${items}</nav>`;
-}
-
-function navHtml() {
-  return (
-    `<nav class="nav" aria-label="ناڤیگەیشن">` +
-    `<div class="nav__inner">` +
-    `<a class="nav__tab" href="/" aria-current="page">${iconHome()}` +
-    `<span>${esc(UI.tabFeed)}</span></a>` +
-    `<a class="nav__tab" href="/account">${iconUser()}` +
-    `<span>${esc(UI.tabAccount)}</span></a>` +
-    `</div></nav>`
-  );
 }
 
 function sheetHtml() {
@@ -183,7 +175,7 @@ export function feedHtml({ products, hasMore, category, query, offset, pageSize 
     grid +
     loadMoreHtml({ category, query, nextOffset: offset + pageSize, hasMore }) +
     `</div>` +
-    navHtml() +
+    bottomNav('feed') +
     sheetHtml()
   );
 }

@@ -18,6 +18,8 @@ import * as products from './routes/products.js';
 import { productGet, shopGet } from './routes/shop.js';
 import * as account from './routes/account.js';
 import * as admin from './routes/admin.js';
+import { searchGet } from './routes/search.js';
+import * as favorites from './routes/favorites.js';
 import { scheduled } from './cron.js';
 
 const IMG_CACHE = 'public, max-age=31536000, immutable';
@@ -34,6 +36,17 @@ export default {
       if (path.startsWith('/img/')) return serveImage(request, env, url);
       if (path === '/api/feed') return feedFragment(env, url);
       if (path === '/api/slug-check') return onboarding.slugCheck(env, url);
+      if (path === '/api/favorites/cards') return favorites.cardsGet(env, url);
+      if (path === '/api/favorites') {
+        return method === 'POST'
+          ? favorites.togglePost(request, env)
+          : favorites.stateGet(request, env);
+      }
+      if (path === '/api/favorites/merge' && method === 'POST') {
+        return favorites.mergePost(request, env);
+      }
+      if (path === '/search') return searchGet(env, url);
+      if (path === '/saved') return favorites.savedGet(request, env);
       if (path === '/') return feedPage(env, url);
 
       // ---- the public shop link: /@slug and /@slug/p/<id> ----
@@ -193,8 +206,12 @@ function adminRoute(request, env, url, path, method) {
       return admin.shopNotePost(request, env, shop[1]);
     }
 
-    const intent = path.match(/^\/admin\/intents\/([0-9a-f-]{36})\/activate$/i);
-    if (intent) return admin.intentActivatePost(request, env, intent[1]);
+    const intent = path.match(/^\/admin\/intents\/([0-9a-f-]{36})\/(activate|cancel)$/i);
+    if (intent) {
+      return intent[2] === 'activate'
+        ? admin.intentActivatePost(request, env, intent[1])
+        : admin.intentCancelPost(request, env, intent[1]);
+    }
 
     const report = path.match(/^\/admin\/reports\/([0-9a-f-]{36})\/(hide|dismiss)$/i);
     if (report) {
@@ -303,6 +320,7 @@ async function feedPage(env, url) {
       canonical: new URL(url.pathname + url.search, url).toString(),
       ogImage,
       body,
+      scripts: ['/js/feed.js', '/js/favorites.js'],
     }),
     {
       headers: {

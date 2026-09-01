@@ -420,6 +420,8 @@ export const ADMIN = {
   intentConfirm: 'دڵنیایت؟ پلانەکە چالاک دەکرێت و داواکارییەکە دەبێتە پارەدراو.',
   intentDone: 'پلانەکە چالاک کرا.',
   intentFailed: 'چالاککردن سەرکەوتوو نەبوو.',
+  intentCancel: 'هەڵوەشاندنەوە',
+  intentCancelConfirm: 'داواکارییەکە هەڵبوەشێنرێتەوە؟ هیچ پلانێک چالاک ناکرێت.',
 
   detailTitle: 'دوکان',
   owner: 'خاوەن',
@@ -463,6 +465,40 @@ export const PLAN_LABEL = {
   trial: 'بەخۆڕایی',
   months_6: '٦ مانگ',
   year_1: '١ ساڵ',
+};
+
+
+/** /search — the shared search screen. */
+export const SEARCH = {
+  title: 'گەڕان',
+  placeholder: 'گەڕان بۆ کاڵا یان دوکان',
+  tabProducts: 'کاڵاکان',
+  tabShops: 'دوکانەکان',
+  clear: 'سڕینەوە',
+
+  // "3 ئەنجام" — the count is isolated LTR beside the word.
+  resultUnit: 'ئەنجام',
+  productsOf: (n) => `${n} کاڵا`,
+
+  emptyTitle: 'هیچ شتێک نەدۆزرایەوە',
+  emptyBody: 'هەڵەیەکی نووسین؟ یان جۆرێک تاقی بکەرەوە:',
+  startTitle: 'چی دەگەڕێیت بەدوایدا؟',
+  startBody: 'ناوی کاڵا، یان ناوی دوکانێک بنووسە. یان جۆرێک هەڵبژێرە:',
+  noShops: 'هیچ دوکانێک نەدۆزرایەوە بەم ناوە.',
+  seeShop: 'بینینی دوکان',
+};
+
+/** /saved — the hearts. */
+export const SAVED = {
+  title: 'پاشەکەوتکراوەکان',
+  tab: 'پاشەکەوت',
+  emptyTitle: 'هێشتا هیچت پاشەکەوت نەکردووە',
+  emptyBody: 'دڵەکە لەسەر هەر کاڵایەک دابگرە بۆ ئەوەی لێرە بمێنێتەوە.',
+  browse: 'بڕوانە بۆ تۆ',
+  signedOutNote: 'ئەمانە تەنها لەسەر ئەم مۆبایلە پاشەکەوت کراون. بچۆ ژوورەوە بۆ ئەوەی لەدەست نەچن.',
+  signIn: 'چوونە ژوورەوە',
+  remove: 'لابردن',
+  loading: 'چاوەڕێ بکە…',
 };
 
 /** Profile image variants. One size each — a banner needs no thumbnail. */

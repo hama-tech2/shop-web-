@@ -207,6 +207,61 @@ export async function getMoreFromShop(env, shopId, excludeId, limit = 6) {
 }
 
 /* ---------------------------------------------------------------
+   search
+   --------------------------------------------------------------- */
+
+/**
+ * Products matching a query.
+ *
+ * The RPC does the Sorani normalising and the trigram fallback; this
+ * only asks for one row more than it needs so the caller knows whether
+ * a "load more" is warranted.
+ */
+export async function searchProducts(env, { query, categoryId, limit, offset = 0 }) {
+  const rows = await get(env, 'rpc/search_products', {
+    p_query: query,
+    p_platform_category: categoryId || undefined,
+    p_limit: limit + 1,
+    p_offset: offset,
+    select: SELECT_CARD,
+  });
+  return { products: rows.slice(0, limit).map(toCard), hasMore: rows.length > limit };
+}
+
+/** Shops matching a query. RLS hides a suspended or lapsed shop. */
+export async function searchShops(env, { query, limit = 20, offset = 0 }) {
+  return get(env, 'rpc/search_shops', {
+    p_query: query,
+    p_limit: limit,
+    p_offset: offset,
+  });
+}
+
+/* ---------------------------------------------------------------
+   favourites
+   --------------------------------------------------------------- */
+
+/**
+ * Cards for a list of product ids, in the order asked for.
+ *
+ * Used by /saved for a signed-out visitor, whose list lives in their
+ * browser. RLS still applies, so an id for a hidden product or a
+ * lapsed shop simply drops out of the result.
+ */
+export async function getProductsByIds(env, ids) {
+  if (!ids.length) return [];
+  const rows = await get(env, 'products', {
+    select: SELECT_CARD,
+    id: `in.(${ids.join(',')})`,
+    status: 'eq.active',
+    limit: ids.length,
+  });
+
+  const byId = new Map(rows.map((r) => [r.id, toCard(r)]));
+  return ids.map((id) => byId.get(id)).filter(Boolean);
+}
+
+/* ---------------------------------------------------------------
    view counting
    --------------------------------------------------------------- */
 

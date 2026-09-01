@@ -10,10 +10,12 @@
     "r2:create": "wrangler r2 bucket create shop-web-images",
     "db:push": "supabase db push",
     "db:diff": "supabase db diff",
-    "test:security": "node scripts/security-test.mjs"
+    "test:security": "node scripts/security-test.mjs",
+    "test:favorites": "node scripts/favorites-test.mjs"
   },
   "devDependencies": {
-    "wrangler": "^4.42.0"
+    "wrangler": "^4.42.0",
+    "playwright-core": "^1.49.0"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.58.0"

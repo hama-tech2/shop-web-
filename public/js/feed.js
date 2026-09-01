@@ -186,16 +186,6 @@
     });
   }
 
-  /* ---------------------------------------------------------
-     heart — visual only for now, no favourites API yet
-     --------------------------------------------------------- */
-
-  document.addEventListener('click', function (event) {
-    var heart = event.target.closest && event.target.closest('.card__heart');
-    if (!heart) return;
-    heart.setAttribute(
-      'aria-pressed',
-      heart.getAttribute('aria-pressed') === 'true' ? 'false' : 'true',
-    );
-  });
+  /* Hearts live in /js/favorites.js — it owns both the toggle and the
+     storage, so there is exactly one place that decides what is saved. */
 })();

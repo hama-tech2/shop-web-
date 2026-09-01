@@ -68,15 +68,5 @@
     });
   }
 
-  /* ---------- hearts — visual only until favourites are wired up ---------- */
-
-  document.addEventListener('click', function (event) {
-    var heart = event.target.closest && event.target.closest('.card__heart, #pdp-heart');
-    if (!heart) return;
-    event.preventDefault();
-    heart.setAttribute(
-      'aria-pressed',
-      heart.getAttribute('aria-pressed') === 'true' ? 'false' : 'true',
-    );
-  });
+  /* Hearts live in /js/favorites.js. */
 })();

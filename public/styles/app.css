@@ -295,7 +295,8 @@
   margin-inline: auto;
   height: var(--nav-h);
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  /* Three tabs since /saved joined: feed, saved, account. */
+  grid-template-columns: repeat(3, 1fr);
 }
 
 .nav__tab {

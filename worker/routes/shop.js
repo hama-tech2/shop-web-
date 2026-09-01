@@ -29,7 +29,7 @@ function page({ body, title, description, canonical, ogImage, ogImageWidth,
     layout({
       title, description, body, canonical, ogImage,
       ogImageWidth, ogImageHeight, ogType,
-      scripts: ['/js/shop.js'],
+      scripts: ['/js/shop.js', '/js/favorites.js'],
     }),
     {
       status,
