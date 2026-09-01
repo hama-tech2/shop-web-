@@ -9,7 +9,7 @@ import { forgotPage, loginPage, resetPage, signupPage } from '../render/auth.js'
 import {
   challengeFor, clearSessionCookies, clearVerifierCookie, createVerifier,
   exchangePkce, getOwnShop, googleAuthorizeUrl, readCookies, readVerifier,
-  resolveSession, sameOrigin, sendRecovery, setSessionCookies,
+  RECOVERY_VERIFIER_AGE, resolveSession, sameOrigin, sendRecovery, setSessionCookies,
   setVerifierCookie, signInPassword, signOut, signUp, updateUser,
 } from '../auth.js';
 
@@ -193,13 +193,14 @@ export async function forgotPost(request, env, url) {
 
   const verifier = createVerifier();
   const challenge = await challengeFor(verifier);
+  const redirectTo = `${url.origin}/auth/callback?next=${encodeURIComponent('/reset')}`;
 
   // Always report the same thing, so this cannot be used to discover
   // which email addresses have accounts.
-  await sendRecovery(env, email, challenge).catch(() => {});
+  await sendRecovery(env, email, challenge, redirectTo).catch(() => {});
 
   const headers = new Headers();
-  setVerifierCookie(headers, verifier);
+  setVerifierCookie(headers, verifier, RECOVERY_VERIFIER_AGE);
   return html(forgotPage({ sent: true }), AUTH.forgotTitle, headers);
 }
 
