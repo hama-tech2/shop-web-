@@ -34,7 +34,16 @@ function redirect(location, extraHeaders) {
 function safeNext(value, fallback = '/app') {
   if (!value || typeof value !== 'string') return fallback;
   if (!value.startsWith('/') || value.startsWith('//')) return fallback;
-  return value;
+  if (/\\|%5c/i.test(value) || /[\u0000-\u001f\u007f]/.test(value)) return fallback;
+
+  try {
+    const base = new URL('https://local.invalid');
+    const parsed = new URL(value, base);
+    if (parsed.origin !== base.origin) return fallback;
+    return `${parsed.pathname}${parsed.search}${parsed.hash}`;
+  } catch {
+    return fallback;
+  }
 }
 
 const validEmail = (v) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v || '');
@@ -46,10 +55,16 @@ async function form(request) {
   return out;
 }
 
-/** Where a signed-in seller belongs: the wizard until they have a shop. */
+/**
+ * Where an authenticated account belongs.
+ * Sellers may follow a safe internal deep link. A no-shop account may
+ * only bypass seller onboarding for the explicit customer destination.
+ */
 async function landingFor(env, token, next) {
+  const safe = safeNext(next, '');
   const shop = await getOwnShop(env, token);
-  return shop ? safeNext(next, '/app') : '/onboarding';
+  if (shop) return safe || '/app';
+  return safe === '/saved' ? '/saved' : '/onboarding';
 }
 
 /* ============================================================
@@ -57,13 +72,14 @@ async function landingFor(env, token, next) {
    ============================================================ */
 
 export async function signupGet(request, url) {
-  const next = url.searchParams.get('next');
+  const next = safeNext(url.searchParams.get('next'), '');
   return html(signupPage({ next }), `${AUTH.signupTitle} — ${APP_NAME}`);
 }
 
 export async function signupPost(request, env) {
   if (!sameOrigin(request)) return new Response('bad origin', { status: 403 });
-  const { email, password, next } = await form(request);
+  const { email, password, next: rawNext } = await form(request);
+  const next = safeNext(rawNext, '');
 
   if (!validEmail(email)) {
     return html(signupPage({ error: AUTH.errEmail, email, next }), AUTH.signupTitle);
@@ -84,12 +100,12 @@ export async function signupPost(request, env) {
   // With confirmations off, signup returns a session immediately.
   const session = res.data?.access_token ? res.data : res.data?.session;
   if (!session?.access_token) {
-    return html(loginPage({ notice: AUTH.forgotSent, email }), AUTH.loginTitle);
+    return html(loginPage({ notice: AUTH.forgotSent, email, next }), AUTH.loginTitle);
   }
 
   const headers = new Headers();
   setSessionCookies(headers, session);
-  return redirect('/onboarding', headers);
+  return redirect(next === '/saved' ? '/saved' : '/onboarding', headers);
 }
 
 /* ============================================================
@@ -98,14 +114,15 @@ export async function signupPost(request, env) {
 
 export async function loginGet(request, url) {
   return html(
-    loginPage({ next: url.searchParams.get('next') }),
+    loginPage({ next: safeNext(url.searchParams.get('next'), '') }),
     `${AUTH.loginTitle} — ${APP_NAME}`,
   );
 }
 
 export async function loginPost(request, env) {
   if (!sameOrigin(request)) return new Response('bad origin', { status: 403 });
-  const { email, password, next } = await form(request);
+  const { email, password, next: rawNext } = await form(request);
+  const next = safeNext(rawNext, '');
 
   const res = await signInPassword(env, email, password);
   if (!res.ok || !res.data?.access_token) {
