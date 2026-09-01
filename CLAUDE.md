@@ -15,7 +15,7 @@ Instagram. Customers browse and order over WhatsApp.
 ## Locked decisions
 
 - IQD everywhere. One price per product. No discount, no `old_price`, no currency column.
-- Auth: email + password only. No phone OTP, no SMS. `enable_confirmations = false`.
+- Auth: email + password and Continue with Google. No phone OTP, no SMS. `enable_confirmations = false`.
 - Multi-page, not an SPA. `/@slug` must be server-rendered so WhatsApp and
   Facebook show a preview image — that is the whole product.
 - One shop per seller. A product's category is optional.
@@ -27,6 +27,19 @@ Instagram. Customers browse and order over WhatsApp.
 - Ask before adding anything not asked for.
 - Only show the files created. No long explanations.
 - Never touch Cloudflare projects this repo did not create.
+
+## Project identity guard
+
+If a future message clearly conflicts with this project's product, repository,
+architecture, design system, database, or established purpose, or appears to
+belong to another project, do not implement it and do not silently adapt it.
+
+Respond instead:
+
+> This message appears to belong to another project. I have not changed anything. Please confirm whether you want this applied to the current project.
+
+Only continue after the user confirms that the conflicting request really
+belongs to Shop Web.
 
 ## End every session with a copyable summary
 
