@@ -18,6 +18,8 @@ const DRAFT = 'sb-onboarding';
 
 const YEAR = 60 * 60 * 24 * 400;
 const MONTH = 60 * 60 * 24 * 30;
+const OAUTH_VERIFIER_AGE = 600;
+const RECOVERY_VERIFIER_AGE = 3600;
 
 /* ---------------------------------------------------------------
    cookies
@@ -69,8 +71,11 @@ function authHeaders(env, token) {
   return h;
 }
 
-async function authFetch(env, path, { method = 'POST', body, token } = {}) {
-  const res = await fetch(`${env.SUPABASE_URL}/auth/v1${path}`, {
+async function authFetch(env, path, { method = 'POST', body, token, redirectTo } = {}) {
+  const url = new URL(`${env.SUPABASE_URL}/auth/v1${path}`);
+  if (redirectTo) url.searchParams.set('redirect_to', redirectTo);
+
+  const res = await fetch(url, {
     method,
     headers: authHeaders(env, token),
     body: body === undefined ? undefined : JSON.stringify(body),
@@ -109,8 +114,9 @@ export const updateUser = (env, token, patch) =>
 export const signOut = (env, token) =>
   authFetch(env, '/logout', { token, body: {} });
 
-export const sendRecovery = (env, email, codeChallenge) =>
+export const sendRecovery = (env, email, codeChallenge, redirectTo) =>
   authFetch(env, '/recover', {
+    redirectTo,
     body: { email, code_challenge: codeChallenge, code_challenge_method: 's256' },
   });
 
@@ -133,8 +139,8 @@ export async function challengeFor(verifier) {
   return b64url(digest);
 }
 
-export const setVerifierCookie = (headers, verifier) =>
-  headers.append('set-cookie', cookie(VERIFIER, verifier, 600));
+export const setVerifierCookie = (headers, verifier, maxAge = OAUTH_VERIFIER_AGE) =>
+  headers.append('set-cookie', cookie(VERIFIER, verifier, maxAge));
 
 export const clearVerifierCookie = (headers) => headers.append('set-cookie', clear(VERIFIER));
 
@@ -244,4 +250,4 @@ export function sameOrigin(request) {
   }
 }
 
-export { ACCESS, REFRESH, VERIFIER, DRAFT, YEAR };
+export { ACCESS, REFRESH, VERIFIER, DRAFT, YEAR, OAUTH_VERIFIER_AGE, RECOVERY_VERIFIER_AGE };
