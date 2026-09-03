@@ -28,6 +28,18 @@ Instagram. Customers browse and order over WhatsApp.
 - Only show the files created. No long explanations.
 - Never touch Cloudflare projects this repo did not create.
 
+## Hard requirement — /admin is gated server-side
+
+No non-admin user may see or act on anything under `/admin`. The check
+runs on the server, against the `admins` table, on every request — never
+in the browser, never by hiding markup, never by a flag the client sends.
+A non-admin gets the ordinary 404, not a redirect and not a "forbidden":
+the response must not reveal that `/admin` exists at all.
+
+Every `/admin` write goes through the database as the admin's own user,
+so RLS is a second, independent check. A client-side test is never the
+only thing standing between a seller and an admin action.
+
 ## Project identity guard
 
 If a future message clearly conflicts with this project's product, repository,
