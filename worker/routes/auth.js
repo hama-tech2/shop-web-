@@ -56,15 +56,35 @@ async function form(request) {
 }
 
 /**
- * Where an authenticated account belongs.
- * Sellers may follow a safe internal deep link. A no-shop account may
- * only bypass seller onboarding for the explicit customer destination.
+ * The seller area. An account with no shop cannot use any of it, so a
+ * `next` pointing here is what the onboarding wizard exists to answer.
  */
-async function landingFor(env, token, next) {
+const SELLER_ONLY = ['/app', '/onboarding'];
+
+const isSellerArea = (path) =>
+  SELLER_ONLY.some((p) => path === p || path.startsWith(`${p}/`) || path.startsWith(`${p}?`));
+
+/**
+ * Where an authenticated account belongs.
+ *
+ * Not everyone who signs in is a seller. Someone who hearted a product
+ * on /@slug, or opened /saved, is a customer, and sending them into the
+ * shop-creation wizard loses the thing they were doing. So a no-shop
+ * account still follows a customer destination; only the seller area
+ * falls back to onboarding.
+ *
+ * Pure on purpose — the shop lookup is the caller's job — because this
+ * is the decision worth testing.
+ */
+export function landingPath(hasShop, next) {
   const safe = safeNext(next, '');
-  const shop = await getOwnShop(env, token);
-  if (shop) return safe || '/app';
-  return safe === '/saved' ? '/saved' : '/onboarding';
+  if (hasShop) return safe || '/app';
+  if (!safe || isSellerArea(safe)) return '/onboarding';
+  return safe;
+}
+
+async function landingFor(env, token, next) {
+  return landingPath(Boolean(await getOwnShop(env, token)), next);
 }
 
 /* ============================================================
@@ -103,9 +123,11 @@ export async function signupPost(request, env) {
     return html(loginPage({ notice: AUTH.forgotSent, email, next }), AUTH.loginTitle);
   }
 
+  // A brand-new account has no shop yet, so the same rule applies:
+  // a customer destination is honoured, the seller area is not.
   const headers = new Headers();
   setSessionCookies(headers, session);
-  return redirect(next === '/saved' ? '/saved' : '/onboarding', headers);
+  return redirect(landingPath(false, next), headers);
 }
 
 /* ============================================================
