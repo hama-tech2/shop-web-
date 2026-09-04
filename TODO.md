@@ -24,3 +24,27 @@ takes a per-page `scripts` list.
 
 Found in the session-9 step-3 cache/ownership audit. Deliberately not
 fixed there: it is a UI change, and that session was correctness only.
+
+### og:image declares the wrong size when it falls back to the logo
+
+`worker/routes/shop.js` picks the share image as
+`cover_key || logo_key || first product image`, then declares its size
+as 1200x450 for a banner and 800x1000 for anything else:
+
+    ogImageWidth:  isBanner ? 1200 : 800,
+    ogImageHeight: isBanner ? 450  : 1000,
+
+A logo is 400x400 square (`PROFILE_VARIANTS.logo`), so a shop with no
+banner but a logo tells WhatsApp and Facebook to expect a 4:5 portrait
+and hands them a square. The first-product fallback is correct — those
+really are 800x1000.
+
+Measured: `/@slug` with banner declares 1200x450 (right), with logo
+only declares 800x1000 (wrong), with product only declares 800x1000
+(right).
+
+Fix: derive the declared size from which key was chosen, not from a
+banner/not-banner guess.
+
+Found in the session-9 step-6 link-preview check. Not fixed there:
+that session was fenced off from image aspect ratios.
