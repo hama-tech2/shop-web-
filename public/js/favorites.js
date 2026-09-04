@@ -15,6 +15,13 @@
   var KEY = 'shopweb:favorites';
   var MAX = 200;
   var signedIn = false;
+  var initialized = false;
+  var currentIds = read();
+  var touched = Object.create(null);
+  document.querySelectorAll('[data-fav][aria-pressed="true"]').forEach(function (button) {
+    var id = button.getAttribute('data-fav');
+    if (currentIds.indexOf(id) === -1) currentIds.push(id);
+  });
 
   /* ---------- localStorage, defensively ---------- */
 
@@ -57,9 +64,15 @@
 
   /** Reflect the current set onto every heart on the page. */
   function paint(ids) {
+    currentIds = ids.slice();
+    Object.keys(touched).forEach(function (id) {
+      var index = currentIds.indexOf(id);
+      if (touched[id] && index === -1) currentIds.push(id);
+      else if (!touched[id] && index !== -1) currentIds.splice(index, 1);
+    });
     var buttons = document.querySelectorAll('[data-fav]');
     for (var i = 0; i < buttons.length; i += 1) {
-      paintOne(buttons[i], ids.indexOf(buttons[i].getAttribute('data-fav')) !== -1);
+      paintOne(buttons[i], currentIds.indexOf(buttons[i].getAttribute('data-fav')) !== -1);
     }
   }
 
@@ -85,18 +98,22 @@
     var on = button.getAttribute('aria-pressed') !== 'true';
 
     // Paint first: the heart must never wait on the network.
-    paintOne(button, on);
+    touched[id] = on;
+    paint(currentIds);
     if (on) add(id); else remove(id);
 
-    if (signedIn) {
+    if (signedIn && initialized) {
       post('/api/favorites', { id: id, on: on })['catch'](function () {});
     }
 
     // On /saved, un-hearting removes the card there and then.
     if (!on && document.querySelector('.page--saved')) {
       var card = button.closest('article, .card');
+      var next = card && (card.nextElementSibling || card.previousElementSibling);
       if (card && card.parentNode) card.parentNode.removeChild(card);
       showEmptyIfBare();
+      var focus = next ? next.querySelector('[data-fav]') : document.querySelector('#saved-empty a');
+      if (focus) focus.focus();
     }
   });
 
@@ -119,22 +136,47 @@
     var ids = read();
     if (!ids.length) { showEmptyIfBare(); return; }
     if (note) note.hidden = false;
+    var status = document.getElementById('saved-status');
+    var empty = document.getElementById('saved-empty');
+    if (empty) empty.hidden = true;
+    if (status) { status.hidden = false; status.textContent = 'پاشەکەوتەکان بار دەکرێن…'; }
 
     fetch('/api/favorites/cards?ids=' + encodeURIComponent(ids.join(',')), {
       credentials: 'same-origin',
     })
-      .then(function (res) { return res.ok ? res.text() : ''; })
+      .then(function (res) { if (!res.ok) throw new Error('Saved unavailable'); return res.text(); })
       .then(function (html) {
+        if (status) status.hidden = true;
         if (!html) { showEmptyIfBare(); return; }
         var list = document.getElementById('saved-list');
         list.innerHTML = '<div class="grid" id="grid">' + html + '</div>';
         paint(ids);
         showEmptyIfBare();
       })
-      ['catch'](function () { showEmptyIfBare(); });
+      ['catch'](function () {
+        if (status) { status.hidden = false; status.textContent = 'بارکردنی پاشەکەوتەکان سەرکەوتوو نەبوو. تکایە پەڕەکە نوێ بکەرەوە.'; }
+      });
   }
 
   /* ---------- start ---------- */
+
+  function finish(ids) {
+    initialized = true;
+    paint(ids);
+    // Preserve taps made while the initial account/merge request was pending.
+    if (signedIn) Object.keys(touched).forEach(function (id) {
+      post('/api/favorites', { id: id, on: touched[id] })['catch'](function () {});
+    });
+  }
+
+  // Load-more cards must reflect the same save state as existing cards.
+  if (window.MutationObserver) new MutationObserver(function (records) {
+    if (records.some(function (record) {
+      return Array.from(record.addedNodes).some(function (node) {
+        return node.nodeType === 1 && (node.matches('[data-fav]') || node.querySelector('[data-fav]'));
+      });
+    })) paint(currentIds);
+  }).observe(document.body, { childList: true, subtree: true });
 
   // One request answers both questions: who is this, and what have they
   // already saved? Signed in, whatever the browser was holding is
@@ -142,13 +184,13 @@
   fetch('/api/favorites', { credentials: 'same-origin' })
     .then(function (res) { return res.ok ? res.json() : null; })
     .then(function (state) {
-      if (!state) { paint(read()); fillSaved(); return; }
+      if (!state) { finish(read()); fillSaved(); return; }
       signedIn = state.signedIn;
 
-      if (!signedIn) { paint(read()); fillSaved(); return; }
+      if (!signedIn) { finish(read()); fillSaved(); return; }
 
       var local = read();
-      if (!local.length) { paint(state.ids || []); return; }
+      if (!local.length) { finish(state.ids || []); return; }
 
       return post('/api/favorites/merge', { ids: local })
         .then(function (res) { return res.ok ? res.json() : null; })
@@ -156,11 +198,11 @@
           // Only forget the local list once the account has it.
           if (merged && merged.ok) {
             write([]);
-            paint(merged.ids || []);
+            finish(merged.ids || []);
           } else {
-            paint(local);
+            finish(local);
           }
         });
     })
-    ['catch'](function () { paint(read()); fillSaved(); });
+    ['catch'](function () { finish(read()); fillSaved(); });
 }());

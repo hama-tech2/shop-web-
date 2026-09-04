@@ -9,27 +9,31 @@
 import { APP_NAME, CHIPS, CITY_LABEL, SEARCH as T } from '../config.js';
 import { esc } from './html.js';
 import { cardsFragment } from './feed.js';
+import { bottomNav } from './appshell.js';
 import { iconBack, iconPin, iconSearch } from './icons.js';
 
 const imgUrl = (key) => `/img/${key.split('/').map(encodeURIComponent).join('/')}`;
 
 const TABS = [
-  { key: 'products', label: T.tabProducts },
+  { key: 'products', label: 'پۆستەکان' },
   { key: 'shops', label: T.tabShops },
 ];
 
 function headHtml(query, tab) {
   return (
     `<header class="srch-head">` +
-    `<a class="icon-btn srch-back" href="/" aria-label="${esc(T.title)}">${iconBack()}</a>` +
+    `<a class="icon-btn srch-back" href="/" aria-label="گەڕانەوە">${iconBack()}</a>` +
+    `<h1 class="srch-title">${esc(T.title)}</h1>` +
+    `<div class="srch-box">` +
     `<form class="search srch-form" role="search" action="/search" method="get">` +
     `<input type="hidden" name="tab" value="${esc(tab)}">` +
-    `<span class="search__icon">${iconSearch()}</span>` +
-    `<input class="search__input" type="search" name="q" value="${esc(query ?? '')}"` +
+    `<button class="search__icon" type="submit" aria-label="${esc(T.title)}">${iconSearch()}</button>` +
+    `<input class="search__input" id="search-query" type="search" name="q" value="${esc(query ?? '')}"` +
     ` placeholder="${esc(T.placeholder)}" enterkeyhint="search"` +
-    ` autocomplete="off" autofocus>` +
-    (query ? `<a class="search__clear" href="/search" aria-label="${esc(T.clear)}">✕</a>` : '') +
+    ` autocomplete="off" maxlength="80" aria-label="${esc(T.placeholder)}" aria-controls="search-suggestions">` +
+    `<a class="search__clear" href="/search?tab=${esc(tab)}" aria-label="${esc(T.clear)}"${query ? '' : ' hidden'}>✕</a>` +
     `</form>` +
+    `<ul class="srch-suggestions" id="search-suggestions" aria-label="پێشنیاری بەرهەم" hidden></ul></div>` +
     `</header>`
   );
 }
@@ -78,14 +82,17 @@ function shopRow(shop) {
   const city = CITY_LABEL[shop.city] || '';
 
   return (
-    `<a class="srch-shop" href="/@${esc(shop.slug)}">` +
+    `<a class="srch-shop" href="/@${esc(encodeURIComponent(shop.slug))}" data-preview="${(shop.product_count ?? 0) > 0 ? 'true' : 'false'}">` +
     avatar +
     `<div class="srch-shop__body">` +
     `<p class="srch-shop__name">${esc(shop.name)}</p>` +
-    (city ? `<p class="srch-shop__meta">${iconPin()}<span>${esc(city)}</span></p>` : '') +
+    `<p class="srch-shop__username"><bdi dir="ltr">@${esc(shop.slug)}</bdi></p>` +
     `<p class="srch-shop__meta">${esc(T.productsOf(shop.product_count ?? 0))}</p>` +
+    (shop.bio ? `<p class="srch-shop__summary">${esc(shop.bio)}</p>` :
+      city ? `<p class="srch-shop__meta">${iconPin()}<span>${esc(city)}</span></p>` : '') +
     `</div>` +
-    `<span class="srch-shop__go">‹</span>` +
+    `<span class="srch-shop__go" dir="ltr" aria-hidden="true">‹</span>` +
+    `<span class="srch-shop__previews" aria-hidden="true" hidden></span>` +
     `</a>`
   );
 }
@@ -108,9 +115,10 @@ export function searchPage({ query, tab, products, shops, counts }) {
   return (
     `<div class="page page--search">` +
     headHtml(query, tab) +
-    (query ? tabsHtml(query, tab, counts) : '') +
+    tabsHtml(query, tab, counts) +
     body +
-    `</div>`
+    `</div>` + bottomNav('feed') +
+    `<script src="/js/search.js" defer></script>`
   );
 }
 

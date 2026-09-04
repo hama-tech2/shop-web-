@@ -3,7 +3,7 @@ import { esc } from './html.js';
 import { alert, button, field, select } from './forms.js';
 import { bottomNav } from './appshell.js';
 import { cropSheet } from './crop-sheet.js';
-import { iconBack, iconCamera, iconFacebook, iconInstagram, iconTiktok } from './icons.js';
+import { iconBack, iconCamera, iconFacebook, iconInstagram, iconPhone, iconTiktok, iconWhatsapp } from './icons.js';
 
 const imgUrl = (key) => `/img/${key.split('/').map(encodeURIComponent).join('/')}`;
 
@@ -12,10 +12,10 @@ function socialRow(platform, label, icon, value) {
   return (
     `<div class="social-row">` +
     `<span class="social-row__icon social-row__icon--${esc(platform)}">${icon}</span>` +
-    `<span class="social-row__label">${esc(label)}</span>` +
+    `<label class="social-row__label" for="f-${esc(platform)}">${esc(label)}</label>` +
     `<span class="social-row__field">` +
     `<span class="social-row__at">@</span>` +
-    `<input class="field__input" type="text" name="${esc(platform)}"` +
+    `<input class="field__input" id="f-${esc(platform)}" type="text" name="${esc(platform)}"` +
     ` value="${esc(value ?? '')}" autocomplete="off" autocapitalize="none"` +
     ` spellcheck="false" maxlength="40" placeholder="username">` +
     `</span></div>`
@@ -38,17 +38,17 @@ export function profilePage({ shop, values, origin, error, saved }) {
       `${esc([...String(v.name || shop.name).trim()][0] ?? '؟')}</span>`;
 
   return (
-    `<div class="shell shell--form">` +
+    `<div class="shell shell--form profile-final">` +
 
     `<div class="edit-head">` +
     `<a class="icon-btn" href="/app" aria-label="${esc(T.title)}">${iconBack()}</a>` +
     `<h1 class="edit-head__title">${esc(T.title)}</h1>` +
-    `<button class="edit-head__save" type="submit" form="profile-form"` +
-    ` data-saving="${esc(T.saving)}">${esc(T.save)}</button>` +
+    `<span class="edit-head__spacer" aria-hidden="true"></span>` +
     `</div>` +
+    `<p class="profile-intro">ناسنامە و زانیارییەکانی دوکانەکەت نوێ بکەرەوە.</p>` +
 
     alert(error) +
-    (saved ? alert(T.saved, 'ok') : '') +
+    (saved ? `<p class="alert alert--ok" role="status">${esc(T.saved)}</p>` : '') +
 
     `<form method="post" action="/app/profile" id="profile-form"` +
     ` data-banner-w="${V.banner.width}" data-banner-q="${V.banner.quality}"` +
@@ -64,7 +64,7 @@ export function profilePage({ shop, values, origin, error, saved }) {
     `<div class="edit-banner">` +
     banner +
     `<button class="camera-btn camera-btn--banner" type="button" id="banner-btn"` +
-    ` aria-label="${esc(T.changeBanner)}">${iconCamera()}</button>` +
+    ` aria-label="${esc(T.changeBanner)}">${iconCamera(18)}<span>${esc(T.changeBanner)}</span></button>` +
     `<div class="edit-logo">` +
     logo +
     `<button class="camera-btn camera-btn--logo" type="button" id="logo-btn"` +
@@ -73,6 +73,14 @@ export function profilePage({ shop, values, origin, error, saved }) {
     `</div>` +
     `<input type="file" id="banner-input" accept="image/jpeg,image/png,image/webp" hidden>` +
     `<input type="file" id="logo-input" accept="image/jpeg,image/png,image/webp" hidden>` +
+    `<p class="field__hint profile-image-status" id="profile-image-status" role="status"></p>` +
+
+    `<div class="profile-name">` +
+    field({ name: 'name', label: T.nameLabel, value: v.name ?? '', extra: ' minlength="2" maxlength="80"' }) +
+    `</div>` +
+    field({ name: 'slug', label: 'ناونیشانی دوکان', value: shop.slug,
+      hint: 'ئەم ناونیشانە جێگیرە و لێرە ناگۆڕدرێت.', required: false,
+      extra: ' readonly dir="ltr"' }) +
 
     // ---------- the link ----------
     `<div class="link-card">` +
@@ -81,13 +89,11 @@ export function profilePage({ shop, values, origin, error, saved }) {
     `<p class="link-card__url" id="shop-url">${esc(url)}</p>` +
     `<a class="link-card__view" href="${esc(`/@${shop.slug}`)}">${esc(T.viewShop)} ‹</a>` +
     `</div>` +
-    `<button class="btn btn--primary link-card__copy" type="button" id="copy-link"` +
+    `<button class="btn btn--quiet link-card__copy" type="button" id="copy-link"` +
     ` data-copied="${esc(T.copied)}">${esc(T.copy)}</button>` +
     `</div>` +
 
     // ---------- fields ----------
-    field({ name: 'name', label: T.nameLabel, value: v.name ?? '' }) +
-
     `<div class="field">` +
     `<label class="field__label" for="f-bio">${esc(T.bioLabel)}</label>` +
     `<div class="counted">` +
@@ -103,6 +109,7 @@ export function profilePage({ shop, values, origin, error, saved }) {
     `<div class="field">` +
     `<label class="field__label" for="f-whatsapp">${esc(T.whatsappLabel)}</label>` +
     `<div class="icon-field icon-field--whatsapp">` +
+    iconWhatsapp(22) +
     `<input class="field__input" id="f-whatsapp" name="whatsapp" type="tel" required` +
     ` inputmode="tel" dir="ltr" value="${esc(v.whatsapp ?? '')}" placeholder="0750 123 4567">` +
     `</div></div>` +
@@ -110,6 +117,7 @@ export function profilePage({ shop, values, origin, error, saved }) {
     `<div class="field">` +
     `<label class="field__label" for="f-phone">${esc(T.phoneLabel)}</label>` +
     `<div class="icon-field icon-field--phone">` +
+    iconPhone(22) +
     `<input class="field__input" id="f-phone" name="phone" type="tel"` +
     ` inputmode="tel" dir="ltr" value="${esc(v.phone ?? '')}" placeholder="0770 765 4321">` +
     `</div></div>` +
@@ -119,14 +127,29 @@ export function profilePage({ shop, values, origin, error, saved }) {
     socialRow('instagram', 'Instagram', iconInstagram(20), v.instagram) +
     socialRow('tiktok', 'TikTok', iconTiktok(20), v.tiktok) +
     socialRow('facebook', 'Facebook', iconFacebook(20), v.facebook) +
+    `<div class="profile-unavailable">` +
+    `<label class="field__label" for="f-snapchat">Snapchat <small>— لە ئێستادا بەردەست نییە</small></label>` +
+    `<input class="field__input" id="f-snapchat" placeholder="@username" dir="ltr" disabled>` +
     `</div>` +
-
-    `<div class="save-bar">` +
-    button(T.save, { id: 'save-btn', attrs: ` data-saving="${esc(T.saving)}"` }) +
     `</div>` +
+    `<details class="profile-optional"><summary>لینکی تر (هەڵبژاردەیی)</summary>` +
+    `<p class="field__hint">زیادکردنی ئەم لینکانە لە ئێستادا بەردەست نییە.</p>` +
+    field({ name: 'website', label: 'وێبسایت', type: 'url', required: false, extra: ' disabled dir="ltr"', placeholder: 'https://example.com' }) +
+    field({ name: 'maps', label: 'شوێنی دوکان — Google Maps', type: 'url', required: false, extra: ' disabled dir="ltr"', placeholder: 'https://maps.app.goo.gl/…' }) +
+    `</details>` +
     `</form>` +
+    `<section class="profile-categories" id="shop-categories" aria-labelledby="profile-categories-title">` +
+    `<h2 id="profile-categories-title">بەشەکانی دوکان</h2>` +
+    `<p class="field__hint">بۆ دەستکاری بەشێک لێی بدە. گۆڕانکارییەکانی بەشەکان یەکسەر پاشەکەوت دەکرێن.</p>` +
+    `<p id="category-status" role="status" aria-live="polite"></p>` +
+    `<div id="profile-category-content"><a href="/app/categories">بەشەکان بکەرەوە ‹</a></div>` +
+    `</section>` +
+    `<div class="profile-save">` +
+    button(T.save, { id: 'save-btn', attrs: ` form="profile-form" data-saving="${esc(T.saving)}"` }) +
+    `</div>` +
     `</div>` +
     cropSheet() +
+    `<script src="/js/profile-categories.js" defer></script>` +
     bottomNav('account')
   );
 }

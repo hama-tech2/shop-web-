@@ -152,21 +152,32 @@
   var langBtn = document.getElementById('lang-btn');
   var sheet = document.getElementById('lang-sheet');
   var scrim = document.getElementById('sheet-scrim');
+  var sheetOpen = false, sheetTimer, sheetOverflow;
 
   function openSheet(open) {
-    if (!sheet || !scrim) return;
+    if (!sheet || !scrim || open === sheetOpen) return;
+    sheetOpen = open;
+    sheet.inert = !open;
+    clearTimeout(sheetTimer);
+    langBtn.setAttribute('aria-expanded', String(open));
     if (open) {
+      sheetOverflow = document.body.style.overflow;
+      document.body.style.overflow = 'hidden';
       sheet.hidden = false;
       scrim.hidden = false;
       // next frame, so the transform transition actually runs
       requestAnimationFrame(function () {
+        if (!sheetOpen) return;
         sheet.dataset.open = 'true';
         scrim.dataset.open = 'true';
+        sheet.querySelector('button:not(:disabled)').focus();
       });
     } else {
       delete sheet.dataset.open;
       delete scrim.dataset.open;
-      setTimeout(function () {
+      document.body.style.overflow = sheetOverflow;
+      langBtn.focus();
+      sheetTimer = setTimeout(function () {
         sheet.hidden = true;
         scrim.hidden = true;
       }, 320);
@@ -176,7 +187,16 @@
   if (langBtn) langBtn.addEventListener('click', function () { openSheet(true); });
   if (scrim) scrim.addEventListener('click', function () { openSheet(false); });
   document.addEventListener('keydown', function (e) {
-    if (e.key === 'Escape') openSheet(false);
+    if (!sheetOpen) return;
+    if (e.key === 'Escape') { e.preventDefault(); openSheet(false); }
+    if (e.key === 'Tab') {
+      var options = Array.from(sheet.querySelectorAll('button:not(:disabled)'));
+      var index = options.indexOf(document.activeElement);
+      if (index < 0 || (e.shiftKey && index === 0) || (!e.shiftKey && index === options.length - 1)) {
+        e.preventDefault();
+        options[e.shiftKey ? options.length - 1 : 0].focus();
+      }
+    }
   });
   if (sheet) {
     sheet.addEventListener('click', function (e) {

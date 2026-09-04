@@ -68,7 +68,7 @@ export function cardHtml(product, index, { linked = true, saved = false } = {}) 
     `<h2 class="card__title">${esc(product.title)}</h2>` +
     `<p class="card__price">` +
     `<span class="card__amount">${esc(price(product.price))}</span>` +
-    `<span class="card__currency">${esc(UI.currency)}</span>` +
+    `<span class="card__currency">${esc(UI.currency === 'IQD' ? 'د.ع' : UI.currency)}</span>` +
     `</p>` +
     `<div class="card__shop">${avatar}` +
     `<span class="card__shop-name">${esc(product.shopName)}</span></div>` +
@@ -84,7 +84,7 @@ export function cardsFragment(products, startIndex, options) {
 
 function headerHtml({ query }) {
   const clear = query
-    ? `<a class="search__clear" href="/">✕</a>`
+    ? `<a class="search__clear" href="/" aria-label="سڕینەوەی گەڕان">✕</a>`
     : '';
 
   return (
@@ -92,13 +92,13 @@ function headerHtml({ query }) {
     `<div class="header__top">` +
     `<h1 class="header__name">${esc(APP_NAME)}</h1>` +
     `<button class="icon-btn" type="button" id="lang-btn"` +
-    ` aria-haspopup="dialog" aria-label="${esc(UI.language)}">${iconGlobe()}</button>` +
+    ` aria-haspopup="dialog" aria-expanded="false" aria-controls="lang-sheet" aria-label="${esc(UI.language)}">${iconGlobe()}</button>` +
     `</div>` +
     // Submits to /search, which has the tabs and the typo-tolerant
     // matching. /?q= still renders, so old links keep working.
     `<form class="search" role="search" action="/search" method="get">` +
     `<span class="search__icon">${iconSearch()}</span>` +
-    `<input class="search__input" type="search" name="q"` +
+    `<input class="search__input" type="search" name="q" aria-label="${esc(UI.searchPlaceholder)}"` +
     ` value="${esc(query ?? '')}" placeholder="${esc(UI.searchPlaceholder)}"` +
     ` enterkeyhint="search" autocomplete="off">` +
     clear +

@@ -76,7 +76,7 @@ export function productPage({ product, more, origin }) {
     `<div class="pdp-heading"><h1 class="pdp-title">${esc(product.title)}</h1>` +
     `<p class="pdp-price">` +
     `<span class="pdp-amount">${esc(price(product.price))}</span>` +
-    `<span class="card__currency">${esc(UI.currency)}</span></p></div>` +
+    `<span class="card__currency">${esc(UI.currency === 'IQD' ? 'د.ع' : UI.currency)}</span></p></div>` +
     (product.description
       ? `<section class="pdp-description"><h2>دەربارەی بەرهەم</h2><p class="pdp-desc">${esc(product.description)}</p></section>`
       : '') +

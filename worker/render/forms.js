@@ -11,6 +11,7 @@ export function field({ name, label, type = 'text', value = '', placeholder = ''
     `<label class="field__label" for="${esc(fieldId)}">${esc(label)}</label>` +
     `<input class="field__input" id="${esc(fieldId)}" name="${esc(name)}" type="${esc(type)}"` +
     ` value="${esc(value)}" placeholder="${esc(placeholder)}"` +
+    (['email', 'tel', 'url', 'password'].includes(type) ? ' dir="ltr"' : '') +
     (autocomplete ? ` autocomplete="${esc(autocomplete)}"` : '') +
     (inputmode ? ` inputmode="${esc(inputmode)}"` : '') +
     (required ? ' required' : '') +

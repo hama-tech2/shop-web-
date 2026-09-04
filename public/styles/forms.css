@@ -86,11 +86,14 @@
 }
 
 .slug-row .field__input {
+  min-width: 0;
   border-radius: 0;
   background: none;
   padding-inline: 0 var(--s-4);
   text-align: left;
 }
+
+.logo-pick:focus-within { outline: 2px solid var(--accent); outline-offset: 2px; }
 
 .slug-url {
   margin-top: var(--s-2);

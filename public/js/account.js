@@ -15,25 +15,32 @@
 
   var copy = document.getElementById('copy-link');
   if (copy) {
+    var copyLabel = copy.textContent;
+    var copyTimer;
     copy.addEventListener('click', function () {
       var target = document.getElementById('shop-url');
       if (!target) return;
       var text = target.textContent.trim();
       var done = function () {
-        var original = copy.textContent;
+        clearTimeout(copyTimer);
         copy.textContent = copy.dataset.copied || 'ok';
-        setTimeout(function () { copy.textContent = original; }, 1600);
+        copyTimer = setTimeout(function () { copy.textContent = copyLabel; }, 1600);
       };
-      if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(text).then(done, function () {});
-      } else {
+      function fallback() {
         var box = document.createElement('textarea');
+        box.className = 'visually-hidden';
         box.value = text;
         document.body.appendChild(box);
         box.select();
-        try { document.execCommand('copy'); done(); } catch (e) {}
+        try {
+          if (document.execCommand('copy')) done();
+          else copy.textContent = 'لینکەکە هەڵبژێرە و کۆپی بکە';
+        } catch (e) { copy.textContent = 'لینکەکە هەڵبژێرە و کۆپی بکە'; }
         document.body.removeChild(box);
+        copy.focus();
       }
+      if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done, fallback);
+      else fallback();
     });
   }
 
@@ -57,6 +64,9 @@
   var form = document.getElementById('profile-form');
   if (form && window.ShopCrop) {
     var D = form.dataset;
+    var uploads = 0;
+    var save = document.getElementById('save-btn');
+    var imageStatus = document.getElementById('profile-image-status');
 
     var slots = {
       banner: {
@@ -112,6 +122,9 @@
       body.append('image', blob, kind + '.webp');
 
       slot.btn.disabled = true;
+      uploads++;
+      if (save) save.disabled = true;
+      if (imageStatus) imageStatus.textContent = 'وێنەکە بار دەکرێت…';
 
       fetch('/app/profile/image', { method: 'POST', body: body })
         .then(function (r) { return r.ok ? r.json() : Promise.reject(r.status); })
@@ -120,20 +133,29 @@
           // Swap a placeholder <span> for a real <img> the first time.
           if (slot.preview.tagName !== 'IMG') {
             var img = document.createElement('img');
-            img.className = slot.preview.className.replace(/--empty/g, '');
+            img.className = slot.preview.className.replace(/\s+\S+--empty/g, '');
             img.id = slot.preview.id;
             img.alt = '';
             slot.preview.replaceWith(img);
             slot.preview = img;
           }
           slot.preview.src = data.url + '?v=' + Date.now();
+          if (imageStatus) imageStatus.textContent = 'وێنەکە ئامادەیە. بۆ جێگیرکردن پاشەکەوت بکە.';
         })
-        .catch(function () { alert(D.msgImage); })
-        .then(function () { slot.btn.disabled = false; });
+        .catch(function () {
+          if (imageStatus) imageStatus.textContent = D.msgImage;
+          else alert(D.msgImage);
+        })
+        .finally(function () {
+          slot.btn.disabled = false;
+          uploads--;
+          if (save) save.disabled = uploads > 0;
+        });
     }
 
-    form.addEventListener('submit', function () {
-      var save = document.getElementById('save-btn');
+    form.addEventListener('submit', function (event) {
+      if (event.defaultPrevented) return;
+      if (uploads) { event.preventDefault(); return; }
       if (save) { save.disabled = true; save.textContent = save.dataset.saving; }
     });
   }
