@@ -19,6 +19,14 @@ import { getOwnShop, resolveSession, sameOrigin, setSessionCookies } from '../au
 import { redirect } from './auth.js';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * PostgREST answers 200 with an empty body when a write matches no
+ * rows, so "ok" alone cannot tell a real change from one RLS discarded.
+ * Asking for the representation makes the affected rows the answer.
+ */
+const AFFECTED = 'return=representation';
+const affected = (res) => (res.ok && Array.isArray(res.data) ? res.data.length : 0);
 const MAX_IMAGE_BYTES = 4 * 1024 * 1024;
 
 function page(body, title, headers, scripts = ['/js/account.js']) {
@@ -278,11 +286,14 @@ export async function categoryRenamePost(request, env, id) {
   const res = await asUser(env, g.token, 'categories', {
     method: 'PATCH',
     search: { id: `eq.${id}`, shop_id: `eq.${g.shop.id}` },
+    prefer: AFFECTED,
     body: { name: clean },
   });
   if (!res.ok) {
     return back(g.headers, res.data?.code === '23505' ? 'errDuplicate' : 'errName');
   }
+  // Renamed nothing: deleted in another tab, or never this seller's.
+  if (affected(res) === 0) return back(g.headers, 'errGone');
   return back(g.headers);
 }
 
@@ -294,10 +305,12 @@ export async function categoryDeletePost(request, env, id) {
 
   // products.category_id is ON DELETE SET NULL: the products survive,
   // they just stop belonging to this category.
-  await asUser(env, g.token, 'categories', {
+  const res = await asUser(env, g.token, 'categories', {
     method: 'DELETE',
     search: { id: `eq.${id}`, shop_id: `eq.${g.shop.id}` },
+    prefer: AFFECTED,
   });
+  if (!res.ok || affected(res) === 0) return back(g.headers, 'errGone');
   return back(g.headers);
 }
 
@@ -314,18 +327,26 @@ export async function categoryMovePost(request, env, id) {
   if (i < 0 || j < 0 || j >= list.length) return back(g.headers);
 
   // Swap the two sort_order values. They are not unique, so no
-  // constraint dance is needed.
-  await Promise.all([
+  // constraint dance is needed. Both are scoped to this shop so the
+  // affected-row count means something.
+  const [a, b] = await Promise.all([
     asUser(env, g.token, 'categories', {
-      method: 'PATCH', search: { id: `eq.${list[i].id}` },
+      method: 'PATCH',
+      search: { id: `eq.${list[i].id}`, shop_id: `eq.${g.shop.id}` },
+      prefer: AFFECTED,
       body: { sort_order: list[j].sort_order },
     }),
     asUser(env, g.token, 'categories', {
-      method: 'PATCH', search: { id: `eq.${list[j].id}` },
+      method: 'PATCH',
+      search: { id: `eq.${list[j].id}`, shop_id: `eq.${g.shop.id}` },
+      prefer: AFFECTED,
       body: { sort_order: list[i].sort_order },
     }),
   ]);
 
+  // Either half missing means the order on screen is not the order in
+  // the database. Say so rather than redrawing a list that lies.
+  if (affected(a) === 0 || affected(b) === 0) return back(g.headers, 'errGone');
   return back(g.headers);
 }
 

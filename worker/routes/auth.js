@@ -34,7 +34,16 @@ function redirect(location, extraHeaders) {
 function safeNext(value, fallback = '/app') {
   if (!value || typeof value !== 'string') return fallback;
   if (!value.startsWith('/') || value.startsWith('//')) return fallback;
-  return value;
+  if (/\\|%5c/i.test(value) || /[\u0000-\u001f\u007f]/.test(value)) return fallback;
+
+  try {
+    const base = new URL('https://local.invalid');
+    const parsed = new URL(value, base);
+    if (parsed.origin !== base.origin) return fallback;
+    return `${parsed.pathname}${parsed.search}${parsed.hash}`;
+  } catch {
+    return fallback;
+  }
 }
 
 const validEmail = (v) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v || '');
@@ -46,10 +55,36 @@ async function form(request) {
   return out;
 }
 
-/** Where a signed-in seller belongs: the wizard until they have a shop. */
+/**
+ * The seller area. An account with no shop cannot use any of it, so a
+ * `next` pointing here is what the onboarding wizard exists to answer.
+ */
+const SELLER_ONLY = ['/app', '/onboarding'];
+
+const isSellerArea = (path) =>
+  SELLER_ONLY.some((p) => path === p || path.startsWith(`${p}/`) || path.startsWith(`${p}?`));
+
+/**
+ * Where an authenticated account belongs.
+ *
+ * Not everyone who signs in is a seller. Someone who hearted a product
+ * on /@slug, or opened /saved, is a customer, and sending them into the
+ * shop-creation wizard loses the thing they were doing. So a no-shop
+ * account still follows a customer destination; only the seller area
+ * falls back to onboarding.
+ *
+ * Pure on purpose — the shop lookup is the caller's job — because this
+ * is the decision worth testing.
+ */
+export function landingPath(hasShop, next) {
+  const safe = safeNext(next, '');
+  if (hasShop) return safe || '/app';
+  if (!safe || isSellerArea(safe)) return '/onboarding';
+  return safe;
+}
+
 async function landingFor(env, token, next) {
-  const shop = await getOwnShop(env, token);
-  return shop ? safeNext(next, '/app') : '/onboarding';
+  return landingPath(Boolean(await getOwnShop(env, token)), next);
 }
 
 /* ============================================================
@@ -57,13 +92,14 @@ async function landingFor(env, token, next) {
    ============================================================ */
 
 export async function signupGet(request, url) {
-  const next = url.searchParams.get('next');
+  const next = safeNext(url.searchParams.get('next'), '');
   return html(signupPage({ next }), `${AUTH.signupTitle} — ${APP_NAME}`);
 }
 
 export async function signupPost(request, env) {
   if (!sameOrigin(request)) return new Response('bad origin', { status: 403 });
-  const { email, password, next } = await form(request);
+  const { email, password, next: rawNext } = await form(request);
+  const next = safeNext(rawNext, '');
 
   if (!validEmail(email)) {
     return html(signupPage({ error: AUTH.errEmail, email, next }), AUTH.signupTitle);
@@ -84,12 +120,14 @@ export async function signupPost(request, env) {
   // With confirmations off, signup returns a session immediately.
   const session = res.data?.access_token ? res.data : res.data?.session;
   if (!session?.access_token) {
-    return html(loginPage({ notice: AUTH.forgotSent, email }), AUTH.loginTitle);
+    return html(loginPage({ notice: AUTH.forgotSent, email, next }), AUTH.loginTitle);
   }
 
+  // A brand-new account has no shop yet, so the same rule applies:
+  // a customer destination is honoured, the seller area is not.
   const headers = new Headers();
   setSessionCookies(headers, session);
-  return redirect('/onboarding', headers);
+  return redirect(landingPath(false, next), headers);
 }
 
 /* ============================================================
@@ -98,14 +136,15 @@ export async function signupPost(request, env) {
 
 export async function loginGet(request, url) {
   return html(
-    loginPage({ next: url.searchParams.get('next') }),
+    loginPage({ next: safeNext(url.searchParams.get('next'), '') }),
     `${AUTH.loginTitle} — ${APP_NAME}`,
   );
 }
 
 export async function loginPost(request, env) {
   if (!sameOrigin(request)) return new Response('bad origin', { status: 403 });
-  const { email, password, next } = await form(request);
+  const { email, password, next: rawNext } = await form(request);
+  const next = safeNext(rawNext, '');
 
   const res = await signInPassword(env, email, password);
   if (!res.ok || !res.data?.access_token) {

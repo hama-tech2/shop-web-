@@ -19,6 +19,16 @@ import { redirect } from './auth.js';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
+/**
+ * PostgREST answers 200 with an empty body when a write matches no
+ * rows, so "ok" alone cannot tell a successful edit from one RLS threw
+ * away. Asking for the representation makes the affected rows the
+ * answer: zero of them means nothing changed, and the seller has to be
+ * told rather than shown a success screen over an unchanged product.
+ */
+const AFFECTED = 'return=representation';
+const affected = (res) => (res.ok && Array.isArray(res.data) ? res.data.length : 0);
+
 const PRODUCT_SELECT =
   'id,title,price,description,status,platform_category_id,category_id,created_at,' +
   'product_images(r2_key,r2_key_full,position)';
@@ -340,14 +350,20 @@ export async function editPost(request, env, id) {
 
   const updated = await asUser(env, g.token, 'products', {
     method: 'PATCH',
-    search: { id: `eq.${id}` },
+    search: { id: `eq.${id}`, shop_id: `eq.${g.shop.id}` },
+    prefer: AFFECTED,
     body: parsed.row,
   });
-  if (!updated.ok) {
+
+  // Zero rows is not success. The product was deleted in another tab,
+  // or the id belongs to someone else and RLS refused it — either way
+  // the images must not be written against it.
+  if (!updated.ok || affected(updated) === 0) {
     return page(
       productForm({ mode: 'edit', draftId: id, categories,
                     shopCategories: await ownCategories(env, g.token, g.shop.id),
-                    values: parsed.values, error: T.errSave }),
+                    values: parsed.values,
+                    error: updated.ok ? T.errGone : T.errSave }),
       T.editTitle, g.headers,
     );
   }
@@ -370,7 +386,15 @@ export async function deletePost(request, env, id) {
   if (g.redirect) return g.redirect;
   if (!UUID.test(id)) return redirect('/app/products', g.headers);
 
-  await asUser(env, g.token, 'products', { method: 'DELETE', search: { id: `eq.${id}` } });
+  const removed = await asUser(env, g.token, 'products', {
+    method: 'DELETE',
+    search: { id: `eq.${id}`, shop_id: `eq.${g.shop.id}` },
+    prefer: AFFECTED,
+  });
+
+  if (!removed.ok || affected(removed) === 0) {
+    return redirect('/app/products?e=errGone', g.headers);
+  }
   return redirect('/app/products', g.headers);
 }
 
@@ -395,8 +419,11 @@ export async function listGet(request, env, url) {
 
   const res = await asUser(env, g.token, 'products', { search });
 
+  const errorKey = url.searchParams.get('e');
+  const error = errorKey && T[errorKey] ? T[errorKey] : null;
+
   return page(
-    productList({ products: res.ok ? res.data ?? [] : [], filter: filter.key }),
+    productList({ products: res.ok ? res.data ?? [] : [], filter: filter.key, error }),
     T.listTitle, g.headers,
   );
 }

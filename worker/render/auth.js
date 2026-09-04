@@ -6,8 +6,11 @@ const shell = (inner) => `<div class="auth">${inner}</div>`;
 
 const brand = () => `<p class="auth__brand">${esc(APP_NAME)}</p>`;
 
+const withNext = (path, next) =>
+  next ? `${path}?next=${encodeURIComponent(next)}` : path;
+
 const googleButton = (next) =>
-  `<a class="btn btn--quiet" href="/auth/google${next ? `?next=${encodeURIComponent(next)}` : ''}">` +
+  `<a class="btn btn--quiet" href="${esc(withNext('/auth/google', next))}">` +
   `${googleMark()}<span>${esc(AUTH.google)}</span></a>`;
 
 /** Carried through the whole flow so a deep link survives a login. */
@@ -34,7 +37,8 @@ export function signupPage({ error, email = '', next }) {
       `</form>` +
       divider(AUTH.or) +
       googleButton(next) +
-      `<p class="auth__foot">${esc(AUTH.haveAccount)} <a href="/login">${esc(AUTH.goLogin)}</a></p>`,
+      `<p class="auth__foot">${esc(AUTH.haveAccount)} ` +
+      `<a href="${esc(withNext('/login', next))}">${esc(AUTH.goLogin)}</a></p>`,
   );
 }
 
@@ -60,7 +64,8 @@ export function loginPage({ error, notice, email = '', next }) {
       `<p class="auth__foot"><a href="/forgot">${esc(AUTH.forgot)}</a></p>` +
       divider(AUTH.or) +
       googleButton(next) +
-      `<p class="auth__foot">${esc(AUTH.noAccount)} <a href="/signup">${esc(AUTH.goSignup)}</a></p>`,
+      `<p class="auth__foot">${esc(AUTH.noAccount)} ` +
+      `<a href="${esc(withNext('/signup', next))}">${esc(AUTH.goSignup)}</a></p>`,
   );
 }
 

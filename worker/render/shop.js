@@ -2,7 +2,7 @@ import { APP_NAME, CITY_LABEL, SHOP as T, UI } from '../config.js';
 import { esc } from './html.js';
 import { cardHtml } from './feed.js';
 import {
-  iconFacebook, iconInstagram, iconPhone, iconPin, iconShare, iconTiktok, iconWhatsapp,
+  iconFacebook, iconInstagram, iconLink, iconPhone, iconPin, iconShare, iconTiktok, iconWhatsapp,
 } from './icons.js';
 
 const imgUrl = (key) => `/img/${key.split('/').map(encodeURIComponent).join('/')}`;
@@ -14,7 +14,7 @@ const wa = (number, text) =>
    header — banner, logo, name, city, bio, contact
    ============================================================ */
 
-export function shopHeader({ shop, origin }) {
+export function shopHeader({ shop, origin, controls = '' }) {
   const url = `${origin}/@${shop.slug}`;
   const city = CITY_LABEL[shop.city] ?? shop.city ?? '';
 
@@ -50,21 +50,28 @@ export function shopHeader({ shop, origin }) {
       ? round(`https://facebook.com/${encodeURIComponent(shop.facebook)}`, T.facebook,
               iconFacebook(), ' target="_blank" rel="noopener"')
       : '',
+  ].join('');
+
+  const sharing =
     `<button class="round-btn" type="button" id="share-btn"` +
     ` data-url="${esc(url)}" data-title="${esc(shop.name)}"` +
-    ` data-copied="${esc(T.linkCopied)}" aria-label="${esc(T.share)}">${iconShare()}</button>`,
-  ].join('');
+    ` data-copied="${esc(T.linkCopied)}" aria-label="${esc(T.share)}">${iconShare()}</button>` +
+    `<button class="round-btn" type="button" id="shop-copy" data-url="${esc(url)}"` +
+    ` data-copied="${esc(T.linkCopied)}" aria-label="کۆپیکردنی لینک">${iconLink()}</button>` +
+    `<span class="share-status visually-hidden" role="status" aria-live="polite"></span>`;
 
   return (
     `<header class="shop-head">` +
-    `<div class="shop-banner">${banner}${logo}</div>` +
+    `<div class="shop-banner">${banner}${logo}<div class="shop-sharing">${sharing}</div></div>` +
     `<div class="shop-id">` +
     `<h1 class="shop-name">${esc(shop.name)}</h1>` +
+    `<p class="shop-username"><bdi dir="ltr">@${esc(shop.slug)}</bdi></p>` +
     (city
       ? `<p class="shop-city">${iconPin()}<span>${esc(city)}</span></p>`
       : '') +
-    (shop.bio ? `<p class="shop-bio">${esc(shop.bio)}</p>` : '') +
     `</div>` +
+    (shop.bio ? `<p class="shop-bio">${esc(shop.bio)}</p>` : '') +
+    controls +
     `<div class="shop-actions">` +
     `<a class="btn btn--whatsapp" href="${esc(wa(shop.whatsapp, T.shopText(shop.name, url)))}"` +
     ` target="_blank" rel="noopener">${iconWhatsapp()}` +
@@ -95,7 +102,7 @@ export function shopPage({ shop, products, categories, shopCategories, activeCat
 
   const base = `/@${encodeURIComponent(shop.slug)}`;
   const chipRow =
-    chips.length > 1
+    chips.length || activeCategory
       ? `<nav class="chips" aria-label="${esc(T.productsTitle)}">` +
         `<a class="chip" href="${esc(base)}"` +
         `${!activeCategory ? ' aria-current="true"' : ''}>${esc(T.all)}</a>` +
@@ -132,7 +139,7 @@ export function shopPage({ shop, products, categories, shopCategories, activeCat
   }
 
   // No bottom tab bar here: this page belongs to the seller, not the app.
-  return `<div class="page page--shop">${shopHeader({ shop, origin })}${body}</div>`;
+  return `<div class="page page--shop">${shopHeader({ shop, origin })}<div class="shop-products">${body}</div></div>`;
 }
 
 export function shopNotFound() {

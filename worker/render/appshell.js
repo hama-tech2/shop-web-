@@ -1,8 +1,9 @@
 import {
-  APP_UI, AUTH, CATEGORIES_UI, PRODUCT, PROFILE, SAVED, SUBSCRIPTION, UI,
+  AUTH, CATEGORIES_UI, PRODUCT, PROFILE, SAVED, SUBSCRIPTION, UI,
 } from '../config.js';
 import { esc } from './html.js';
-import { iconHeart, iconHome, iconUser } from './icons.js';
+import { shopHeader } from './shop.js';
+import { iconHeart, iconHome, iconPlus, iconUser } from './icons.js';
 
 /**
  * Bottom nav, shared by the feed, /saved and the seller's area.
@@ -27,47 +28,28 @@ const menuLink = (href, label) =>
   `<a class="app-menu__item" href="${esc(href)}">` +
   `<span>${esc(label)}</span><span class="app-menu__go">‹</span></a>`;
 
-/**
- * The seller's area. Deliberately close to empty — this session builds
- * the shell and the guard; products, profile editing and stats land later.
- */
+/** Owner controls stay inside the existing authenticated seller area. */
 export function appShell({ shop, origin }) {
-  const url = `${origin}/@${shop.slug}`;
-
-  const row = (label, value, ltr = false) =>
-    `<div class="card-block"><p class="card-block__label">${esc(label)}</p>` +
-    `<p class="card-block__value${ltr ? ' card-block__value--ltr' : ''}"` +
-    `${ltr ? ' dir="ltr"' : ''}>${esc(value)}</p></div>`;
-
-  return (
-    `<div class="shell">` +
-    `<div class="shell__head">` +
-    `<h1 class="shell__title">${esc(APP_UI.title)}</h1>` +
-    `<form method="post" action="/logout">` +
-    `<button class="btn btn--ghost" type="submit">${esc(AUTH.logout)}</button>` +
-    `</form>` +
-    `</div>` +
-
-    `<div class="card-block">` +
-    `<p class="card-block__label">${esc(APP_UI.yourLink)}</p>` +
-    `<div class="link-row">` +
-    `<span id="shop-url">${esc(url)}</span>` +
-    `<button class="copy-btn" type="button" id="copy-link"` +
-    ` data-copied="${esc(APP_UI.copied)}">${esc(APP_UI.copy)}</button>` +
-    `</div></div>` +
-
-    row(APP_UI.shopName, shop.name) +
-    row(APP_UI.city, shop.city) +
-    row(APP_UI.whatsapp, shop.whatsapp, true) +
-
-    `<nav class="app-menu">` +
+  const controls =
+    `<nav class="owner-controls" aria-label="بەڕێوەبردنی دوکان">` +
+    `<a class="owner-control owner-control--primary" href="/app/profile">دەستکاری پرۆفایل</a>` +
+    `<a class="owner-control" href="/app/new">${iconPlus(18)}<span>${esc(PRODUCT.add)}</span></a>` +
+    `<details class="owner-manage"><summary class="owner-control">بەڕێوەبردن</summary>` +
+    `<nav class="owner-menu">` +
     menuLink('/app/products', PRODUCT.listTitle) +
-    menuLink('/app/new', PRODUCT.add) +
-    menuLink('/app/profile', PROFILE.title) +
     menuLink('/app/categories', CATEGORIES_UI.title) +
     menuLink('/app/subscription', SUBSCRIPTION.title) +
-    `</nav>` +
-    `</div>` +
-    bottomNav('account')
+    `<form method="post" action="/logout"><button class="app-menu__item" type="submit">${esc(AUTH.logout)}</button></form>` +
+    `</nav></details></nav>`;
+
+  return (
+    `<div class="page page--shop page--owner">` +
+    shopHeader({ shop, origin, controls }) +
+    `<section id="owner-products" class="shop-products" data-shop-url="${esc('/@' + shop.slug)}" aria-label="${esc(PRODUCT.listTitle)}">` +
+    `<div class="notice"><a class="owner-preview-link" href="${esc('/@' + shop.slug)}">${esc(PROFILE.viewShop)} ‹</a></div>` +
+    `</section></div>` +
+    bottomNav('account') +
+    `<script src="/js/shop.js" defer></script>` +
+    `<script src="/js/owner-profile.js" defer></script>`
   );
 }

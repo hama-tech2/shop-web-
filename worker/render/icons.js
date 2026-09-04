@@ -42,6 +42,8 @@ export const iconShare = (s = 18) =>
   svg('<path d="M12 15V4"/><path d="m8.5 7.5 3.5-3.5 3.5 3.5"/><path d="M5 13v5.5A1.5 1.5 0 0 0 6.5 20h11a1.5 1.5 0 0 0 1.5-1.5V13"/>', s);
 
 export const iconBack = (s = 22) => svg('<path d="m9 5 7 7-7 7"/>', s);
+export const iconLink = (s = 20) =>
+  svg('<path d="m10 13 4-4M8 15l-1 1a3.5 3.5 0 0 1-5-5l4-4a3.5 3.5 0 0 1 5 0M16 9l1-1a3.5 3.5 0 0 1 5 5l-4 4a3.5 3.5 0 0 1-5 0"/>', s);
 
 /** WhatsApp, Instagram, TikTok and Facebook marks — filled, brand shapes. */
 const brand = (body, size) =>

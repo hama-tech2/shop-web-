@@ -1,5 +1,6 @@
 import { PRODUCT as T, PRODUCT_FILTERS, UI } from '../config.js';
 import { esc, price } from './html.js';
+import { alert } from './forms.js';
 import { bottomNav } from './appshell.js';
 
 const STATUS_LABEL = {
@@ -8,7 +9,7 @@ const STATUS_LABEL = {
   archived: PRODUCT_FILTERS[3].label,
 };
 
-export function productList({ products, filter }) {
+export function productList({ products, filter, error }) {
   const chips = PRODUCT_FILTERS.map(
     (f) =>
       `<a class="chip" href="/app/products?filter=${esc(f.key)}"` +
@@ -25,6 +26,7 @@ export function productList({ products, filter }) {
     `</div>` +
 
     `<nav class="chips chips--inline" aria-label="${esc(T.listTitle)}">${chips}</nav>` +
+    alert(error) +
 
     (products.length
       ? `<div class="rows">${rows}</div>`
