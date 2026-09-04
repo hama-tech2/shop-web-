@@ -58,42 +58,44 @@ export function productPage({ product, more, origin }) {
   return (
     `<div class="page page--pdp">` +
 
-    `<a class="pdp-back" href="${esc(shopUrl)}" aria-label="${esc(T.backToShop)}">` +
-    `${iconBack()}</a>` +
+    `<div class="pdp-toolbar">` +
+    `<a class="pdp-back" href="${esc(shopUrl)}">${iconBack()}<span>${esc(T.backToShop)}</span></a>` +
+    `<div class="pdp-tools">` +
+    `<button class="round-btn" type="button" id="pdp-heart" data-fav="${esc(product.id)}"` +
+    ` aria-pressed="false" aria-label="${esc(T.save)}">${iconHeart(22)}</button>` +
+    `<button class="round-btn" type="button" id="share-btn"` +
+    ` data-url="${esc(pageUrl)}" data-title="${esc(product.title)}"` +
+    ` data-copied="${esc(T.linkCopied)}" aria-label="${esc(T.share)}">${iconShare(22)}</button>` +
+    `<span class="share-status visually-hidden" role="status" aria-live="polite"></span>` +
+    `</div></div>` +
 
-    `<div class="carousel" id="pdp-carousel">${slides}</div>${dots}` +
+    `<div class="pdp-gallery"><div class="carousel" id="pdp-carousel" tabindex="0" role="region"` +
+    ` aria-label="وێنەکانی بەرهەم">${slides}</div>${dots}</div>` +
 
     `<div class="pdp-body">` +
-    `<h1 class="pdp-title">${esc(product.title)}</h1>` +
+    `<div class="pdp-heading"><h1 class="pdp-title">${esc(product.title)}</h1>` +
     `<p class="pdp-price">` +
     `<span class="pdp-amount">${esc(price(product.price))}</span>` +
-    `<span class="card__currency">${esc(UI.currency)}</span></p>` +
+    `<span class="card__currency">${esc(UI.currency)}</span></p></div>` +
     (product.description
-      ? `<p class="pdp-desc">${esc(product.description)}</p>`
+      ? `<section class="pdp-description"><h2>دەربارەی بەرهەم</h2><p class="pdp-desc">${esc(product.description)}</p></section>`
       : '') +
 
     `<a class="shop-row" href="${esc(shopUrl)}">${avatar}` +
     `<span class="shop-row__body">` +
-    `<span class="shop-row__name">${esc(shop.name)}</span>` +
+    `<span class="shop-row__label">دوکان</span><span class="shop-row__name">${esc(shop.name)}</span>` +
+    `<span class="shop-row__username"><bdi dir="ltr">@${esc(shop.slug)}</bdi></span>` +
     (city ? `<span class="shop-row__city">${iconPin(12)}${esc(city)}</span>` : '') +
     `</span>` +
     `<span class="shop-row__go">${esc(T.viewShop)}</span></a>` +
 
-    `</div>` +
-
-    moreRow +
-
-    `<div class="pdp-bar">` +
+    `<div class="pdp-order">` +
     `<a class="btn btn--whatsapp" href="${esc(wa(shop.whatsapp, T.orderText(product.title, pageUrl)))}"` +
     ` target="_blank" rel="noopener">${iconWhatsapp()}` +
     `<span>${esc(T.whatsappOrder)}</span></a>` +
-    `<button class="round-btn round-btn--pale" type="button" id="pdp-heart"` +
-    ` data-fav="${esc(product.id)}"` +
-    ` aria-pressed="false" aria-label="${esc(T.save)}">${iconHeart(20)}</button>` +
-    `<button class="round-btn round-btn--pale" type="button" id="share-btn"` +
-    ` data-url="${esc(pageUrl)}" data-title="${esc(product.title)}"` +
-    ` data-copied="${esc(T.linkCopied)}" aria-label="${esc(T.share)}">${iconShare(20)}</button>` +
-    `</div>` +
+    `</div></div>` +
+
+    moreRow +
 
     `</div>`
   );

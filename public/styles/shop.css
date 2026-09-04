@@ -1,300 +1,98 @@
-/* ============================================================
-   Shop Web — the public shop page and the product page.
-   This is the link a seller pastes into TikTok and Instagram,
-   so it carries no app chrome: no tab bar, no search.
-   ============================================================ */
-
-.page--shop { padding-bottom: var(--s-8); }
-
-/* ---------- banner ---------- */
-
-.shop-head { margin-bottom: var(--s-5); }
-
-.shop-banner {
-  position: relative;
-  aspect-ratio: 8 / 3;
-  background: var(--surface-2);
-  overflow: visible;
-}
-
-.shop-banner__img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  display: block;
-}
-
+/* PASS 1: public shop, protected owner profile and product detail only. */
+.page--shop, .page--pdp { padding-bottom: 32px; }
+.shop-head { margin-bottom: 22px; }
+.shop-banner { position: relative; aspect-ratio: 8 / 3; background: var(--surface-2); }
+.shop-banner__img { display: block; width: 100%; height: 100%; object-fit: cover; }
 .shop-banner__img--empty { background: var(--surface-2); }
-
-/* Overlaps the banner's bottom edge on the right, where the RTL text
-   below it starts. */
-.shop-logo {
-  position: absolute;
-  bottom: -30px;
-  right: var(--s-4);
-  width: 88px;
-  height: 88px;
-  border-radius: var(--r-pill);
-  object-fit: cover;
-  background: var(--surface);
-  padding: 3px;
-}
-
-.shop-logo--initial {
-  display: grid;
-  place-items: center;
-  font-family: var(--font-head);
-  font-size: var(--fs-xl);
-  font-weight: var(--fw-bold);
-  color: var(--muted);
-  background: var(--surface-2);
-  box-shadow: 0 0 0 3px var(--bg);
-}
-
-.shop-id { padding: calc(30px + var(--s-3)) var(--s-4) 0; }
-
-.shop-name {
-  font-size: var(--fs-xl);
-  line-height: var(--lh-tight);
-}
-
-.shop-city {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  margin: var(--s-2) 0 0;
-  color: var(--muted);
-  font-size: var(--fs-sm);
-}
-
-.shop-bio {
-  margin: var(--s-3) 0 0;
-  color: var(--muted);
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-
-/* ---------- contact ---------- */
-
-.shop-actions { padding: var(--s-5) var(--s-4) 0; }
-
-.btn--whatsapp {
-  background: var(--whatsapp);
-  color: #FFFFFF;
-  gap: var(--s-2);
-}
-
-.round-row {
-  display: flex;
-  gap: var(--s-2);
-  margin-top: var(--s-3);
-}
-
-.round-btn {
-  width: 48px;
-  height: 48px;
-  border-radius: var(--r-pill);
-  background: var(--surface-2);
-  color: var(--text);
-  display: grid;
-  place-items: center;
-  flex: none;
-  transition: background var(--t-fast);
-}
-
-.round-btn:active { background: var(--bg); }
-.round-btn--pale { background: var(--surface-2); }
-
-/* ---------- notices ---------- */
-
-.notice {
-  margin: var(--s-6) var(--s-4);
-  padding: var(--s-6) var(--s-5);
-  border-radius: var(--r-card);
-  background: var(--surface);
-  text-align: center;
-  color: var(--muted);
-}
-
-.notice--tall { margin-top: var(--s-8); display: grid; gap: var(--s-4); justify-items: center; }
-
-.notice__title {
-  font-family: var(--font-head);
-  font-weight: var(--fw-bold);
-  color: var(--text);
-  margin: 0 0 var(--s-2);
-}
-
-.page--shop .grid { margin-top: var(--s-2); }
-.page--shop .chips { padding-top: var(--s-5); }
-
-/* ============================================================
-   product page
-   ============================================================ */
-
-.page--pdp { padding-bottom: calc(96px + env(safe-area-inset-bottom)); }
-
-.pdp-back {
-  position: absolute;
-  inset-block-start: calc(var(--s-4) + env(safe-area-inset-top));
-  inset-inline-start: var(--s-4);
-  z-index: 5;
-  width: 40px;
-  height: 40px;
-  border-radius: var(--r-pill);
-  background: var(--veil);
-  display: grid;
-  place-items: center;
-}
-
-/* Scroll-snap strip: swipes natively, works with JS off. */
-.carousel {
-  display: flex;
-  overflow-x: auto;
-  scroll-snap-type: x mandatory;
-  scrollbar-width: none;
-  aspect-ratio: 4 / 5;
-  background: var(--surface-2);
-}
-
+.shop-logo { position: absolute; bottom: -48px; left: 16px; width: 96px; height: 96px; border: 4px solid var(--bg); border-radius: 50%; object-fit: cover; background: var(--surface); }
+.shop-logo--initial { display: grid; place-items: center; font-size: 30px; font-weight: 700; color: var(--accent); background: var(--surface-2); }
+.shop-sharing { position: absolute; top: 12px; right: 16px; display: flex; gap: 8px; }
+.shop-id { min-height: 86px; padding: 16px 16px 0 128px; }
+.shop-name { font-size: clamp(19px, 4.5vw, 25px); line-height: 1.55; overflow-wrap: anywhere; }
+.shop-username { margin: 2px 0 0; color: var(--muted); font-size: 15px; overflow-wrap: anywhere; }
+.shop-city { display: flex; align-items: center; gap: 4px; margin: 4px 0 0; color: var(--muted); font-size: 12px; }
+.shop-bio { margin: 14px 16px 0; line-height: 1.9; white-space: pre-line; overflow-wrap: anywhere; }
+.shop-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 18px 16px 0; }
+.shop-actions .btn { flex: 1 1 200px; width: auto; min-height: 46px; padding: 10px 14px; border-radius: 999px; font-size: 14px; }
+.btn--whatsapp { background: var(--whatsapp); color: var(--text); gap: 8px; }
+.round-row { display: flex; flex-wrap: wrap; gap: 8px; }
+.round-btn { width: 44px; height: 44px; border-radius: 50%; background: var(--surface); color: var(--text); display: grid; place-items: center; flex: none; }
+.round-row .round-btn { background: var(--surface-2); }
+.round-row a[href*="instagram.com"] { background: #B52B76; color: white; }
+.round-row a[href*="tiktok.com"] { background: var(--text); color: white; }
+.round-row a[href*="facebook.com"] { background: #1877F2; color: white; }
+.round-btn.is-done, .round-btn[aria-pressed="true"] { color: var(--accent); background: var(--surface-2); }
+.page--shop .chips { padding: 0 16px 16px; gap: 8px; }
+.page--shop .chip { min-height: 44px; min-width: 66px; text-align: center; color: var(--muted); }
+.page--shop .chip[aria-current="true"] { color: white; }
+.page--shop .grid { gap: 18px 12px; }
+:is(.page--shop, .page--pdp) .card { min-width: 0; background: transparent; border-radius: 0; padding-bottom: 0; }
+:is(.page--shop, .page--pdp) .card__media { margin: 0 0 8px; aspect-ratio: 1 / 1; border-radius: 12px; }
+:is(.page--shop, .page--pdp) .card__body { padding: 0 2px; }
+:is(.page--shop, .page--pdp) .card__title { min-height: 0; font-family: var(--font-body); line-height: 1.65; font-size: 14px; }
+:is(.page--shop, .page--pdp) .card__price { margin: 4px 0 0; color: var(--accent); flex-wrap: wrap; }
+:is(.page--shop, .page--pdp) .card__amount { font-family: var(--font-body); font-size: 20px; }
+:is(.page--shop, .page--pdp) .card__currency { color: inherit; }
+:is(.page--shop, .page--pdp) .card__shop { display: none; }
+:is(.page--shop, .page--pdp) .card__heart { width: 44px; height: 44px; top: 4px; inset-inline-end: 4px; background: var(--surface); }
+.notice { margin: 24px 16px; padding: 24px 20px; border-radius: 16px; background: var(--surface); text-align: center; color: var(--muted); }
+.notice--tall { margin-top: 32px; display: grid; gap: 16px; justify-items: center; }
+.notice__title { font-weight: 700; color: var(--text); margin: 0 0 8px; }
+/* The same profile with three compact controls; management opens on demand. */
+.page--owner { padding-bottom: calc(var(--nav-h) + 24px + env(safe-area-inset-bottom)); }
+.owner-controls { display: flex; align-items: stretch; gap: 8px; padding: 18px 16px 0; }
+.owner-control { display: flex; justify-content: center; align-items: center; gap: 5px; min-height: 44px; padding: 8px 12px; border: 1px solid #D5D0C6; border-radius: 999px; font-size: 12px; cursor: pointer; }
+.owner-control--primary { background: var(--accent); color: white; border-color: var(--accent); flex: 1; }
+.owner-manage { position: relative; }
+.owner-manage summary { list-style: none; height: 100%; }
+.owner-manage summary::-webkit-details-marker { display: none; }
+.owner-menu { position: absolute; top: calc(100% + 8px); inset-inline-end: 0; z-index: 10; width: 230px; background: var(--surface); border: 1px solid var(--surface-2); border-radius: 14px; padding: 8px; }
+.owner-menu .app-menu__item { width: 100%; padding: 12px; font-size: 14px; }
+.owner-preview-link { color: var(--accent); font-weight: 700; }
+/* Product gallery and order action in normal document flow. */
+.pdp-toolbar { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; gap: 12px; }
+.pdp-back { display: flex; align-items: center; gap: 4px; min-height: 44px; font-size: 13px; }
+.pdp-tools { display: flex; gap: 8px; }
+.pdp-gallery { position: relative; margin: 0 16px; }
+.carousel { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; aspect-ratio: 1 / 1; border-radius: 14px; background: var(--surface-2); }
 .carousel::-webkit-scrollbar { display: none; }
-
-.carousel__img {
-  flex: 0 0 100%;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  scroll-snap-align: center;
-}
-
+.carousel__img { flex: 0 0 100%; width: 100%; height: 100%; object-fit: contain; scroll-snap-align: center; }
 .carousel__img--empty { background: var(--surface-2); }
-
-.dots--pdp {
-  position: static;
-  margin-top: calc(var(--s-3) * -1 - 8px);
-  margin-bottom: var(--s-3);
-  position: relative;
-  z-index: 2;
+.dots--pdp { bottom: 10px; }
+.dots--pdp .dot { width: 7px; height: 7px; background: var(--muted); opacity: .5; }
+.dots--pdp .dot.is-active { width: 18px; opacity: 1; background: var(--accent); }
+.pdp-body { padding: 20px 16px 0; }
+.pdp-heading { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 16px; }
+.pdp-title { flex: 1 1 180px; font-size: 20px; line-height: 1.6; overflow-wrap: anywhere; }
+.pdp-price { display: flex; direction: ltr; align-items: baseline; gap: 6px; margin: 0; color: var(--accent); }
+.pdp-amount { font-size: 28px; font-weight: 700; }
+.pdp-price .card__currency { color: var(--accent); font-size: 13px; }
+.pdp-description { margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--surface-2); }
+.pdp-description h2 { font-size: 15px; line-height: 1.6; }
+.pdp-desc { margin: 8px 0 0; white-space: pre-line; overflow-wrap: anywhere; line-height: 1.9; }
+.shop-row { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; margin-top: 20px; padding: 14px; border: 1px solid var(--surface-2); border-radius: 14px; background: var(--surface); }
+.shop-row__logo { width: 60px; height: 60px; border-radius: 50%; object-fit: cover; flex: none; background: var(--surface-2); }
+.shop-row__logo--initial { display: grid; place-items: center; font-size: 22px; font-weight: 700; color: var(--accent); }
+.shop-row__body { flex: 1; min-width: 100px; }
+.shop-row__label, .shop-row__username { display: block; color: var(--muted); font-size: 12px; overflow-wrap: anywhere; }
+.shop-row__name { display: block; font-size: 16px; font-weight: 700; overflow-wrap: anywhere; }
+.shop-row__city { display: flex; align-items: center; gap: 4px; color: var(--muted); font-size: 12px; }
+.shop-row__go { color: var(--accent); font-size: 12px; font-weight: 700; }
+.pdp-order { margin-top: 14px; }
+.pdp-order .btn { min-height: 50px; border-radius: 12px; }
+.more { margin-top: 28px; }
+.more__title { font-size: 15px; padding: 0 16px; margin-bottom: 14px; }
+.more__rail { display: flex; gap: 12px; overflow-x: auto; padding: 0 16px 8px; scroll-snap-type: x proximity; }
+.more__item { flex: 0 0 38%; max-width: 180px; min-width: 0; scroll-snap-align: start; }
+.more .card__title { font-size: 13px; }
+.more .card__amount { font-size: 18px; }
+@media (min-width: 480px) {
+  .shop-logo { width: 112px; height: 112px; bottom: -54px; }
+  .shop-id { padding-left: 144px; min-height: 96px; }
+  .owner-control { font-size: 14px; }
+  .shop-actions .btn { flex-basis: 240px; }
+  .more__item { flex-basis: 31%; }
 }
-
-.dots--pdp .dot { background: var(--text); opacity: 0.25; width: 6px; height: 6px; }
-.dots--pdp .dot.is-active { opacity: 1; background: var(--accent); }
-
-.pdp-body { padding: var(--s-4) var(--s-4) 0; }
-
-.pdp-title { font-size: var(--fs-lg); line-height: var(--lh-tight); }
-
-.pdp-price {
-  display: flex;
-  direction: ltr;
-  justify-content: flex-end;
-  align-items: baseline;
-  gap: 6px;
-  margin: var(--s-3) 0 0;
+@media (prefers-reduced-motion: reduce) {
+  :is(.page--shop, .page--pdp) * { scroll-behavior: auto; transition: none; }
 }
-
-.pdp-amount {
-  font-family: var(--font-head);
-  font-size: 26px;
-  font-weight: var(--fw-bold);
-}
-
-.pdp-desc {
-  margin: var(--s-4) 0 0;
-  color: var(--muted);
-  white-space: pre-line;
-}
-
-/* ---------- shop row ---------- */
-
-.shop-row {
-  display: flex;
-  align-items: center;
-  gap: var(--s-3);
-  margin-top: var(--s-5);
-  padding: var(--s-3);
-  border-radius: var(--r-card);
-  background: var(--surface);
-}
-
-.shop-row__logo {
-  width: 44px;
-  height: 44px;
-  border-radius: var(--r-pill);
-  object-fit: cover;
-  flex: none;
-  background: var(--surface-2);
-}
-
-.shop-row__logo--initial {
-  display: grid;
-  place-items: center;
-  font-family: var(--font-head);
-  font-weight: var(--fw-bold);
-  color: var(--muted);
-}
-
-.shop-row__body { flex: 1; min-width: 0; }
-
-.shop-row__name {
-  display: block;
-  font-family: var(--font-head);
-  font-weight: var(--fw-bold);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.shop-row__city {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  color: var(--muted);
-  font-size: var(--fs-sm);
-  margin-top: 2px;
-}
-
-.shop-row__go { color: var(--accent); font-size: var(--fs-sm); font-weight: var(--fw-bold); flex: none; }
-
-/* ---------- more from this seller ---------- */
-
-.more { margin-top: var(--s-6); }
-
-.more__title {
-  font-size: var(--fs-md);
-  padding-inline: var(--s-4);
-  margin-bottom: var(--s-3);
-}
-
-.more__rail {
-  display: flex;
-  gap: var(--s-3);
-  overflow-x: auto;
-  scrollbar-width: none;
-  padding-inline: var(--s-4);
-  scroll-padding-inline: var(--s-4);
-}
-
-.more__rail::-webkit-scrollbar { display: none; }
-.more__item { flex: 0 0 46%; max-width: 200px; }
-
-/* ---------- sticky order bar ---------- */
-
-.pdp-bar {
-  position: fixed;
-  inset-block-end: 0;
-  inset-inline: 0;
-  z-index: 20;
-  max-width: var(--page-max);
-  margin-inline: auto;
-  display: flex;
-  align-items: center;
-  gap: var(--s-2);
-  padding: var(--s-3) var(--s-4);
-  padding-block-end: calc(var(--s-3) + env(safe-area-inset-bottom));
-  background: var(--bg);
-}
-
-.pdp-bar .btn { flex: 1; min-height: 52px; }
