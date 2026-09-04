@@ -80,7 +80,7 @@ export const stepLogo = ({ error, shop }) =>
       : `<img class="logo-pick__preview" id="logo-preview" alt="" width="96" height="96" hidden>`) +
     `<span id="logo-label">${esc(T.logoPick)}</span>` +
     `<span class="field__hint">${esc(T.logoHint)}</span>` +
-    `<input type="file" id="f-logo" name="logo" accept="image/jpeg,image/png,image/webp" hidden>` +
+    `<input type="file" id="f-logo" name="logo" accept="image/jpeg,image/png,image/webp" class="visually-hidden">` +
     `</label>` +
     `<div class="wizard__actions">` +
     button(T.finish) +

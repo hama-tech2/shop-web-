@@ -76,7 +76,12 @@
     }
 
     slug.addEventListener('input', function () {
+      // Invalidate the old request immediately, including when cleared.
+      seq++;
       clearTimeout(timer);
+      paintUrl(slug.value.trim().toLowerCase());
+      say('', 'Format');
+      setBusy(false);
       timer = setTimeout(check, 300);
     });
 

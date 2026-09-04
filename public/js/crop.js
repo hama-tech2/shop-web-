@@ -16,6 +16,8 @@
   var view = null;
   var onDone = null;
   var ready = false;
+  var saving = false;
+  var opener, previousOverflow;
 
   function grab() {
     if (ready) return true;
@@ -130,14 +132,14 @@
 
   function wire() {
     stage.addEventListener('pointerdown', function (e) {
-      if (!view) return;
+      if (!view || saving) return;
       stage.setPointerCapture(e.pointerId);
       pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
       if (pointers.size === 2) { pinchStart = spread(); scaleStart = view.scale; }
     });
 
     stage.addEventListener('pointermove', function (e) {
-      if (!view || !pointers.has(e.pointerId)) return;
+      if (!view || saving || !pointers.has(e.pointerId)) return;
       var prev = pointers.get(e.pointerId);
       pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
 
@@ -169,21 +171,68 @@
     });
 
     document.getElementById('crop-cancel').addEventListener('click', function () {
+      if (saving) return;
       var done = onDone;
       close();
       if (done) done(null);
     });
 
     document.getElementById('crop-done').addEventListener('click', async function () {
-      if (!view) return;
+      if (!view || saving) return;
+      saving = true;
+      crop.querySelectorAll('button').forEach(function (button) { button.disabled = true; });
       var done = onDone;
       var out = {};
-      for (var i = 0; i < view.targets.length; i++) {
-        var t = view.targets[i];
-        out[t.key] = await render(t);
+      try {
+        for (var i = 0; i < view.targets.length; i++) {
+          var t = view.targets[i];
+          out[t.key] = await render(t);
+          if (!out[t.key]) throw new Error('Image encoding failed');
+        }
+      } catch (error) {
+        out = null;
+        alert('ئامادەکردنی وێنەکە سەرکەوتوو نەبوو. تکایە دووبارە هەوڵ بدەوە.');
       }
       close();
       if (done) done(out);
+    });
+
+    document.addEventListener('keydown', function (event) {
+      if (crop.hidden) return;
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        document.getElementById('crop-cancel').click();
+      } else if (event.key === 'Tab') {
+        var items = Array.from(crop.querySelectorAll('button:not(:disabled),[tabindex="0"]'));
+        var index = items.indexOf(document.activeElement);
+        if (index < 0 || (!event.shiftKey && index === items.length - 1) || (event.shiftKey && index === 0)) {
+          event.preventDefault();
+          items[event.shiftKey ? items.length - 1 : 0].focus();
+        }
+      }
+    });
+    stage.addEventListener('keydown', function (event) {
+      if (!view || saving) return;
+      var moves = { ArrowLeft: [-12, 0], ArrowRight: [12, 0], ArrowUp: [0, -12], ArrowDown: [0, 12] };
+      var move = moves[event.key];
+      if (move) { view.tx += move[0]; view.ty += move[1]; }
+      else if (event.key === '+' || event.key === '=' || event.key === '-') {
+        view.scale = Math.max(minScale(), Math.min(8 * minScale(), view.scale * (event.key === '-' ? 0.9 : 1.1)));
+      } else return;
+      event.preventDefault();
+      clamp();
+      paint();
+    });
+    window.addEventListener('resize', function () {
+      if (!view || saving) return;
+      var previous = view.frame;
+      view.frame = frameRect(view.ratio);
+      var factor = view.frame.w / previous.w;
+      view.scale *= factor;
+      view.tx *= factor;
+      view.ty *= factor;
+      clamp();
+      paint();
     });
   }
 
@@ -191,7 +240,12 @@
     crop.hidden = true;
     if (view && view.bitmap.close) view.bitmap.close();
     view = null;
+    onDone = null;
+    saving = false;
+    crop.querySelectorAll('button').forEach(function (button) { button.disabled = false; });
+    document.body.style.overflow = previousOverflow;
     pointers.clear();
+    if (opener && opener.isConnected) opener.focus({ preventScroll: true });
   }
 
   function render(target) {
@@ -231,10 +285,14 @@
     try {
       bitmap = await createImageBitmap(file);
     } catch (e) {
+      alert('وێنەکە ناکرێتەوە. تکایە وێنەیەکی تر هەڵبژێرە.');
       done(null);
       return;
     }
 
+    opener = document.activeElement;
+    previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
     crop.hidden = false;
     var ratio = opts.ratio || 1;
     view = {
@@ -244,6 +302,7 @@
     view.scale = minScale();
     onDone = done;
     paint();
+    document.getElementById('crop-cancel').focus();
   }
 
   window.ShopCrop = { open: open };

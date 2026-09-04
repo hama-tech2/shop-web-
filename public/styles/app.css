@@ -66,7 +66,7 @@
 
 .search__input::placeholder { color: var(--muted); }
 
-.search__clear { color: var(--muted); font-size: var(--fs-sm); flex: none; }
+.search__clear { display: grid; place-items: center; width: 44px; height: 44px; color: var(--muted); font-size: var(--fs-sm); flex: none; }
 
 /* ---------- category chips ---------- */
 

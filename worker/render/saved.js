@@ -13,8 +13,8 @@ import { esc } from './html.js';
 import { cardsFragment } from './feed.js';
 import { bottomNav } from './appshell.js';
 
-const empty = () =>
-  `<div class="empty" id="saved-empty">` +
+const empty = (hidden = false) =>
+  `<div class="empty" id="saved-empty"${hidden ? ' hidden' : ''}>` +
   `<p class="empty__title">${esc(T.emptyTitle)}</p>` +
   `<p>${esc(T.emptyBody)}</p>` +
   `<p><a class="btn btn--quiet saved__browse" href="/">${esc(T.browse)}</a></p>` +
@@ -40,10 +40,11 @@ export function savedPage({ products, signedIn }) {
       : `<p class="saved__note" id="saved-note" hidden>${esc(T.signedOutNote)} ` +
         `<a href="/login?next=/saved">${esc(T.signIn)}</a></p>`) +
 
+    `<p class="saved__note" id="saved-status" role="status" hidden></p>` +
     `<div id="saved-list">${grid}</div>` +
     // Hidden when the server already rendered rows; the script shows it
     // again if the browser turns out to have nothing stored either.
-    (products.length ? '' : empty()) +
+    empty(products.length > 0) +
     `</div>` +
     bottomNav('saved')
   );

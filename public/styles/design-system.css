@@ -99,7 +99,9 @@ img { display: block; max-width: 100%; }
 a { color: inherit; text-decoration: none; }
 
 button,
-input {
+input,
+select,
+textarea {
   font: inherit;
   color: inherit;
   border: 0;
