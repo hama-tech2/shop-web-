@@ -157,7 +157,7 @@ export const PRODUCT = {
   addPhoto: 'زیادکردنی وێنە',
   removePhoto: 'لابردنی وێنە',
   counter: (n, max) => `${n} / ${max}`,
-  onlyTen: 'تەنها ١٠ وێنە هەتایە.',
+  onlyMax: 'تەنها ٥ وێنە هەتایە.',
 
   cropTitle: 'ڕێکخستنی وێنە',
   cropHint: 'ڕایبکێشە و گەورەی بکە.',
@@ -213,7 +213,10 @@ export const IMAGE_VARIANTS = {
   full: { width: 1200, height: 1500, quality: 0.82 },
 };
 
-export const MAX_IMAGES = 10;
+// Locked product decision: five images per product. The database
+// enforces the same number (trigger + save_product_images), so client
+// and server cannot drift apart.
+export const MAX_IMAGES = 5;
 export const MAX_UPLOAD_BYTES = 4 * 1024 * 1024;
 
 /** The public shop page and the product page — the shared link. */

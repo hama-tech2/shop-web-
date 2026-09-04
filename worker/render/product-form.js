@@ -12,7 +12,7 @@ export function productForm({ mode, draftId, categories, shopCategories = [], va
     `<header class="publish-head"><a class="icon-btn" href="/app/products" aria-label="گەڕانەوە">${iconBack()}</a>` +
     `<h1>${esc(isEdit ? T.editTitle : T.newTitle)}</h1>` +
     `<details class="publish-help"><summary>ڕێنمایی ⓘ</summary>` +
-    `<p>تا ١٠ وێنە زیاد بکە. وێنەیەک هەڵبژێرە بۆ کاڤەر؛ بە دوگمەکانی ڕیزکردن شوێنی وێنەکان بگۆڕە.</p></details></header>` +
+    `<p>تا ${MAX_IMAGES} وێنە زیاد بکە. وێنەیەک هەڵبژێرە بۆ کاڤەر؛ بە دوگمەکانی ڕیزکردن شوێنی وێنەکان بگۆڕە.</p></details></header>` +
     `<p class="publish-sub">زانیارییەکانی بەرهەمەکەت زیاد بکە و بڵاوی بکەرەوە.</p>` +
     alert(error) +
     `<form method="post" id="product-form" action="${esc(isEdit ? `/app/products/${draftId}` : '/app/new')}"` +
@@ -20,7 +20,7 @@ export function productForm({ mode, draftId, categories, shopCategories = [], va
     ` data-draft="${esc(draftId)}" data-max="${MAX_IMAGES}"` +
     ` data-card-w="${IMAGE_VARIANTS.card.width}" data-card-h="${IMAGE_VARIANTS.card.height}" data-card-q="${IMAGE_VARIANTS.card.quality}"` +
     ` data-full-w="${IMAGE_VARIANTS.full.width}" data-full-h="${IMAGE_VARIANTS.full.height}" data-full-q="${IMAGE_VARIANTS.full.quality}"` +
-    ` data-msg-limit="${esc(T.onlyTen)}" data-msg-type="${esc(T.errType)}" data-msg-upload="${esc(T.errUpload)}">` +
+    ` data-msg-limit="${esc(T.onlyMax)}" data-msg-type="${esc(T.errType)}" data-msg-upload="${esc(T.errUpload)}">` +
     `<input type="hidden" name="draft_id" value="${esc(draftId)}">` +
     `<input type="hidden" name="images" id="images-field" value="${esc(JSON.stringify(images))}">` +
     `<input type="hidden" name="status" id="status-field" value="${esc(values.status ?? 'active')}">` +

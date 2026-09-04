@@ -13,7 +13,8 @@
     "test:security": "node scripts/security-test.mjs",
     "test:favorites": "node scripts/favorites-test.mjs",
     "test:auth": "node scripts/auth-next-test.mjs",
-    "test:affected": "node scripts/affected-rows-test.mjs"
+    "test:affected": "node scripts/affected-rows-test.mjs",
+    "test:publish": "node scripts/publish-flow-test.mjs"
   },
   "devDependencies": {
     "wrangler": "^4.42.0",

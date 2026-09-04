@@ -38,7 +38,7 @@ async function guard(request, env, { needsShop = false } = {}) {
 
   if (!user) return { redirect: redirect('/login?next=/onboarding', headers) };
 
-  const shop = await getOwnShop(env, token);
+  const shop = await getOwnShop(env, token, user.id);
   if (needsShop && !shop) return { redirect: redirect('/onboarding', headers) };
   if (!needsShop && shop) return { redirect: redirect('/app', headers) };
 

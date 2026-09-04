@@ -7,7 +7,7 @@
 --   * a product can be posted without a category
 --   * day 1 after expiry (grace) is still public
 --   * day 4 after expiry is hidden, and nothing is deleted
---   * max 10 images per product   (trigger, not frontend)
+--   * max 5 images per product    (trigger, not frontend)
 --   * max 1000 products per shop  (trigger, not frontend)
 --   * deleting a product queues its R2 keys into deleted_objects
 --
@@ -85,26 +85,26 @@ begin
   ok := (v_err = 'accepted');
   return next;
 
-  -- ---------- 10 images per product ----------
+  -- ---------- 5 images per product ----------
   insert into public.products (shop_id, platform_category_id, title, description, price)
   values (s, cat, 'image limit', 'desc', 100) returning id into p;
 
-  for i in 1..10 loop
+  for i in 1..5 loop
     insert into public.product_images (product_id, shop_id, r2_key, position)
     values (p, s, 'products/' || s || '/' || p || '/' || i || '.webp', i);
   end loop;
 
   begin
     insert into public.product_images (product_id, shop_id, r2_key, position)
-    values (p, s, 'products/' || s || '/' || p || '/overflow.webp', 10);
+    values (p, s, 'products/' || s || '/' || p || '/overflow.webp', 6);
     v_err := 'NO ERROR';
   exception when others then
     v_err := sqlerrm;
   end;
   select count(*) into v_cnt from public.product_images where product_id = p;
-  check_name := 'max 10 images per product';
-  result := format('%s stored, 11th rejected: %s', v_cnt, v_err);
-  ok := (v_cnt = 10 and v_err <> 'NO ERROR');
+  check_name := 'max 5 images per product';
+  result := format('%s stored, 6th rejected: %s', v_cnt, v_err);
+  ok := (v_cnt = 5 and v_err <> 'NO ERROR');
   return next;
 
   -- ---------- deleting a product queues its R2 keys ----------

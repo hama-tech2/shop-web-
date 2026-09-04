@@ -198,9 +198,18 @@ export async function resolveSession(request, env) {
    --------------------------------------------------------------- */
 
 /** RLS lets an owner read their own shop, so the user's token is enough. */
-export async function getOwnShop(env, token) {
+export async function getOwnShop(env, token, userId) {
+  // Scope to the owner explicitly. RLS alone is not enough here: the
+  // SELECT policy on shops is `owner_id = auth.uid() OR shop_is_public(id)`,
+  // which is right for reading a storefront but means an unfiltered
+  // `limit 1` hands a seller with no shop somebody else's public one.
+  // That let a shopless account reach /app/new and then fail the insert
+  // against a shop they do not own.
+  if (!userId) return null;
+
   const url = new URL(`${env.SUPABASE_URL}/rest/v1/shops`);
   url.searchParams.set('select', 'id,slug,name,logo_key,city,whatsapp,status');
+  url.searchParams.set('owner_id', `eq.${userId}`);
   url.searchParams.set('limit', '1');
 
   const res = await fetch(url, {

@@ -8,7 +8,7 @@ import { layout } from '../render/layout.js';
 import { forgotPage, loginPage, resetPage, signupPage } from '../render/auth.js';
 import {
   challengeFor, clearSessionCookies, clearVerifierCookie, createVerifier,
-  exchangePkce, getOwnShop, googleAuthorizeUrl, readCookies, readVerifier,
+  exchangePkce, getOwnShop, getUser, googleAuthorizeUrl, readCookies, readVerifier,
   RECOVERY_VERIFIER_AGE, resolveSession, sameOrigin, sendRecovery, setSessionCookies,
   setVerifierCookie, signInPassword, signOut, signUp, updateUser,
 } from '../auth.js';
@@ -83,8 +83,25 @@ export function landingPath(hasShop, next) {
   return safe;
 }
 
-async function landingFor(env, token, next) {
-  return landingPath(Boolean(await getOwnShop(env, token)), next);
+/**
+ * `session` is the token response, which already carries the user — no
+ * extra round trip needed, and getOwnShop must be told whose shop to
+ * look for rather than trusting an unfiltered RLS read.
+ */
+async function landingFor(env, session, next) {
+  const token = session.access_token;
+
+  // GoTrue returns the user alongside the token, but falling back to a
+  // lookup keeps a seller out of the onboarding wizard if that ever
+  // stops being true — getOwnShop returns null without an id, and a
+  // seller wrongly sent to /onboarding cannot reach their own shop.
+  let userId = session.user?.id;
+  if (!userId) {
+    const me = await getUser(env, token);
+    userId = me.ok ? me.data?.id : null;
+  }
+
+  return landingPath(Boolean(await getOwnShop(env, token, userId)), next);
 }
 
 /* ============================================================
@@ -153,7 +170,7 @@ export async function loginPost(request, env) {
 
   const headers = new Headers();
   setSessionCookies(headers, res.data);
-  return redirect(await landingFor(env, res.data.access_token, next), headers);
+  return redirect(await landingFor(env, res.data, next), headers);
 }
 
 /* ============================================================
@@ -211,7 +228,7 @@ export async function authCallback(request, env, url) {
   const next = safeNext(url.searchParams.get('next'), '');
   if (next === '/reset') return redirect('/reset', headers);
 
-  return redirect(await landingFor(env, res.data.access_token, next), headers);
+  return redirect(await landingFor(env, res.data, next), headers);
 }
 
 /* ============================================================

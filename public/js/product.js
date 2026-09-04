@@ -3,7 +3,7 @@
   'use strict';
   var form = document.getElementById('product-form');
   if (!form) return;
-  var D = form.dataset, max = Number(D.max) || 10;
+  var D = form.dataset, max = Number(D.max) || 5;
   var thumbs = document.getElementById('thumbs');
   var add = document.getElementById('add-photo');
   var input = document.getElementById('photo-input');

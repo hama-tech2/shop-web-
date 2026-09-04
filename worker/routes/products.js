@@ -51,7 +51,7 @@ async function guard(request, env) {
   if (refreshed) setSessionCookies(headers, refreshed);
 
   if (!user) return { redirect: redirect('/login?next=/app/products', headers) };
-  const shop = await getOwnShop(env, token);
+  const shop = await getOwnShop(env, token, user.id);
   if (!shop) return { redirect: redirect('/onboarding', headers) };
 
   return { user, token, shop, headers };
@@ -142,28 +142,59 @@ export async function uploadPost(request, env) {
    shared form handling
    ============================================================ */
 
+/**
+ * A price, or null if there isn't one.
+ *
+ * Two things this has to get right for a Sorani seller:
+ *
+ *  - Arabic-Indic digits. A seller in Erbil types ٢٥٠٠٠ as readily as
+ *    25000. The client folds them, but the server cannot assume the
+ *    client ran, and rejecting them reads as "your price is invalid".
+ *  - An empty or non-numeric value. Stripping non-digits turns '',
+ *    'abc' and '-5' into '', and Number('') is 0 — which used to
+ *    publish the product at 0 IQD rather than asking for a price.
+ *
+ * A price must be a positive number: nothing here is free, and a
+ * negative one is a typo, not a discount.
+ */
 const parsePrice = (raw) => {
-  const digits = String(raw || '').replace(/[^\d.]/g, '');
+  const text = String(raw ?? '')
+    .replace(/[\u0660-\u0669]/g, (d) => String(d.charCodeAt(0) - 0x0660))
+    .replace(/[\u06F0-\u06F9]/g, (d) => String(d.charCodeAt(0) - 0x06F0))
+    .trim();
+
+  if (/^-/.test(text)) return null;
+
+  const digits = text.replace(/[^\d.]/g, '');
+  if (!/\d/.test(digits)) return null;
+
   const value = Number(digits);
-  return Number.isFinite(value) && value >= 0 ? Math.round(value) : null;
+  return Number.isFinite(value) && value > 0 ? Math.round(value) : null;
 };
 
-/** Only keys this shop and this product could legitimately own. */
+/**
+ * Only keys this shop and this product could legitimately own.
+ *
+ * Returns { images } or { error }. A single null could not tell "you
+ * sent no image" from "you sent six", and the seller was shown the
+ * add-an-image message either way.
+ */
 function cleanImages(raw, shopId, productId) {
   let list;
-  try { list = JSON.parse(raw || '[]'); } catch { return null; }
-  if (!Array.isArray(list) || list.length === 0 || list.length > MAX_IMAGES) return null;
+  try { list = JSON.parse(raw || '[]'); } catch { return { error: T.errNoImage }; }
+  if (!Array.isArray(list) || list.length === 0) return { error: T.errNoImage };
+  if (list.length > MAX_IMAGES) return { error: T.onlyMax };
 
   const prefix = `products/${shopId}/${productId}/`;
   const out = [];
   for (const item of list) {
     const card = String(item?.card || '');
     const full = String(item?.full || '');
-    if (!card.startsWith(prefix) || card.includes('..')) return null;
-    if (full && (!full.startsWith(prefix) || full.includes('..'))) return null;
+    if (!card.startsWith(prefix) || card.includes('..')) return { error: T.errNoImage };
+    if (full && (!full.startsWith(prefix) || full.includes('..'))) return { error: T.errNoImage };
     out.push({ card, full: full || null });
   }
-  return out;
+  return { images: out };
 }
 
 async function categoryIdFor(env, slug) {
@@ -183,7 +214,8 @@ async function ownCategories(env, token, shopId) {
 
 async function readForm(request, env, shopId, productId) {
   const f = await form(request);
-  const images = cleanImages(f.images, shopId, productId);
+  const picked = cleanImages(f.images, shopId, productId);
+  const images = picked.images ?? null;
   const price = parsePrice(f.price);
 
   const values = {
@@ -196,7 +228,10 @@ async function readForm(request, env, shopId, productId) {
     images: images || [],
   };
 
-  if (!images) return { error: T.errNoImage, values };
+  // Exactly three things are required to publish: an image, a name and
+  // a price. Category, shop category and description are optional and
+  // must never block. Each failure names its own field.
+  if (!images) return { error: picked.error, values };
   if (values.title.length < 2 || values.title.length > 200) {
     return { error: T.errTitle, values };
   }

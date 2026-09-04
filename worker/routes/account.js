@@ -45,7 +45,7 @@ async function guard(request, env, next = '/app') {
   if (refreshed) setSessionCookies(headers, refreshed);
 
   if (!user) return { redirect: redirect(`/login?next=${encodeURIComponent(next)}`, headers) };
-  const shop = await getOwnShop(env, token);
+  const shop = await getOwnShop(env, token, user.id);
   if (!shop) return { redirect: redirect('/onboarding', headers) };
 
   return { user, token, shop, headers };

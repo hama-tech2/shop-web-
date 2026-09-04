@@ -21,7 +21,7 @@ export async function appGet(request, env, url) {
     return redirect(`/login?next=${next}`, headers);
   }
 
-  const shop = await getOwnShop(env, token);
+  const shop = await getOwnShop(env, token, user.id);
   if (!shop) return redirect('/onboarding', headers);
 
   headers.set('content-type', 'text/html; charset=utf-8');

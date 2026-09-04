@@ -25,10 +25,18 @@ const SHOP = {
 };
 const USER = { id: 'ffffffff-1111-4111-8111-111111111111', email: 's@x.test' };
 const PRODUCT_ID = 'bbbbbbbb-1111-4111-8111-111111111111';
+
+/** A public shop owned by someone else — what RLS leaks without a filter. */
+const FOREIGN_SHOP = {
+  id: '99999999-9999-4999-8999-999999999999',
+  slug: 'nafin-boutique', name: 'بۆتیکی نافین', logo_key: null,
+  city: 'erbil', whatsapp: '+9647510000002', status: 'active',
+};
 const CAT_A = 'dddddddd-1111-4111-8111-111111111111';
 const CAT_B = 'dddddddd-2222-4222-8222-222222222222';
 
 let rows = 1;                     // how many rows a write reports
+let mode = 'shop';                // shop | noshop
 const calls = [];
 
 const body = (req) => new Promise((r) => {
@@ -46,6 +54,7 @@ http.createServer(async (req, res) => {
   };
 
   if (p.startsWith('/__rows/')) { rows = Number(p.split('/')[2]); return send({ rows }); }
+  if (p.startsWith('/__mode/')) { mode = p.split('/')[2]; return send({ mode }); }
   if (p === '/__calls') return send(calls);
 
   if (p === '/auth/v1/user') return send(USER);
@@ -54,7 +63,21 @@ http.createServer(async (req, res) => {
   const write = req.method !== 'GET';
   if (write) calls.push(`${req.method} ${table}?${url.searchParams}`);
 
-  if (table === 'shops') return send([SHOP]);
+  if (table === 'shops') {
+    const owner = url.searchParams.get('owner_id') || '';
+
+    // Mirror Postgres + RLS, which is where the publish bug lived. The
+    // SELECT policy is `owner_id = auth.uid() OR shop_is_public(id)`,
+    // so an unfiltered `limit 1` hands back SOMEBODY ELSE'S public shop
+    // when the caller owns none. Only an explicit owner_id filter makes
+    // the answer empty. A stub that always returned [] here would let
+    // that bug pass unnoticed.
+    if (mode === 'noshop') {
+      return send(owner === `eq.${USER.id}` ? [] : [FOREIGN_SHOP]);
+    }
+    if (owner && owner !== `eq.${USER.id}`) return send([]);
+    return send([SHOP]);
+  }
   if (table === 'platform_categories') {
     return send([{ id: 'cccccccc-1111-4111-8111-111111111111', slug: 'clothing', name_ckb: 'جل' }]);
   }
@@ -81,6 +104,7 @@ http.createServer(async (req, res) => {
     return send(rows ? [{ id: PRODUCT_ID }] : []);
   }
 
+  if (table === 'products' && req.method === 'POST') return send([{ id: PRODUCT_ID }]);
   if (table.startsWith('rpc/')) return send(null);
   return send([]);
 }).listen(8899, '127.0.0.1', () => console.log('stub on 8899'));
