@@ -26,15 +26,6 @@
 .page--shop .chip { min-height: 44px; min-width: 66px; text-align: center; color: var(--muted); }
 .page--shop .chip[aria-current="true"] { color: white; }
 .page--shop .grid { gap: 18px 12px; }
-:is(.page--shop, .page--pdp) .card { min-width: 0; background: transparent; border-radius: 0; padding-bottom: 0; }
-:is(.page--shop, .page--pdp) .card__media { margin: 0 0 8px; aspect-ratio: 1 / 1; border-radius: 12px; }
-:is(.page--shop, .page--pdp) .card__body { padding: 0 2px; }
-:is(.page--shop, .page--pdp) .card__title { min-height: 0; font-family: var(--font-body); line-height: 1.65; font-size: 14px; }
-:is(.page--shop, .page--pdp) .card__price { margin: 4px 0 0; color: var(--accent); flex-wrap: wrap; }
-:is(.page--shop, .page--pdp) .card__amount { font-family: var(--font-body); font-size: 20px; }
-:is(.page--shop, .page--pdp) .card__currency { color: inherit; }
-:is(.page--shop, .page--pdp) .card__shop { display: none; }
-:is(.page--shop, .page--pdp) .card__heart { width: 44px; height: 44px; top: 4px; inset-inline-end: 4px; background: var(--surface); }
 .notice { margin: 24px 16px; padding: 24px 20px; border-radius: 16px; background: var(--surface); text-align: center; color: var(--muted); }
 .notice--tall { margin-top: 32px; display: grid; gap: 16px; justify-items: center; }
 .notice__title { font-weight: 700; color: var(--text); margin: 0 0 8px; }
@@ -84,8 +75,6 @@
 .more__title { font-size: 15px; padding: 0 16px; margin-bottom: 14px; }
 .more__rail { display: flex; gap: 12px; overflow-x: auto; padding: 0 16px 8px; scroll-snap-type: x proximity; }
 .more__item { flex: 0 0 38%; max-width: 180px; min-width: 0; scroll-snap-align: start; }
-.more .card__title { font-size: 13px; }
-.more .card__amount { font-size: 18px; }
 @media (min-width: 480px) {
   .shop-logo { width: 112px; height: 112px; bottom: -54px; }
   .shop-id { padding-left: 144px; min-height: 96px; }

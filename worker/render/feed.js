@@ -68,7 +68,7 @@ export function cardHtml(product, index, { linked = true, saved = false } = {}) 
     `<h2 class="card__title">${esc(product.title)}</h2>` +
     `<p class="card__price">` +
     `<span class="card__amount">${esc(price(product.price))}</span>` +
-    `<span class="card__currency">${esc(UI.currency)}</span>` +
+    `<span class="card__currency">${esc(UI.currency === 'IQD' ? 'د.ع' : UI.currency)}</span>` +
     `</p>` +
     `<div class="card__shop">${avatar}` +
     `<span class="card__shop-name">${esc(product.shopName)}</span></div>` +
