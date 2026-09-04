@@ -43,7 +43,9 @@ export function subscriptionPage({ state, selected, error }) {
     `<span class="edit-head__count"></span>` +
     `</div>` +
 
-    `<div class="trial">` +
+    `<div class="trial" data-settings-subscription="${esc(JSON.stringify(state ? {
+      status: state.status, days_left: state.days_left, in_grace: state.in_grace,
+    } : null))}">` +
     `<div class="trial__track"><span class="trial__fill" style="width:${(used * 100).toFixed(0)}%"></span></div>` +
     `<p class="trial__line">${esc(statusLine)}</p>` +
     `</div>` +

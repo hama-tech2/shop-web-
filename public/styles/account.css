@@ -400,6 +400,35 @@
 
 /* ---------- account menu ---------- */
 
+/* PASS 4: settings is a fragment of the existing protected /app page. */
+.account-settings { display: none; padding-bottom: calc(var(--nav-h) + 24px + env(safe-area-inset-bottom)); }
+.account-settings:target { display: block; }
+body:has(.account-settings:target) .page--owner { display: none; }
+.account-settings .edit-head { margin-bottom: 4px; }
+.settings-intro { margin: 0 0 20px; text-align: center; color: var(--muted); font-size: 13px; }
+.settings-identity { display: flex; align-items: center; gap: 12px; padding: 16px; background: var(--surface); border-radius: 16px; }
+.settings-identity > div { flex: 1; min-width: 0; }
+.settings-identity h2 { font-size: 16px; }
+.settings-identity p { margin: 2px 0; font-size: 14px; overflow-wrap: anywhere; }
+.settings-identity small { color: var(--muted); font-size: 12px; }
+.settings-avatar { display: grid; place-items: center; flex: none; width: 52px; height: 52px; border-radius: 50%; background: var(--surface-2); color: var(--accent); }
+.settings-heading { margin: 22px 4px 10px; font-size: 14px; }
+.settings-group { background: var(--surface); border-radius: 16px; overflow: hidden; }
+.settings-row { display: flex; align-items: center; gap: 12px; min-height: 66px; width: 100%; padding: 12px 14px; text-align: start; }
+.settings-group .settings-row + .settings-row { border-top: 1px solid var(--surface-2); }
+.settings-icon { display: grid; place-items: center; flex: 0 0 28px; color: var(--accent); }
+.settings-row__body { flex: 1; min-width: 0; }
+.settings-row__label { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; font-size: 14px; font-weight: 500; overflow-wrap: anywhere; }
+.settings-row small { display: block; color: var(--muted); font-size: 12px; line-height: 1.7; margin-top: 3px; }
+.settings-arrow { color: var(--accent); font-size: 24px; }
+.settings-badge { padding: 2px 8px; border-radius: 999px; color: var(--accent); background: var(--surface-2); font-size: 11px; font-weight: 500; }
+.settings-row--unavailable .settings-icon { color: var(--muted); }
+.settings-logout { margin-top: 22px; background: var(--surface); border-radius: 14px; }
+.settings-logout .settings-row { min-height: 54px; color: #A2402F; }
+.settings-logout .settings-icon { color: inherit; }
+.account-settings :is(a, button):focus-visible { outline: 2px solid var(--accent); outline-offset: -3px; border-radius: 12px; }
+.account-settings a.settings-row:hover { background: var(--surface-2); }
+
 .app-menu { display: flex; flex-direction: column; gap: var(--s-2); margin-top: var(--s-4); }
 
 .app-menu__item {
