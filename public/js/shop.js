@@ -1,6 +1,26 @@
 /** Public shop and product presentation enhancements. */
 (function () {
   'use strict';
+  function enhanceBio() {
+    var bio = document.querySelector('.shop-bio');
+    if (!bio || bio.dataset.enhanced) return;
+    bio.dataset.enhanced = 'true';
+    var toggle = bio.parentElement.querySelector('.shop-bio-toggle');
+    bio.classList.add('shop-bio--compact');
+    function measure() {
+      if (toggle.getAttribute('aria-expanded') === 'false') toggle.hidden = bio.scrollHeight <= bio.clientHeight + 1;
+    }
+    toggle.addEventListener('click', function () {
+      var expanded = toggle.getAttribute('aria-expanded') !== 'true';
+      toggle.setAttribute('aria-expanded', String(expanded));
+      toggle.textContent = expanded ? 'کەمتر' : 'زیاتر';
+      bio.classList.toggle('shop-bio--compact', !expanded);
+    });
+    if (window.ResizeObserver) new ResizeObserver(measure).observe(bio);
+    measure();
+  }
+  enhanceBio();
+  document.addEventListener('shop:updated', enhanceBio);
   var rail = document.getElementById('pdp-carousel');
   var dots = document.getElementById('pdp-dots');
   if (rail && dots) {

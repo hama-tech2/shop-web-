@@ -35,8 +35,8 @@ export function shopHeader({ shop, origin, controls = '' }) {
     ` title="${esc(label)}">${icon}</a>`;
 
   const links = [
-    shop.phone || shop.whatsapp
-      ? round(`tel:${esc(shop.phone || shop.whatsapp)}`, T.call, iconPhone())
+    shop.phone
+      ? round(`tel:${esc(shop.phone)}`, T.call, iconPhone())
       : '',
     shop.instagram
       ? round(`https://instagram.com/${encodeURIComponent(shop.instagram)}`, T.instagram,
@@ -70,7 +70,8 @@ export function shopHeader({ shop, origin, controls = '' }) {
       ? `<p class="shop-city">${iconPin()}<span>${esc(city)}</span></p>`
       : '') +
     `</div>` +
-    (shop.bio ? `<p class="shop-bio">${esc(shop.bio)}</p>` : '') +
+    (shop.bio ? `<div class="shop-about"><p class="shop-bio" id="shop-bio">${esc(shop.bio)}</p>` +
+      `<button class="shop-bio-toggle" type="button" aria-controls="shop-bio" aria-expanded="false" hidden>زیاتر</button></div>` : '') +
     controls +
     `<div class="shop-actions">` +
     `<a class="btn btn--whatsapp" href="${esc(wa(shop.whatsapp, T.shopText(shop.name, url)))}"` +
@@ -87,12 +88,8 @@ export function shopHeader({ shop, origin, controls = '' }) {
    ============================================================ */
 
 export function shopPage({ shop, products, categories, shopCategories, activeCategory, origin }) {
-  // The seller's own categories win when they have set any up. Only the
-  // ones that actually hold a product are shown — an empty chip is a
-  // dead end. Shops with no categories fall back to the platform ones
-  // their products already use, so the row is never empty for nothing.
-  const ownUsed = new Set(products.map((p) => p.ownCategoryId).filter(Boolean));
-  const own = (shopCategories ?? []).filter((c) => ownUsed.has(c.id));
+  // Keep the complete category rail visible while browsing a filtered shop.
+  const own = shopCategories ?? [];
 
   const platformUsed = new Set(products.map((p) => p.categoryId).filter(Boolean));
   const chips = own.length
@@ -102,8 +99,7 @@ export function shopPage({ shop, products, categories, shopCategories, activeCat
 
   const base = `/@${encodeURIComponent(shop.slug)}`;
   const chipRow =
-    chips.length || activeCategory
-      ? `<nav class="chips" aria-label="${esc(T.productsTitle)}">` +
+    `<nav class="chips" aria-label="${esc(T.productsTitle)}">` +
         `<a class="chip" href="${esc(base)}"` +
         `${!activeCategory ? ' aria-current="true"' : ''}>${esc(T.all)}</a>` +
         chips
@@ -114,8 +110,7 @@ export function shopPage({ shop, products, categories, shopCategories, activeCat
               `${esc(c.label)}</a>`,
           )
           .join('') +
-        `</nav>`
-      : '';
+        `</nav>`;
 
   let body;
   if (!shop.products_visible) {
@@ -132,14 +127,13 @@ export function shopPage({ shop, products, categories, shopCategories, activeCat
       `<p>${esc(T.emptyBody)}</p></div>`;
   } else {
     body =
-      chipRow +
       `<div class="grid">` +
       products.map((p, i) => cardHtml(p, i)).join('') +
       `</div>`;
   }
 
   // No bottom tab bar here: this page belongs to the seller, not the app.
-  return `<div class="page page--shop">${shopHeader({ shop, origin })}<div class="shop-products">${body}</div></div>`;
+  return `<div class="page page--shop">${shopHeader({ shop, origin })}<div class="shop-products">${chipRow}${body}</div></div>`;
 }
 
 export function shopNotFound() {

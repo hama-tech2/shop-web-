@@ -44,7 +44,7 @@ export function productForm({ mode, draftId, categories, shopCategories = [], va
     `<div class="field"><label class="field__label" for="f-own-category">پۆلی دوکان</label>` +
     `<select class="field__input" id="f-own-category" name="own_category"><option value="">${esc(C.none)}</option>` +
     shopCategories.map(c => `<option value="${esc(c.id)}"${values.ownCategory === c.id ? ' selected' : ''}>${esc(c.name)}</option>`).join('') +
-    `</select><a class="category-manage" href="/app/categories" target="_blank" rel="noopener">${iconPlus(16)} زیادکردن و بەڕێوەبردنی پۆلەکان ↗</a></div>` +
+    `</select><a class="category-manage" href="/app/profile#shop-categories" target="_blank" rel="noopener">${iconPlus(16)} زیادکردن و بەڕێوەبردنی پۆلەکان ↗</a></div>` +
     `<div class="publish-visibility"><div><span class="field__label" id="visibility-label">نیشاندان لە بۆ تۆ</span>` +
     `<p id="visibility-help">لە ئێستادا، ناچالاککردن بەرهەمەکە لە بۆ تۆ، لاپەڕەی گشتیی دوکان و گەڕان دەشارێتەوە.</p></div>` +
     `<button class="switch" type="button" id="visibility" role="switch" aria-labelledby="visibility-label" aria-describedby="visibility-help"` +
