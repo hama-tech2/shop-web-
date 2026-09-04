@@ -191,6 +191,9 @@ export const PRODUCT = {
   errUpload: 'ناردنی وێنە سەرکەوتوو نەبوو. دووبارە هەوڵ بدەرەوە.',
   errType: 'تەنها JPG، PNG یان WebP.',
   errSave: 'پاشەکەوتکردن سەرکەوتوو نەبوو.',
+  // Nothing was changed: the row is gone, or it was never this
+  // seller's to change. Both must say so instead of claiming success.
+  errGone: 'ئەم بەرهەمە نەدۆزرایەوە. لەوانەیە پێشتر سڕابێتەوە.',
 
   emptyTitle: 'هێشتا هیچ بەرهەمێکت نییە',
   emptyBody: 'یەکەم بەرهەمت زیاد بکە و لینکەکەت بڵاوبکەرەوە.',
@@ -313,6 +316,7 @@ export const CATEGORIES_UI = {
   errName: 'ناوێک بنووسە (١ بۆ ٦٠ پیت).',
   errDuplicate: 'ئەم ناوە پێشتر هەیە.',
   errLimit: 'تەنها ٢٠ جۆر هەتایە.',
+  errGone: 'ئەم جۆرە نەدۆزرایەوە. لەوانەیە پێشتر سڕابێتەوە.',
   productCategory: 'جۆری دوکانەکەت',
   none: 'هیچ',
 };
