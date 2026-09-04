@@ -37,8 +37,10 @@ const CAT_B = 'dddddddd-2222-4222-8222-222222222222';
 
 let rows = 1;                     // how many rows a write reports
 let mode = 'shop';                // shop | noshop
+let created = null;               // a shop made through onboarding
 const calls = [];
 
+let lastBody = {};
 const body = (req) => new Promise((r) => {
   let b = ''; req.on('data', (c) => { b += c; }); req.on('end', () => r(b));
 });
@@ -46,7 +48,8 @@ const body = (req) => new Promise((r) => {
 http.createServer(async (req, res) => {
   const url = new URL(req.url, 'http://x');
   const p = url.pathname;
-  await body(req);
+  const raw = await body(req);
+  try { lastBody = raw ? JSON.parse(raw) : {}; } catch { lastBody = {}; }
 
   const send = (data, status = 200) => {
     res.writeHead(status, { 'content-type': 'application/json' });
@@ -54,17 +57,30 @@ http.createServer(async (req, res) => {
   };
 
   if (p.startsWith('/__rows/')) { rows = Number(p.split('/')[2]); return send({ rows }); }
-  if (p.startsWith('/__mode/')) { mode = p.split('/')[2]; return send({ mode }); }
+  if (p.startsWith('/__mode/')) { mode = p.split('/')[2]; created = null; return send({ mode }); }
+  if (p === '/__created') return send(created ? [created] : []);
   if (p === '/__calls') return send(calls);
 
   if (p === '/auth/v1/user') return send(USER);
+  if (p === '/auth/v1/signup' || p.startsWith('/auth/v1/token')) {
+    return send({ access_token: 'stub-token', refresh_token: 'stub-refresh',
+                  expires_in: 3600, user: USER });
+  }
 
   const table = p.replace('/rest/v1/', '');
   const write = req.method !== 'GET';
   if (write) calls.push(`${req.method} ${table}?${url.searchParams}`);
 
+  if (table === 'shops' && req.method === 'POST') {
+    // Onboarding's insert. Keep it so the next read finds it, exactly
+    // as the database would.
+    created = { ...SHOP, ...lastBody, id: SHOP.id, status: 'active' };
+    return send([created]);
+  }
+
   if (table === 'shops') {
     const owner = url.searchParams.get('owner_id') || '';
+    if (mode === 'noshop' && created && owner === `eq.${USER.id}`) return send([created]);
 
     // Mirror Postgres + RLS, which is where the publish bug lived. The
     // SELECT policy is `owner_id = auth.uid() OR shop_is_public(id)`,
@@ -105,6 +121,7 @@ http.createServer(async (req, res) => {
   }
 
   if (table === 'products' && req.method === 'POST') return send([{ id: PRODUCT_ID }]);
+  if (table === 'rpc/slug_available') return send([{ available: true, reason: null }]);
   if (table.startsWith('rpc/')) return send(null);
   return send([]);
 }).listen(8899, '127.0.0.1', () => console.log('stub on 8899'));

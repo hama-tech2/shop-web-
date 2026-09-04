@@ -228,16 +228,36 @@ export async function getOwnShop(env, token, userId) {
    onboarding draft (not sensitive, but HttpOnly anyway)
    --------------------------------------------------------------- */
 
+/**
+ * btoa and atob are Latin-1 only: every code point above 255 throws.
+ * The draft holds a shop name, and in a Sorani app that name is Kurdish
+ * — "بۆتیکی نافین" made setDraft throw on the very first step of the
+ * wizard, so no Kurdish-named shop could ever be created. Encode the
+ * UTF-8 bytes first, decode them back after.
+ */
+const encodeDraft = (draft) => {
+  const bytes = new TextEncoder().encode(JSON.stringify(draft));
+  let binary = '';
+  for (const byte of bytes) binary += String.fromCharCode(byte);
+  return btoa(binary);
+};
+
+const decodeDraft = (value) => {
+  const binary = atob(value);
+  const bytes = Uint8Array.from(binary, (c) => c.charCodeAt(0));
+  return JSON.parse(new TextDecoder().decode(bytes));
+};
+
 export function readDraft(cookies) {
   try {
-    return cookies[DRAFT] ? JSON.parse(atob(cookies[DRAFT])) : {};
+    return cookies[DRAFT] ? decodeDraft(cookies[DRAFT]) : {};
   } catch {
     return {};
   }
 }
 
 export const setDraft = (headers, draft) =>
-  headers.append('set-cookie', cookie(DRAFT, btoa(JSON.stringify(draft)), 3600));
+  headers.append('set-cookie', cookie(DRAFT, encodeDraft(draft), 3600));
 
 export const clearDraft = (headers) => headers.append('set-cookie', clear(DRAFT));
 
