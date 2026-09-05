@@ -67,12 +67,12 @@
 .pdp-toolbar { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; gap: 12px; }
 .pdp-back { display: flex; align-items: center; gap: 4px; min-height: 44px; font-size: 13px; }
 .pdp-tools { display: flex; gap: 8px; }
-.pdp-gallery { position: relative; margin: 0 16px; }
-.carousel { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; aspect-ratio: 1 / 1; border-radius: 14px; background: var(--surface-2); }
+.pdp-gallery { position: relative; }
+.carousel { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; aspect-ratio: 4 / 5; background: var(--surface-2); }
 .carousel::-webkit-scrollbar { display: none; }
-.carousel__img { flex: 0 0 100%; width: 100%; height: 100%; object-fit: contain; scroll-snap-align: center; }
+.carousel__img { display: block; flex: 0 0 100%; min-width: 0; width: 100%; height: 100%; object-fit: cover; scroll-snap-align: start; scroll-snap-stop: always; }
 .carousel__img--empty { background: var(--surface-2); }
-.dots--pdp { bottom: 10px; }
+.dots--pdp { position: static; padding: 10px 0; }
 .dots--pdp .dot { width: 7px; height: 7px; background: var(--muted); opacity: .5; }
 .dots--pdp .dot.is-active { width: 18px; opacity: 1; background: var(--accent); }
 .pdp-body { padding: 20px 16px 0; }
@@ -84,26 +84,24 @@
 .pdp-description { margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--surface-2); }
 .pdp-description h2 { font-size: 15px; line-height: 1.6; }
 .pdp-desc { margin: 8px 0 0; white-space: pre-line; overflow-wrap: anywhere; line-height: 1.9; }
-.shop-row { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; margin-top: 20px; padding: 14px; border: 1px solid var(--surface-2); border-radius: 14px; background: var(--surface); }
-.shop-row__logo { width: 60px; height: 60px; border-radius: 50%; object-fit: cover; flex: none; background: var(--surface-2); }
+.shop-row { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; margin-top: 16px; padding: 10px; border: 1px solid var(--surface-2); border-radius: 14px; background: var(--surface); }
+.shop-row__logo { width: 44px; height: 44px; border-radius: 50%; object-fit: cover; flex: none; background: var(--surface-2); }
 .shop-row__logo--initial { display: grid; place-items: center; font-size: 22px; font-weight: 700; color: var(--accent); }
 .shop-row__body { flex: 1; min-width: 100px; }
 .shop-row__label, .shop-row__username { display: block; color: var(--muted); font-size: 12px; overflow-wrap: anywhere; }
-.shop-row__name { display: block; font-size: 16px; font-weight: 700; overflow-wrap: anywhere; }
+.shop-row__name { display: block; font-size: 14px; font-weight: 700; overflow-wrap: anywhere; }
 .shop-row__city { display: flex; align-items: center; gap: 4px; color: var(--muted); font-size: 12px; }
 .shop-row__go { color: var(--accent); font-size: 12px; font-weight: 700; }
 .pdp-order { margin-top: 14px; }
-.pdp-order .btn { min-height: 50px; border-radius: 12px; }
+.pdp-order .btn { min-height: 44px; padding: 10px 12px; border-radius: 12px; background: var(--accent); color: white; font-size: 14px; }
+.pdp-order .btn svg { width: 20px; height: 20px; }
 .more { margin-top: 28px; }
 .more__title { font-size: 15px; padding: 0 16px; margin-bottom: 14px; }
-.more__rail { display: flex; gap: 12px; overflow-x: auto; padding: 0 16px 8px; scroll-snap-type: x proximity; }
-.more__item { flex: 0 0 38%; max-width: 180px; min-width: 0; scroll-snap-align: start; }
 @media (min-width: 480px) {
   .shop-logo { width: 112px; height: 112px; bottom: -54px; }
   .shop-id { padding-left: 144px; min-height: 96px; }
   .owner-control { font-size: 14px; }
   .shop-actions .btn { flex-basis: 240px; }
-  .more__item { flex-basis: 31%; }
 }
 @media (prefers-reduced-motion: reduce) {
   :is(.page--shop, .page--pdp) * { scroll-behavior: auto; transition: none; }

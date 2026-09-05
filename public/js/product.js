@@ -89,9 +89,9 @@
       var scale = Math.min(1, +D.fullW / bitmap.width, +D.fullH / bitmap.height);
       var full = document.createElement('canvas'); full.width = Math.max(1, Math.round(bitmap.width * scale)); full.height = Math.max(1, Math.round(bitmap.height * scale));
       full.getContext('2d').drawImage(bitmap, 0, 0, full.width, full.height);
-      var side = Math.min(bitmap.width, bitmap.height);
-      var card = document.createElement('canvas'); card.width = card.height = Math.min(+D.cardW, side);
-      card.getContext('2d').drawImage(bitmap, (bitmap.width - side) / 2, (bitmap.height - side) / 2, side, side, 0, 0, card.width, card.height);
+      var cropW = Math.min(bitmap.width, bitmap.height * 4 / 5), cropH = cropW * 5 / 4;
+      var card = document.createElement('canvas'); card.width = Math.round(Math.min(+D.cardW, cropW)); card.height = Math.round(card.width * 5 / 4);
+      card.getContext('2d').drawImage(bitmap, (bitmap.width - cropW) / 2, (bitmap.height - cropH) / 2, cropW, cropH, 0, 0, card.width, card.height);
       return { full: await toBlob(full, +D.fullQ), card: await toBlob(card, +D.cardQ) };
     } finally { bitmap.close(); }
   }
@@ -190,8 +190,6 @@
     if (e.key === 'Enter') { e.preventDefault(); createCategory(); }
     else if (e.key === 'Escape') { e.preventDefault(); catShow(false); }
   });
-  var toggle = document.getElementById('visibility');
-  toggle.addEventListener('click', function () { var on = toggle.getAttribute('aria-checked') !== 'true'; toggle.setAttribute('aria-checked', String(on)); document.getElementById('status-field').value = on ? 'active' : 'hidden'; });
   var description = document.getElementById('f-description');
   function countDescription() { document.getElementById('description-count').textContent = Array.from(description.value).length + ' پیت'; }
   description.addEventListener('input', countDescription); countDescription();

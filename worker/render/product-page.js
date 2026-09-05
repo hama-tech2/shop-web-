@@ -50,8 +50,8 @@ export function productPage({ product, more, origin }) {
   const moreRow = more.length
     ? `<section class="more">` +
       `<h2 class="more__title">${esc(T.moreFromShop)}</h2>` +
-      `<div class="more__rail">` +
-      more.map((p, i) => `<div class="more__item">${cardHtml(p, i + 2)}</div>`).join('') +
+      `<div class="grid">` +
+      more.map((p, i) => cardHtml(p, i + 2)).join('') +
       `</div></section>`
     : '';
 

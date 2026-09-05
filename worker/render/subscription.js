@@ -67,7 +67,7 @@ export function subscriptionPage({ state, selected, error }) {
     `<div class="save-bar save-bar--dark">` +
     `<button class="btn btn--dark" type="submit" id="pay-btn">${esc(T.pay)}</button>` +
     `<p class="pay-note">${esc(T.payVia)}</p>` +
-    `<a class="pay-link" href="/app/products">${esc(T.startFree)}</a>` +
+    `<a class="pay-link" href="/app">${esc(T.startFree)}</a>` +
     `</div>` +
     `</form>` +
 

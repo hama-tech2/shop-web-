@@ -18,6 +18,8 @@
   var initialized = false;
   var currentIds = read();
   var touched = Object.create(null);
+  var confirmed = Object.create(null), pending = Object.create(null), removedCards = Object.create(null);
+  var errorMessage;
   document.querySelectorAll('[data-fav][aria-pressed="true"]').forEach(function (button) {
     var id = button.getAttribute('data-fav');
     if (currentIds.indexOf(id) === -1) currentIds.push(id);
@@ -59,7 +61,13 @@
   /* ---------- painting ---------- */
 
   function paintOne(button, on) {
+    var changed = button.getAttribute('aria-pressed') !== String(on);
     button.setAttribute('aria-pressed', on ? 'true' : 'false');
+    button.setAttribute('aria-label', on ? 'لابردن لە پاشەکەوتەکان' : 'پاشەکەوتکردن');
+    if (changed && button.animate && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      var icon = button.querySelector('svg');
+      if (icon) icon.animate([{ transform: 'scale(1)' }, { transform: 'scale(1.22)' }, { transform: 'scale(1)' }], { duration: 220 });
+    }
   }
 
   /** Reflect the current set onto every heart on the page. */
@@ -85,6 +93,32 @@
     });
   }
 
+  // Serialize each product's writes so rapid save/unsave taps cannot arrive backwards.
+  function syncFavorite(id) {
+    if (pending[id] || touched[id] === !!confirmed[id]) return;
+    var on = touched[id]; pending[id] = true;
+    post('/api/favorites', { id: id, on: on })
+      .then(function (res) { if (!res.ok) throw new Error('save'); confirmed[id] = on; })
+      ['catch'](function () {
+        if (touched[id] !== on) return;
+        touched[id] = !!confirmed[id];
+        if (touched[id]) add(id); else remove(id);
+        var removed = removedCards[id];
+        if (touched[id] && removed) {
+          removed.parent.insertBefore(removed.card, removed.next && removed.next.parentNode === removed.parent ? removed.next : null);
+          delete removedCards[id]; showEmptyIfBare();
+        }
+        paint(currentIds);
+        if (!errorMessage) {
+          errorMessage = document.createElement('p'); errorMessage.className = 'fav-status';
+          errorMessage.setAttribute('role', 'status'); document.body.appendChild(errorMessage);
+        }
+        errorMessage.textContent = 'پاشەکەوتکردن سەرکەوتوو نەبوو؛ دووبارە هەوڵ بدەرەوە.';
+        errorMessage.hidden = false;
+      })
+      .then(function () { pending[id] = false; syncFavorite(id); });
+  }
+
   /* ---------- the tap ---------- */
 
   document.addEventListener('click', function (event) {
@@ -96,6 +130,7 @@
 
     var id = button.getAttribute('data-fav');
     var on = button.getAttribute('aria-pressed') !== 'true';
+    if (errorMessage) errorMessage.hidden = true;
 
     // Paint first: the heart must never wait on the network.
     touched[id] = on;
@@ -103,14 +138,17 @@
     if (on) add(id); else remove(id);
 
     if (signedIn && initialized) {
-      post('/api/favorites', { id: id, on: on })['catch'](function () {});
+      syncFavorite(id);
     }
 
     // On /saved, un-hearting removes the card there and then.
     if (!on && document.querySelector('.page--saved')) {
       var card = button.closest('article, .card');
       var next = card && (card.nextElementSibling || card.previousElementSibling);
-      if (card && card.parentNode) card.parentNode.removeChild(card);
+      if (card && card.parentNode) {
+        removedCards[id] = { card: card, parent: card.parentNode, next: card.nextSibling };
+        card.parentNode.removeChild(card);
+      }
       showEmptyIfBare();
       var focus = next ? next.querySelector('[data-fav]') : document.querySelector('#saved-empty a');
       if (focus) focus.focus();
@@ -162,10 +200,11 @@
 
   function finish(ids) {
     initialized = true;
+    ids.forEach(function (id) { confirmed[id] = true; });
     paint(ids);
     // Preserve taps made while the initial account/merge request was pending.
     if (signedIn) Object.keys(touched).forEach(function (id) {
-      post('/api/favorites', { id: id, on: touched[id] })['catch'](function () {});
+      syncFavorite(id);
     });
   }
 

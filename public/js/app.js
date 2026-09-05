@@ -20,6 +20,18 @@
     var next = document.getElementById('slug-next');
     var timer = null;
     var seq = 0;
+    var previousValue = slug.value, pendingHyphen = false;
+
+    function clean(value) {
+      return value.toLowerCase().replace(/[\s_]+/g, '-').replace(/[^a-z0-9-]/g, '')
+        .replace(/-+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40).replace(/-+$/g, '');
+    }
+
+    function complete() {
+      var value = clean(slug.value);
+      slug.value = value.length >= 3 ? value : value ? value + '-shop' : slug.dataset.suggestion;
+      previousValue = slug.value; pendingHyphen = false;
+    }
 
     function say(state, key) {
       if (!hint) return;
@@ -32,17 +44,17 @@
     }
 
     function check() {
-      var value = slug.value.trim().toLowerCase();
+      var value = clean(slug.value);
       if (slug.value !== value) slug.value = value;
 
-      if (!value) {
+      if (value.length < 3) {
         say('', 'Format');
         setBusy(false);
         return;
       }
 
       say('', 'Checking');
-      setBusy(true);
+      setBusy(false);
       var mine = ++seq;
 
       fetch('/api/slug-check?slug=' + encodeURIComponent(value), {
@@ -55,11 +67,9 @@
             say('ok', 'Ok');
             setBusy(false);
           } else {
-            var key = verdict.reason === 'taken' ? 'Taken'
-                    : verdict.reason === 'reserved' ? 'Reserved'
-                    : 'Format';
-            say('bad', key);
-            setBusy(true);
+            var unavailable = verdict.reason === 'taken' || verdict.reason === 'reserved';
+            say(unavailable ? 'bad' : '', unavailable ? 'Taken' : 'Format');
+            setBusy(unavailable);
           }
         })
         .catch(function () {
@@ -68,14 +78,28 @@
         });
     }
 
-    slug.addEventListener('input', function () {
+    slug.addEventListener('input', function (event) {
       // Invalidate the old request immediately, including when cleared.
       seq++;
       clearTimeout(timer);
+      if (event.isComposing) { setBusy(false); return; }
+      var raw = slug.value, caret = slug.selectionStart;
+      // Remember a space typed at the end even though the visible slug is trimmed.
+      if (pendingHyphen && event.inputType !== 'deleteContentBackward' && raw.indexOf(previousValue) === 0 && raw.length > previousValue.length) {
+        raw = previousValue + '-' + raw.slice(previousValue.length); caret++;
+      }
+      pendingHyphen = /[\s_-]$/.test(raw);
+      slug.value = clean(raw);
+      previousValue = slug.value;
+      var position = clean(raw.slice(0, caret)).length;
+      slug.setSelectionRange(position, position);
       say('', 'Format');
       setBusy(false);
       timer = setTimeout(check, 300);
     });
+
+    slug.addEventListener('blur', function () { complete(); check(); });
+    document.getElementById('slug-form').addEventListener('submit', complete);
 
     if (slug.value.trim()) check();
   }

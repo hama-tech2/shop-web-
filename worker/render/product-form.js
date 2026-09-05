@@ -9,7 +9,7 @@ export function productForm({ mode, draftId, categories, shopCategories = [], va
   const images = values.images ?? [];
   return (
     `<div class="shell publish-page">` +
-    `<header class="publish-head"><a class="icon-btn" href="/app/products" aria-label="گەڕانەوە">${iconBack()}</a>` +
+    `<header class="publish-head"><a class="icon-btn" href="/app" aria-label="گەڕانەوە">${iconBack()}</a>` +
     `<h1>${esc(isEdit ? T.editTitle : T.newTitle)}</h1>` +
     `<details class="publish-help"><summary>ڕێنمایی ⓘ</summary>` +
     `<p>تا ${MAX_IMAGES} وێنە زیاد بکە. وێنەیەک هەڵبژێرە بۆ کاڤەر؛ بە دوگمەکانی ڕیزکردن شوێنی وێنەکان بگۆڕە.</p></details></header>` +
@@ -60,10 +60,6 @@ export function productForm({ mode, draftId, categories, shopCategories = [], va
     `</div>` +
     `<p class="category-inline__error" id="category-add-error" role="status" hidden></p>` +
     `</div></div>` +
-    `<div class="publish-visibility"><div><span class="field__label" id="visibility-label">نیشاندان لە بۆ تۆ</span>` +
-    `<p id="visibility-help">لە ئێستادا، ناچالاککردن بەرهەمەکە لە بۆ تۆ، لاپەڕەی گشتیی دوکان و گەڕان دەشارێتەوە.</p></div>` +
-    `<button class="switch" type="button" id="visibility" role="switch" aria-labelledby="visibility-label" aria-describedby="visibility-help"` +
-    ` aria-checked="${values.status !== 'hidden'}"><span class="switch__dot"></span></button></div>` +
     `<div class="field"><label class="field__label" for="f-description">پێناسە <span class="field__optional">${esc(T.optional)}</span></label>` +
     `<textarea class="field__input field__input--area" id="f-description" name="description" rows="3" placeholder="${esc(T.descriptionPlaceholder)}">${esc(values.description ?? '')}</textarea>` +
     `<span class="description-count" id="description-count"></span></div>` +
