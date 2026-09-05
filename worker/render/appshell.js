@@ -1,5 +1,5 @@
 import {
-  PRODUCT, PROFILE, SAVED, UI,
+  CATEGORIES_UI as C, PRODUCT, PROFILE, SAVED, UI,
 } from '../config.js';
 import { esc } from './html.js';
 import { shopHeader } from './shop.js';
@@ -25,6 +25,27 @@ export function bottomNav(active) {
   );
 }
 
+/**
+ * Every word the category rail needs, in one attribute.
+ *
+ * The rail is built in the browser from the public shop page, so its
+ * labels cannot be server-rendered. They still belong in config.js
+ * rather than hard-coded in the script, so they travel as data.
+ */
+const CATEGORY_UI = JSON.stringify({
+  manage: C.manage,
+  done: C.done,
+  add: C.addInline,
+  placeholder: C.addPlaceholder,
+  create: C.create,
+  cancel: C.cancel,
+  rename: C.rename,
+  save: C.save,
+  remove: C.remove,
+  confirm: C.deleteConfirm,
+  error: C.errCreate,
+});
+
 /** Owner controls stay inside the existing authenticated seller area. */
 export function appShell({ shop, origin }) {
   const controls =
@@ -36,7 +57,8 @@ export function appShell({ shop, origin }) {
   return (
     `<div class="page page--shop page--owner">` +
     shopHeader({ shop, origin, controls }) +
-    `<section id="owner-products" class="shop-products" data-shop-url="${esc('/@' + shop.slug)}" aria-label="${esc(PRODUCT.listTitle)}">` +
+    `<section id="owner-products" class="shop-products" data-shop-url="${esc('/@' + shop.slug)}"` +
+    ` data-cat-ui="${esc(CATEGORY_UI)}" aria-label="${esc(PRODUCT.listTitle)}">` +
     `<div class="notice"><a class="owner-preview-link" href="${esc('/@' + shop.slug)}">${esc(PROFILE.viewShop)} ‹</a></div>` +
     `</section></div>` +
     settingsPanel({ shop }) +

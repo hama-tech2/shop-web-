@@ -9,7 +9,6 @@
 .shop-sharing { position: absolute; top: 12px; right: 16px; display: flex; gap: 8px; }
 .shop-id { min-height: 86px; padding: 16px 16px 0 128px; }
 .shop-name { font-size: clamp(19px, 4.5vw, 25px); line-height: 1.55; overflow-wrap: anywhere; }
-.shop-username { margin: 2px 0 0; color: var(--muted); font-size: 15px; overflow-wrap: anywhere; }
 .shop-city { display: flex; align-items: center; gap: 4px; margin: 4px 0 0; color: var(--muted); font-size: 12px; }
 .shop-about { margin: 10px 16px 0; }
 .shop-bio { margin: 0; line-height: 1.8; white-space: pre-line; overflow-wrap: anywhere; font-size: 14px; }
@@ -18,6 +17,9 @@
 .shop-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 14px 16px 0; }
 .shop-actions .btn { flex: 1 1 140px; width: auto; min-height: 46px; padding: 10px 12px; border-radius: 999px; font-size: 12px; }
 .btn--whatsapp { background: var(--whatsapp); color: var(--text); gap: 8px; }
+/* The location is a button next to WhatsApp, not a line of metadata:
+   a customer standing on the street taps it to get directions. */
+.btn--maps { background: var(--surface-2); color: var(--text); gap: 8px; }
 .round-row { display: flex; flex-wrap: wrap; gap: 6px; }
 .round-row:empty { display: none; }
 .round-btn { width: 44px; height: 44px; border-radius: 50%; background: var(--surface); color: var(--text); display: grid; place-items: center; flex: none; }
@@ -38,6 +40,20 @@
 .owner-controls { display: flex; align-items: stretch; gap: 8px; padding: 14px 16px 0; }
 .owner-delete { color: var(--text); }
 .owner-delete:disabled { opacity: .5; cursor: wait; }
+
+/* Categories are edited on the rail that shows them: the chip turns the
+   row below into rename / delete / add, and back again. */
+.chip--manage { color: var(--accent); font-weight: 700; }
+.chip--manage[aria-expanded="true"] { background: var(--accent); color: var(--accent-ink); }
+.cat-edit { margin: 0 16px 16px; padding: 12px; border-radius: 12px; background: var(--surface); }
+.cat-edit__list { display: grid; gap: 8px; }
+.cat-edit__row { display: flex; align-items: center; gap: 6px; }
+.cat-edit__name { flex: 1; min-width: 0; min-height: 44px; padding-inline: 12px; border: 1px solid var(--surface-2); border-radius: 10px; background: var(--bg); font-size: 13px; }
+.cat-edit__row .btn { flex: none; width: auto; min-height: 44px; padding: 8px 12px; border-radius: 10px; font-size: 12px; }
+.cat-edit__row--add { margin-top: 4px; padding-top: 10px; border-top: 1px solid var(--surface-2); }
+.cat-edit__status { margin: 10px 0 0; color: var(--accent); font-size: 12px; line-height: 1.8; }
+.cat-edit__status:empty { display: none; }
+.cat-edit :is(button, input):disabled { opacity: .6; cursor: wait; }
 .owner-delete:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .owner-control { display: flex; justify-content: center; align-items: center; gap: 5px; min-height: 44px; padding: 8px 12px; border: 1px solid #D5D0C6; border-radius: 999px; font-size: 12px; cursor: pointer; }
 .owner-control--primary { background: var(--accent); color: white; border-color: var(--accent); flex: 1; }

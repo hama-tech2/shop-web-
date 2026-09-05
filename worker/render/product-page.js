@@ -84,7 +84,6 @@ export function productPage({ product, more, origin }) {
     `<a class="shop-row" href="${esc(shopUrl)}">${avatar}` +
     `<span class="shop-row__body">` +
     `<span class="shop-row__label">دوکان</span><span class="shop-row__name">${esc(shop.name)}</span>` +
-    `<span class="shop-row__username"><bdi dir="ltr">@${esc(shop.slug)}</bdi></span>` +
     (city ? `<span class="shop-row__city">${iconPin(12)}${esc(city)}</span>` : '') +
     `</span>` +
     `<span class="shop-row__go">${esc(T.viewShop)}</span></a>` +

@@ -62,7 +62,9 @@ async function form(request) {
    profile
    ============================================================ */
 
-const SHOP_SELECT = 'id,slug,name,bio,city,whatsapp,phone,instagram,tiktok,facebook,logo_key,cover_key';
+const SHOP_SELECT =
+  'id,slug,name,bio,city,whatsapp,phone,instagram,tiktok,facebook,snapchat,' +
+  'maps_url,logo_key,cover_key';
 
 async function loadShop(env, token, id) {
   const res = await asUser(env, token, 'shops', {
@@ -83,6 +85,30 @@ function normalisePhone(raw) {
 }
 
 const HANDLE = /^[A-Za-z0-9._]{1,40}$/;
+/** Snapchat allows a hyphen where the others do not. */
+const SNAP_HANDLE = /^[A-Za-z0-9._-]{1,40}$/;
+
+/**
+ * A map link the seller pasted.
+ *
+ * https only. That is the whole guard: it rejects javascript:, data:
+ * and vbscript: outright, and plain http:// too, because this URL is
+ * opened straight from the page a customer reached from TikTok. The
+ * database CHECK enforces the same rule, so a bad value cannot slip
+ * past this function into a row.
+ */
+function normaliseMaps(raw) {
+  const v = String(raw || '').trim();
+  if (!v) return null;
+  try {
+    const parsed = new URL(v);
+    if (parsed.protocol !== 'https:') return { error: true };
+    if (v.length > 500) return { error: true };
+    return { value: parsed.toString() };
+  } catch {
+    return { error: true };
+  }
+}
 
 /** Sellers paste whole URLs; keep only the handle. */
 function normaliseHandle(raw) {
@@ -90,6 +116,19 @@ function normaliseHandle(raw) {
   if (!v) return null;
   v = v.replace(/^https?:\/\/[^/]+\//i, '').replace(/^@/, '').replace(/[/?#].*$/, '');
   return v || null;
+}
+
+/**
+ * Snapchat, where the handle is not the first path segment.
+ *
+ * A Snapchat profile link is snapchat.com/add/<handle> — which is what
+ * Snapchat's own share sheet gives a seller to paste. Taking the first
+ * segment, as the other three platforms need, saved everybody the
+ * handle "add".
+ */
+function normaliseSnapchat(raw) {
+  const v = String(raw || '').trim().replace(/^https?:\/\/[^/]+\//i, '');
+  return normaliseHandle(v.replace(/^add\//i, ''));
 }
 
 export async function profileGet(request, env, url) {
@@ -122,6 +161,8 @@ export async function profilePost(request, env, url) {
     instagram: normaliseHandle(f.instagram),
     tiktok: normaliseHandle(f.tiktok),
     facebook: normaliseHandle(f.facebook),
+    snapchat: normaliseSnapchat(f.snapchat),
+    maps_url: (f.maps_url || '').trim(),
     cover_key: f.cover_key || null,
     logo_key: f.logo_key || null,
   };
@@ -138,9 +179,15 @@ export async function profilePost(request, env, url) {
   const phone = values.phone ? normalisePhone(values.phone) : null;
   if (phone && !/^\+?[0-9]{7,20}$/.test(phone)) return fail(P.errPhone);
 
+  // Every social field is optional. Only a value the seller actually
+  // typed is checked; empty stays empty and never blocks the save.
   for (const handle of [values.instagram, values.tiktok, values.facebook]) {
     if (handle && !HANDLE.test(handle)) return fail(P.errHandle);
   }
+  if (values.snapchat && !SNAP_HANDLE.test(values.snapchat)) return fail(P.errHandle);
+
+  const maps = normaliseMaps(values.maps_url);
+  if (maps?.error) return fail(P.errMaps);
 
   // Only keys under this shop's prefix — the client sends them back in a
   // hidden field, so they get the same treatment as any other input.
@@ -161,6 +208,8 @@ export async function profilePost(request, env, url) {
       instagram: values.instagram,
       tiktok: values.tiktok,
       facebook: values.facebook,
+      snapchat: values.snapchat,
+      maps_url: maps?.value ?? null,
       cover_key: values.cover_key,
       logo_key: values.logo_key,
     },
@@ -348,6 +397,124 @@ export async function categoryMovePost(request, env, id) {
   // the database. Say so rather than redrawing a list that lies.
   if (affected(a) === 0 || affected(b) === 0) return back(g.headers, 'errGone');
   return back(g.headers);
+}
+
+/* ============================================================
+   categories — the JSON half
+   ============================================================
+
+   Same session, same seller token, same validation as the form posts
+   above; only the answer differs. Two screens need it: the category
+   rail on the owner profile, and the inline creator inside the product
+   form. Both must stay where they are — navigating to a manager page
+   is what used to throw away a half-composed product.
+   ============================================================ */
+
+async function apiGuard(request, env, { write = false } = {}) {
+  // A write still has to come from our own origin. Reads are harmless
+  // and are answered for the session that asked.
+  if (write && !sameOrigin(request)) {
+    return { response: Response.json({ error: 'origin' }, { status: 403 }) };
+  }
+
+  const { user, token, refreshed } = await resolveSession(request, env);
+  const headers = new Headers();
+  if (refreshed) setSessionCookies(headers, refreshed);
+  headers.set('cache-control', 'no-store');
+
+  if (!user) return { response: Response.json({ error: 'auth' }, { status: 401, headers }) };
+  const shop = await getOwnShop(env, token, user.id);
+  if (!shop) return { response: Response.json({ error: 'auth' }, { status: 401, headers }) };
+
+  return { token, shop, headers };
+}
+
+const apiJson = (g, body, status = 200) =>
+  Response.json(body, { status, headers: g.headers });
+
+export async function categoriesApiGet(request, env) {
+  const g = await apiGuard(request, env);
+  if (g.response) return g.response;
+
+  const list = await loadCategories(env, g.token, g.shop.id);
+  return apiJson(g, {
+    categories: list.map(({ id, name }) => ({ id, name })),
+    max: MAX_CATEGORIES,
+  });
+}
+
+export async function categoryApiPost(request, env) {
+  const g = await apiGuard(request, env, { write: true });
+  if (g.response) return g.response;
+
+  const { name } = await form(request);
+  const clean = (name || '').replace(/\s+/g, ' ').trim();
+  if (clean.length < 1 || clean.length > 60) return apiJson(g, { error: C.errName }, 400);
+
+  const existing = await loadCategories(env, g.token, g.shop.id);
+
+  // Typing a name that already exists is not a failure here. The caller
+  // asked for "a category with this name, selected"; it already has one.
+  const same = existing.find((c) => c.name === clean);
+  if (same) return apiJson(g, { id: same.id, name: same.name, existed: true });
+
+  if (existing.length >= MAX_CATEGORIES) return apiJson(g, { error: C.errLimit }, 409);
+
+  const res = await asUser(env, g.token, 'categories', {
+    method: 'POST',
+    prefer: 'return=representation',
+    body: {
+      shop_id: g.shop.id,
+      name: clean,
+      sort_order: (existing[existing.length - 1]?.sort_order ?? 0) + 10,
+    },
+  });
+
+  const row = res.ok ? res.data?.[0] ?? null : null;
+  if (!row) {
+    return apiJson(g, { error: res.data?.code === '23505' ? C.errDuplicate : C.errCreate }, 400);
+  }
+  return apiJson(g, { id: row.id, name: row.name });
+}
+
+export async function categoryApiRename(request, env, id) {
+  const g = await apiGuard(request, env, { write: true });
+  if (g.response) return g.response;
+  if (!UUID.test(id)) return apiJson(g, { error: C.errGone }, 404);
+
+  const { name } = await form(request);
+  const clean = (name || '').replace(/\s+/g, ' ').trim();
+  if (clean.length < 1 || clean.length > 60) return apiJson(g, { error: C.errName }, 400);
+
+  const res = await asUser(env, g.token, 'categories', {
+    method: 'PATCH',
+    search: { id: `eq.${id}`, shop_id: `eq.${g.shop.id}` },
+    prefer: AFFECTED,
+    body: { name: clean },
+  });
+  if (!res.ok) {
+    return apiJson(g, { error: res.data?.code === '23505' ? C.errDuplicate : C.errName }, 400);
+  }
+  // Renamed nothing: deleted in another tab, or never this seller's.
+  if (affected(res) === 0) return apiJson(g, { error: C.errGone }, 404);
+  return apiJson(g, { id, name: clean });
+}
+
+export async function categoryApiDelete(request, env, id) {
+  const g = await apiGuard(request, env, { write: true });
+  if (g.response) return g.response;
+  if (!UUID.test(id)) return apiJson(g, { error: C.errGone }, 404);
+
+  // products.category_id is ON DELETE SET NULL. The products, their
+  // images, price, description and public URL all survive; they only
+  // stop belonging to a category. Nothing here touches products.
+  const res = await asUser(env, g.token, 'categories', {
+    method: 'DELETE',
+    search: { id: `eq.${id}`, shop_id: `eq.${g.shop.id}` },
+    prefer: AFFECTED,
+  });
+  if (!res.ok || affected(res) === 0) return apiJson(g, { error: C.errGone }, 404);
+  return apiJson(g, { id });
 }
 
 /* ============================================================

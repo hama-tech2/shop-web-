@@ -229,6 +229,8 @@ export const SHOP = {
   instagram: 'ئینستاگرام',
   tiktok: 'تیک تۆک',
   facebook: 'فەیسبووک',
+  snapchat: 'سناپچات',
+  mapsOpen: 'شوێنەکەمان لە نەخشە',
   share: 'بڵاوکردنەوە',
   save: 'پاشەکەوتکردن',
   linkCopied: 'لینک کۆپی کرا',
@@ -291,10 +293,18 @@ export const PROFILE = {
   phoneLabel: 'ژمارەی تەلەفۆن',
   socialLabel: 'سۆشیال',
 
+  mapsLabel: 'شوێنی دوکان لە نەخشە',
+  mapsHint: 'لینکی Google Maps لێرە بلکێنە. تەنها لینکی https قبوڵ دەکرێت.',
+  mapsPlaceholder: 'https://maps.app.goo.gl/…',
+  mapsOpen: 'شوێنەکەمان لە نەخشە',
+  snapchatLabel: 'Snapchat',
+  linkCopy: 'کۆپیکردنی لینک',
+
   errName: 'ناوی دوکان دەبێت لانیکەم ٢ پیت بێت.',
   errWhatsapp: 'ژمارەی واتساپ بەم شێوەیە بنووسە: 07501234567',
   errPhone: 'ژمارەی تەلەفۆن دروست نییە.',
   errHandle: 'تەنها پیت، ژمارە، . و _ بەکاربهێنە.',
+  errMaps: 'لینکی نەخشە دەبێت بە https:// دەست پێبکات.',
   errImage: 'ناردنی وێنە سەرکەوتوو نەبوو.',
   errType: 'تەنها JPG، PNG یان WebP.',
 };
@@ -322,6 +332,16 @@ export const CATEGORIES_UI = {
   errGone: 'ئەم جۆرە نەدۆزرایەوە. لەوانەیە پێشتر سڕابێتەوە.',
   productCategory: 'جۆری دوکانەکەت',
   none: 'هیچ',
+
+  // Inline creation, from inside the product form and the owner profile.
+  addInline: '+ بەشی نوێ',
+  addPlaceholder: 'ناوی بەشی نوێ',
+  create: 'دروستکردن',
+  cancel: 'پاشگەزبوونەوە',
+  manage: 'ڕێکخستن',
+  done: 'تەواو',
+  errCreate: 'بەشەکە دروست نەکرا. دووبارە هەوڵ بدەرەوە.',
+  deleteConfirm: 'ئەم بەشە بسڕدرێتەوە؟ بەرهەمەکان نەسڕدرێنەوە — تەنها بێ بەش دەبن.',
 };
 
 export const MAX_CATEGORIES = 20;

@@ -20,7 +20,8 @@ export function productForm({ mode, draftId, categories, shopCategories = [], va
     ` data-draft="${esc(draftId)}" data-max="${MAX_IMAGES}"` +
     ` data-card-w="${IMAGE_VARIANTS.card.width}" data-card-h="${IMAGE_VARIANTS.card.height}" data-card-q="${IMAGE_VARIANTS.card.quality}"` +
     ` data-full-w="${IMAGE_VARIANTS.full.width}" data-full-h="${IMAGE_VARIANTS.full.height}" data-full-q="${IMAGE_VARIANTS.full.quality}"` +
-    ` data-msg-limit="${esc(T.onlyMax)}" data-msg-type="${esc(T.errType)}" data-msg-upload="${esc(T.errUpload)}">` +
+    ` data-msg-limit="${esc(T.onlyMax)}" data-msg-type="${esc(T.errType)}" data-msg-upload="${esc(T.errUpload)}"` +
+    ` data-msg-cat-name="${esc(C.errName)}" data-msg-cat-create="${esc(C.errCreate)}">` +
     `<input type="hidden" name="draft_id" value="${esc(draftId)}">` +
     `<input type="hidden" name="images" id="images-field" value="${esc(JSON.stringify(images))}">` +
     `<input type="hidden" name="status" id="status-field" value="${esc(values.status ?? 'active')}">` +
@@ -44,7 +45,21 @@ export function productForm({ mode, draftId, categories, shopCategories = [], va
     `<div class="field"><label class="field__label" for="f-own-category">پۆلی دوکان</label>` +
     `<select class="field__input" id="f-own-category" name="own_category"><option value="">${esc(C.none)}</option>` +
     shopCategories.map(c => `<option value="${esc(c.id)}"${values.ownCategory === c.id ? ' selected' : ''}>${esc(c.name)}</option>`).join('') +
-    `</select><a class="category-manage" href="/app/profile#shop-categories" target="_blank" rel="noopener">${iconPlus(16)} زیادکردن و بەڕێوەبردنی پۆلەکان ↗</a></div>` +
+    `</select>` +
+    // A new category is made here, in this form. The old link opened the
+    // profile in another tab, and coming back to a reloaded form meant
+    // the title, the price and every prepared image were gone.
+    `<div class="category-inline">` +
+    `<button class="category-inline__open" type="button" id="category-add-open">` +
+    `${iconPlus(16)}<span>${esc(C.addInline)}</span></button>` +
+    `<div class="category-inline__form" id="category-add-form" hidden>` +
+    `<input class="field__input" id="category-add-name" type="text" maxlength="60"` +
+    ` autocomplete="off" placeholder="${esc(C.addPlaceholder)}">` +
+    `<button class="btn btn--quiet" type="button" id="category-add-save">${esc(C.create)}</button>` +
+    `<button class="btn btn--ghost" type="button" id="category-add-cancel">${esc(C.cancel)}</button>` +
+    `</div>` +
+    `<p class="category-inline__error" id="category-add-error" role="status" hidden></p>` +
+    `</div></div>` +
     `<div class="publish-visibility"><div><span class="field__label" id="visibility-label">نیشاندان لە بۆ تۆ</span>` +
     `<p id="visibility-help">لە ئێستادا، ناچالاککردن بەرهەمەکە لە بۆ تۆ، لاپەڕەی گشتیی دوکان و گەڕان دەشارێتەوە.</p></div>` +
     `<button class="switch" type="button" id="visibility" role="switch" aria-labelledby="visibility-label" aria-describedby="visibility-help"` +

@@ -18,9 +18,11 @@
     var copyLabel = copy.textContent;
     var copyTimer;
     copy.addEventListener('click', function () {
-      var target = document.getElementById('shop-url');
-      if (!target) return;
-      var text = target.textContent.trim();
+      // The full URL is carried on the button, not printed on the page:
+      // the seller has no use for the host, only for the link on their
+      // clipboard.
+      var text = (copy.dataset.url || '').trim();
+      if (!text) return;
       var done = function () {
         clearTimeout(copyTimer);
         copy.textContent = copy.dataset.copied || 'ok';

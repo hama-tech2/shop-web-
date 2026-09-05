@@ -45,6 +45,20 @@ export default {
       if (path === '/api/favorites/merge' && method === 'POST') {
         return favorites.mergePost(request, env);
       }
+      // The seller's own categories, as JSON: the owner-profile rail and
+      // the inline creator in the product form both edit them without
+      // leaving the page they are on.
+      if (path === '/api/categories') {
+        return method === 'POST'
+          ? account.categoryApiPost(request, env)
+          : account.categoriesApiGet(request, env);
+      }
+      const categoryApi = path.match(/^\/api\/categories\/([0-9a-f-]{36})(\/delete)?$/i);
+      if (categoryApi && method === 'POST') {
+        return categoryApi[2]
+          ? account.categoryApiDelete(request, env, categoryApi[1])
+          : account.categoryApiRename(request, env, categoryApi[1]);
+      }
       if (path === '/search') return searchGet(env, url);
       if (path === '/saved') return favorites.savedGet(request, env);
       if (path === '/') return feedPage(env, url);

@@ -95,15 +95,6 @@
 
 .logo-pick:focus-within { outline: 2px solid var(--accent); outline-offset: 2px; }
 
-.slug-url {
-  margin-top: var(--s-2);
-  font-size: var(--fs-sm);
-  color: var(--muted);
-  direction: ltr;
-  text-align: left;
-  word-break: break-all;
-}
-
 /* ---------- buttons ---------- */
 
 .btn {

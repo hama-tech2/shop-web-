@@ -38,13 +38,11 @@ export const stepSlug = ({ draft = {}, error, origin }) =>
     `<div class="field">` +
     `<label class="field__label" for="f-slug">${esc(T.slugLabel)}</label>` +
     `<div class="slug-row">` +
-    `<span class="slug-row__prefix">${esc(origin.replace(/^https?:\/\//, ''))}/@</span>` +
     `<input class="field__input" id="f-slug" name="slug" type="text" required` +
     ` value="${esc(draft.slug ?? '')}" autocomplete="off" autocapitalize="none"` +
     ` spellcheck="false" inputmode="url" maxlength="40"` +
     ` data-check-url="/api/slug-check" aria-describedby="slug-hint">` +
     `</div>` +
-    `<p class="slug-url" id="slug-url" data-origin="${esc(origin)}"></p>` +
     `<p class="field__hint" id="slug-hint"` +
     ` data-msg-checking="${esc(T.slugChecking)}" data-msg-ok="${esc(T.slugOk)}"` +
     ` data-msg-taken="${esc(T.slugTaken)}" data-msg-reserved="${esc(T.slugReserved)}"` +

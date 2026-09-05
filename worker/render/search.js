@@ -86,7 +86,6 @@ function shopRow(shop) {
     avatar +
     `<div class="srch-shop__body">` +
     `<p class="srch-shop__name">${esc(shop.name)}</p>` +
-    `<p class="srch-shop__username"><bdi dir="ltr">@${esc(shop.slug)}</bdi></p>` +
     `<p class="srch-shop__meta">${esc(T.productsOf(shop.product_count ?? 0))}</p>` +
     (shop.bio ? `<p class="srch-shop__summary">${esc(shop.bio)}</p>` :
       city ? `<p class="srch-shop__meta">${iconPin()}<span>${esc(city)}</span></p>` : '') +

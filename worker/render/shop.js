@@ -2,7 +2,8 @@ import { APP_NAME, CITY_LABEL, SHOP as T, UI } from '../config.js';
 import { esc } from './html.js';
 import { cardHtml } from './feed.js';
 import {
-  iconFacebook, iconInstagram, iconLink, iconPhone, iconPin, iconShare, iconTiktok, iconWhatsapp,
+  iconFacebook, iconInstagram, iconLink, iconPhone, iconPin, iconShare, iconSnapchat,
+  iconTiktok, iconWhatsapp,
 } from './icons.js';
 
 const imgUrl = (key) => `/img/${key.split('/').map(encodeURIComponent).join('/')}`;
@@ -50,6 +51,10 @@ export function shopHeader({ shop, origin, controls = '' }) {
       ? round(`https://facebook.com/${encodeURIComponent(shop.facebook)}`, T.facebook,
               iconFacebook(), ' target="_blank" rel="noopener"')
       : '',
+    shop.snapchat
+      ? round(`https://snapchat.com/add/${encodeURIComponent(shop.snapchat)}`, T.snapchat,
+              iconSnapchat(), ' target="_blank" rel="noopener"')
+      : '',
   ].join('');
 
   const sharing =
@@ -65,7 +70,6 @@ export function shopHeader({ shop, origin, controls = '' }) {
     `<div class="shop-banner">${banner}${logo}<div class="shop-sharing">${sharing}</div></div>` +
     `<div class="shop-id">` +
     `<h1 class="shop-name">${esc(shop.name)}</h1>` +
-    `<p class="shop-username"><bdi dir="ltr">@${esc(shop.slug)}</bdi></p>` +
     (city
       ? `<p class="shop-city">${iconPin()}<span>${esc(city)}</span></p>`
       : '') +
@@ -77,6 +81,13 @@ export function shopHeader({ shop, origin, controls = '' }) {
     `<a class="btn btn--whatsapp" href="${esc(wa(shop.whatsapp, T.shopText(shop.name, url)))}"` +
     ` target="_blank" rel="noopener">${iconWhatsapp()}` +
     `<span>${esc(T.whatsappShop)}</span></a>` +
+    // https-only, enforced by the CHECK on shops.maps_url and again by
+    // the save route, so this href can never carry a javascript: URL.
+    (shop.maps_url
+      ? `<a class="btn btn--quiet btn--maps" href="${esc(shop.maps_url)}"` +
+        ` target="_blank" rel="noopener noreferrer">${iconPin(18)}` +
+        `<span>${esc(T.mapsOpen)}</span></a>`
+      : '') +
     `<div class="round-row">${links}</div>` +
     `</div>` +
     `</header>`

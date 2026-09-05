@@ -310,7 +310,14 @@
 .publish-page .price-row { border: 1px solid #DEDAD2; background: var(--surface); border-radius: 9px; padding-inline-end: 12px; }
 .publish-page .price-row .field__input { border: none; background: transparent; color: var(--accent); font-size: 21px; font-weight: 700; }
 .publish-page .price-row__unit { color: var(--text); }
-.category-manage { display: flex; gap: 5px; align-items: center; justify-content: flex-start; min-height: 32px; font-size: 11px; color: var(--muted); }
+/* A new section is made here, in the form. Nothing navigates away, so
+   the typed fields and the prepared images survive it. */
+.category-inline { margin-top: 6px; }
+.category-inline__open { display: flex; gap: 5px; align-items: center; justify-content: flex-start; min-height: 36px; font-size: 11px; color: var(--accent); }
+.category-inline__form { display: flex; align-items: center; gap: 6px; }
+.category-inline__form .field__input { flex: 1; min-width: 0; }
+.category-inline__form .btn { flex: none; width: auto; min-height: 46px; height: 46px; padding: 8px 12px; border-radius: 9px; font-size: 12px; }
+.category-inline__error { margin: 6px 0 0; color: #A2402F; font-size: 11px; line-height: 1.7; }
 .publish-visibility { display: flex; gap: 16px; align-items: flex-start; padding: 12px; border: 1px solid #DEDAD2; border-radius: 10px; margin: 0 0 14px; }
 .publish-visibility > div { flex: 1; }
 .publish-visibility p { color: var(--muted); font-size: 11px; line-height: 1.8; margin: 0; }

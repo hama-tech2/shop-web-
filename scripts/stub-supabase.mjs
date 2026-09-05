@@ -34,11 +34,14 @@ const FOREIGN_SHOP = {
 };
 const CAT_A = 'dddddddd-1111-4111-8111-111111111111';
 const CAT_B = 'dddddddd-2222-4222-8222-222222222222';
+/** The id an insert comes back with — nothing the client could guess. */
+const CAT_NEW = 'dddddddd-3333-4333-8333-333333333333';
 
 let rows = 1;                     // how many rows a write reports
 let mode = 'shop';                // shop | noshop
 let created = null;               // a shop made through onboarding
 const calls = [];
+const writes = [];
 
 let lastBody = {};
 const body = (req) => new Promise((r) => {
@@ -60,6 +63,12 @@ http.createServer(async (req, res) => {
   if (p.startsWith('/__mode/')) { mode = p.split('/')[2]; created = null; return send({ mode }); }
   if (p === '/__created') return send(created ? [created] : []);
   if (p === '/__calls') return send(calls);
+  // The bodies behind those calls: a test that cares WHAT was written —
+  // that a stale category id never reached the insert, say — needs more
+  // than the method and the table.
+  if (p === '/__writes') return send(writes);
+  // Lets a test say "from here on, which tables did the Worker write to?"
+  if (p === '/__calls/reset') { calls.length = 0; writes.length = 0; return send([]); }
 
   if (p === '/auth/v1/user') return send(USER);
   if (p === '/auth/v1/signup' || p.startsWith('/auth/v1/token')) {
@@ -69,7 +78,10 @@ http.createServer(async (req, res) => {
 
   const table = p.replace('/rest/v1/', '');
   const write = req.method !== 'GET';
-  if (write) calls.push(`${req.method} ${table}?${url.searchParams}`);
+  if (write) {
+    calls.push(`${req.method} ${table}?${url.searchParams}`);
+    writes.push({ method: req.method, table, search: String(url.searchParams), body: lastBody });
+  }
 
   if (table === 'shops' && req.method === 'POST') {
     // Onboarding's insert. Keep it so the next read finds it, exactly
@@ -105,11 +117,24 @@ http.createServer(async (req, res) => {
         { id: CAT_B, name: 'عەتر', sort_order: 20 },
       ]);
     }
-    // A write reports back exactly `rows` affected rows.
-    return send(rows ? [{ id: CAT_A, name: 'x', sort_order: 10 }] : []);
+    // An insert comes back as the row Postgres would have made: a fresh
+    // id and the name that was sent, which is what the inline creator in
+    // the product form selects.
+    if (req.method === 'POST') {
+      return send([{ id: CAT_NEW, name: lastBody.name, sort_order: lastBody.sort_order ?? 30 }]);
+    }
+    // Every other write reports back exactly `rows` affected rows.
+    return send(rows ? [{ id: CAT_A, name: lastBody.name ?? 'x', sort_order: 10 }] : []);
   }
 
   if (table === 'products') {
+    // app.check_category_same_shop raises 23514 for a category_id that
+    // does not exist or belongs to another shop. Modelling it here is
+    // the point: without it a stale id looks harmless in a test and
+    // still fails on a seller's phone.
+    if (write && lastBody.category_id && ![CAT_A, CAT_B].includes(lastBody.category_id)) {
+      return send({ code: '23514', message: 'category does not belong to this shop' }, 400);
+    }
     if (!write) {
       return send([{
         id: PRODUCT_ID, title: 'کراسی کوردی', price: 85000, description: '',
@@ -121,6 +146,16 @@ http.createServer(async (req, res) => {
   }
 
   if (table === 'products' && req.method === 'POST') return send([{ id: PRODUCT_ID }]);
+  if (table === 'rpc/shop_public_profile') {
+    const slug = url.searchParams.get('p_slug') ?? lastBody.p_slug;
+    if (String(slug).toLowerCase() !== SHOP.slug) return send([]);
+    return send([{
+      ...SHOP, bio: null, phone: null,
+      instagram: null, tiktok: null, facebook: null, snapchat: 'nafin-shop',
+      maps_url: 'https://maps.app.goo.gl/abc123',
+      cover_key: null, products_visible: true,
+    }]);
+  }
   if (table === 'rpc/slug_available') return send([{ available: true, reason: null }]);
   if (table.startsWith('rpc/')) return send(null);
   return send([]);

@@ -17,9 +17,7 @@
 
   if (slug) {
     var hint = document.getElementById('slug-hint');
-    var urlOut = document.getElementById('slug-url');
     var next = document.getElementById('slug-next');
-    var origin = (urlOut && urlOut.dataset.origin) || window.location.origin;
     var timer = null;
     var seq = 0;
 
@@ -33,14 +31,9 @@
       if (next) next.disabled = busy;
     }
 
-    function paintUrl(value) {
-      if (urlOut) urlOut.textContent = value ? origin + '/@' + value : '';
-    }
-
     function check() {
       var value = slug.value.trim().toLowerCase();
       if (slug.value !== value) slug.value = value;
-      paintUrl(value);
 
       if (!value) {
         say('', 'Format');
@@ -79,13 +72,11 @@
       // Invalidate the old request immediately, including when cleared.
       seq++;
       clearTimeout(timer);
-      paintUrl(slug.value.trim().toLowerCase());
       say('', 'Format');
       setBusy(false);
       timer = setTimeout(check, 300);
     });
 
-    paintUrl(slug.value.trim().toLowerCase());
     if (slug.value.trim()) check();
   }
 
@@ -112,32 +103,7 @@
     });
   }
 
-  /* ---------------------------------------------------------
-     the seller's link — one tap to copy
-     --------------------------------------------------------- */
-
-  var copy = document.getElementById('copy-link');
-  if (copy) {
-    copy.addEventListener('click', function () {
-      var target = document.getElementById('shop-url');
-      if (!target) return;
-      var text = target.textContent.trim();
-      var done = function () {
-        var original = copy.textContent;
-        copy.textContent = copy.dataset.copied || 'ok';
-        setTimeout(function () { copy.textContent = original; }, 1600);
-      };
-
-      if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(text).then(done, function () {});
-      } else {
-        var box = document.createElement('textarea');
-        box.value = text;
-        document.body.appendChild(box);
-        box.select();
-        try { document.execCommand('copy'); done(); } catch (e) {}
-        document.body.removeChild(box);
-      }
-    });
-  }
+  // The shop link and its copy button live on the profile screen, which
+  // loads /js/account.js. Nothing on the pages this file serves renders
+  // one, so there is no copy handler here.
 })();

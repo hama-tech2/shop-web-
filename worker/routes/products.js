@@ -212,11 +212,33 @@ async function ownCategories(env, token, shopId) {
   return res.ok ? res.data ?? [] : [];
 }
 
-async function readForm(request, env, shopId, productId) {
+/**
+ * The shop category the seller picked, or null.
+ *
+ * The id comes from a <select> the browser has been holding, sometimes
+ * for a long time: the category may have been renamed, deleted from the
+ * owner profile in another tab, or the option may be left over from a
+ * bfcache restore. Passing that id on made `check_category_same_shop`
+ * raise 23514, which surfaced as the generic "پاشەکەوتکردن سەرکەوتوو
+ * نەبوو" — a category, which is optional, blocking a publish.
+ *
+ * So it is checked here against the seller's real categories and simply
+ * dropped when it is not one of them. An optional field must never be
+ * the reason a product does not go out.
+ */
+async function ownCategoryIdFor(env, token, shopId, raw) {
+  const id = String(raw || '');
+  if (!UUID.test(id)) return null;
+  const own = await ownCategories(env, token, shopId);
+  return own.some((c) => c.id === id) ? id : null;
+}
+
+async function readForm(request, env, token, shopId, productId) {
   const f = await form(request);
   const picked = cleanImages(f.images, shopId, productId);
   const images = picked.images ?? null;
   const price = parsePrice(f.price);
+  const ownCategory = await ownCategoryIdFor(env, token, shopId, f.own_category);
 
   const values = {
     title: (f.title || '').replace(/\s+/g, ' ').trim(),
@@ -224,7 +246,9 @@ async function readForm(request, env, shopId, productId) {
     description: (f.description || '').trim(),
     category: f.category || '',
     status: f.status === 'hidden' ? 'hidden' : 'active',
-    ownCategory: UUID.test(String(f.own_category || '')) ? f.own_category : '',
+    // Redrawing the form with an id that no longer exists would offer
+    // the seller a category that is not there. Show "none" instead.
+    ownCategory: ownCategory ?? '',
     images: images || [],
   };
 
@@ -244,11 +268,10 @@ async function readForm(request, env, shopId, productId) {
       price,
       description: values.description || null,
       status: values.status,
+      // An unknown market slug resolves to null rather than an error:
+      // like the shop category, it is optional and must not block.
       platform_category_id: await categoryIdFor(env, values.category),
-      // A category belonging to another shop is rejected by the
-      // products_category_same_shop trigger, so an id from the form is
-      // safe to pass straight through.
-      category_id: values.ownCategory || null,
+      category_id: ownCategory,
     },
     images,
   };
@@ -283,7 +306,7 @@ export async function newPost(request, env) {
   const draftId = String(raw.get('draft_id') || '');
   if (!UUID.test(draftId)) return redirect('/app/new', g.headers);
 
-  const parsed = await readForm(request, env, g.shop.id, draftId);
+  const parsed = await readForm(request, env, g.token, g.shop.id, draftId);
   const categories = await getCategories(env);
 
   if (parsed.error) {
@@ -371,7 +394,7 @@ export async function editPost(request, env, id) {
   if (g.redirect) return g.redirect;
   if (!UUID.test(id)) return redirect('/app/products', g.headers);
 
-  const parsed = await readForm(request, env, g.shop.id, id);
+  const parsed = await readForm(request, env, g.token, g.shop.id, id);
   const categories = await getCategories(env);
 
   if (parsed.error) {
