@@ -14,6 +14,7 @@ import { layout } from '../render/layout.js';
 import { profilePage } from '../render/profile.js';
 import { categoriesPage } from '../render/categories.js';
 import { payPage, subscriptionPage } from '../render/subscription.js';
+import { notifyPending } from '../telegram.js';
 import { asUser } from '../supabase.js';
 import { getOwnShop, resolveSession, sameOrigin, setSessionCookies } from '../auth.js';
 import { redirect } from './auth.js';
@@ -655,7 +656,7 @@ export async function subscriptionPayGet(request, env, url) {
  * seller from updating payment_intents at all; mark_intent_sent is the
  * one door, and it only opens in this direction, on their own intent.
  */
-export async function subscriptionSentPost(request, env) {
+export async function subscriptionSentPost(request, env, ctx) {
   if (!sameOrigin(request)) return new Response('bad origin', { status: 403 });
   const g = await guard(request, env, '/app/subscription');
   if (g.redirect) return g.redirect;
@@ -669,8 +670,51 @@ export async function subscriptionSentPost(request, env) {
     method: 'POST', body: { p_intent: id },
   });
 
+  // Tell the owner, best effort and out of band. The seller has just
+  // said they transferred money; Telegram being down is not a reason to
+  // show them a failure, and it must not add a second of latency to
+  // this response either.
+  if (res.ok) {
+    const intent = Array.isArray(res.data) ? res.data[0] : res.data;
+    const notify = notifyOwner(env, { ...intent, name: g.shop.name });
+    if (ctx?.waitUntil) ctx.waitUntil(notify); else await notify.catch(() => {});
+  }
+
   return redirect(
     res.ok ? '/app/subscription/pay' : '/app/subscription/pay?e=errSent',
     g.headers,
   );
+}
+
+/**
+ * Send the notification and remember where it landed.
+ *
+ * The message id is stored so the webhook can edit that exact message
+ * when the owner taps a button. Written with the service key because
+ * the seller must not be able to touch these columns, and swallowed
+ * whole on failure: nothing about a payment depends on it.
+ */
+async function notifyOwner(env, intent) {
+  try {
+    const messageId = await notifyPending(env, intent);
+    if (!messageId || !env.SUPABASE_SERVICE_ROLE_KEY) return;
+
+    await fetch(
+      `${env.SUPABASE_URL}/rest/v1/payment_intents?id=eq.${encodeURIComponent(intent.id)}`,
+      {
+        method: 'PATCH',
+        headers: {
+          apikey: env.SUPABASE_SERVICE_ROLE_KEY,
+          authorization: `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`,
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify({
+          telegram_chat_id: String(env.TELEGRAM_OWNER_CHAT_ID),
+          telegram_message_id: messageId,
+        }),
+      },
+    );
+  } catch {
+    // Best effort, by design. The payment is already pending.
+  }
 }

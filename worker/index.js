@@ -21,6 +21,7 @@ import * as admin from './routes/admin.js';
 import { searchGet } from './routes/search.js';
 import * as favorites from './routes/favorites.js';
 import { scheduled } from './cron.js';
+import { webhookPost } from './routes/telegram.js';
 
 const IMG_CACHE = 'public, max-age=31536000, immutable';
 const HTML_CACHE = 'public, max-age=0, s-maxage=60, stale-while-revalidate=300';
@@ -34,6 +35,12 @@ export default {
 
     try {
       if (path.startsWith('/img/')) return serveImage(request, env, url);
+
+      // The Telegram webhook. Public, so the secret is in the path and
+      // checked again in the header before the body is even read; a
+      // request that fails either gets the ordinary 404.
+      const hook = path.match(/^\/api\/telegram\/([A-Za-z0-9_-]{16,128})$/);
+      if (hook && method === 'POST') return webhookPost(request, env, hook[1]);
       if (path === '/api/feed') return feedFragment(env, url);
       if (path === '/api/slug-check') return onboarding.slugCheck(env, url);
       if (path === '/api/favorites/cards') return favorites.cardsGet(env, url);
@@ -161,7 +168,7 @@ export default {
         return account.subscriptionPayGet(request, env, url);
       }
       if (path === '/app/subscription/sent' && method === 'POST') {
-        return account.subscriptionSentPost(request, env);
+        return account.subscriptionSentPost(request, env, ctx);
       }
 
       // Closing a renewal banner. Stored per shop, never permanently.

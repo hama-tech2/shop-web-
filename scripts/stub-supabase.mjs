@@ -45,8 +45,13 @@ let subDays = 20;                 // days until the subscription expires
 let subPlan = 'trial';            // trial | months_6 | year_1
 let productCount = 0;             // how many products the shop has
 let dismissed = {};               // banner kind -> ISO timestamp
+const telegram = [];              // every call the Worker made to the bot API
+let nextMessageId = 500;
+let telegramDown = false;
 let intent = null;                // the shop's live payment intent
 const INTENT_ID = 'eeeeeeee-1111-4111-8111-111111111111';
+/** Stands in for the service_role key in .dev.vars. */
+const SERVICE_KEY = 'stub-service-key';
 const calls = [];
 const writes = [];
 
@@ -97,6 +102,23 @@ http.createServer(async (req, res) => {
     };
     return send(intent ?? {});
   }
+
+  // Standing in for api.telegram.org. Nothing in the tests may reach
+  // the real bot API: TELEGRAM_API_BASE points here.
+  const bot = p.match(/^\/bot([^/]+)\/(\w+)$/);
+  if (bot) {
+    telegram.push({ token: bot[1], method: bot[2], body: lastBody });
+    if (telegramDown) { res.writeHead(502); return res.end('bad gateway'); }
+    if (bot[2] === 'sendMessage') {
+      return send({ ok: true, result: { message_id: nextMessageId++ } });
+    }
+    return send({ ok: true, result: true });
+  }
+  if (p === '/__telegram') return send(telegram);
+  if (p === '/__telegram/reset') { telegram.length = 0; return send([]); }
+  // Makes the bot API look unreachable, to prove a payment still lands.
+  if (p === '/__telegram/down') { telegramDown = true; return send({ down: true }); }
+  if (p === '/__telegram/up') { telegramDown = false; return send({ down: false }); }
 
   if (p === '/auth/v1/user') return send(USER);
   if (p === '/auth/v1/signup' || p.startsWith('/auth/v1/token')) {
@@ -151,6 +173,13 @@ http.createServer(async (req, res) => {
           ? wanted.slice(3) === intent.status
           : true;
       return send(match ? [intent] : []);
+    }
+    // A PATCH updates the row it matched. Treating it as another insert
+    // reset the status, which made a notification look like it had
+    // undone the seller's own "I sent it".
+    if (req.method === 'PATCH') {
+      intent = { ...(intent ?? {}), ...lastBody };
+      return send([intent]);
     }
     // The insert is where the database sets the price and the code; the
     // client never gets to name either.
@@ -273,7 +302,11 @@ http.createServer(async (req, res) => {
     }]);
   }
   if (table === 'rpc/admin_activate_intent') {
-    if (!isAdmin) return send({ code: '42501' }, 403);
+    // The service key reaches these through app.is_service_role(); the
+    // admin screen reaches them through app.is_admin(). Either is fine
+    // here — what the tests care about is that a stranger cannot.
+    const asService = (req.headers.authorization || '').includes(SERVICE_KEY);
+    if (!isAdmin && !asService) return send({ code: '42501' }, 403);
     if (!intent || !['open', 'pending'].includes(intent.status)) {
       return send({ code: '22023' }, 400);
     }
@@ -281,7 +314,8 @@ http.createServer(async (req, res) => {
     return send({ id: 'p1', status: 'confirmed' });
   }
   if (table === 'rpc/admin_intent_not_found') {
-    if (!isAdmin) return send({ code: '42501' }, 403);
+    const asServiceNf = (req.headers.authorization || '').includes(SERVICE_KEY);
+    if (!isAdmin && !asServiceNf) return send({ code: '42501' }, 403);
     if (!intent || intent.status !== 'pending') return send({ code: '22023' }, 400);
     intent = { ...intent, status: 'open' };
     return send(intent);

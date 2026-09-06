@@ -422,6 +422,30 @@ export const SUBSCRIPTION = {
 };
 
 /**
+ * The Telegram messages the owner gets.
+ *
+ * Only the owner ever sees these, so they are the one place in the app
+ * where brevity beats explanation: he is reading them on a lock screen
+ * and deciding whether to tap a button.
+ *
+ * Sellers are never messaged on Telegram.
+ */
+export const TELEGRAM = {
+  newPayment: 'پارەدانی نوێ',
+  plan: { months_6: '٦ مانگ', year_1: '١ ساڵ' },
+  activate: 'چالاک بکە',
+  notFound: 'نەدۆزرایەوە',
+
+  // What the message becomes once he has tapped. The buttons go with
+  // it, so the same message cannot be actioned twice.
+  activated: 'چالاک کرا ✓',
+  markedNotFound: 'نەدۆزرایەوە',
+  // He tapped a payment that /admin had already dealt with.
+  alreadyHandled: 'پێشتر کرابوو',
+  failed: 'سەرکەوتوو نەبوو — لە /admin هەوڵ بدەرەوە',
+};
+
+/**
  * The owner's FIB number, printed on the instructions screen for the
  * seller to transfer to. This is the whole payment integration: there
  * is no processor, no merchant account and no API call.

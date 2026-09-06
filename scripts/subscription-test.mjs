@@ -145,13 +145,21 @@ await resetCalls();
 r = await post('/app/subscription/sent', { intent: INTENT });
 check('marking it sent redirects back to the instructions', r.location, '/app/subscription/pay');
 
+// Two writes, and only these two: the transition itself, and the note
+// of where the owner's Telegram message landed so the webhook can edit
+// it. Nothing that moves money or time.
 let writes = await getWrites();
-check('exactly one call was made', writes.length, 1);
-check('and it is mark_intent_sent', writes[0]?.table, 'rpc/mark_intent_sent');
+check('the transition is the first call', writes[0]?.table, 'rpc/mark_intent_sent');
+check('and the only other write is the Telegram bookkeeping',
+      writes.slice(1).every((w) => w.table === 'payment_intents'
+                                && Object.keys(w.body).every((k) => k.startsWith('telegram_'))),
+      true);
 check('the subscription was not touched',
       writes.some((w) => w.table === 'subscriptions'), false);
 check('no payment was recorded',
       writes.some((w) => w.table === 'payments'), false);
+check('and the intent status was not written from here',
+      writes.some((w) => w.table === 'payment_intents' && 'status' in w.body), false);
 
 html = await page('/app/subscription/pay');
 check('the screen now says waiting, not paid',

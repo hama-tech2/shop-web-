@@ -21,7 +21,8 @@
     "test:category-ui": "node scripts/category-ui-test.mjs",
     "test:plan-state": "node scripts/plan-state-test.mjs",
     "test:subscription": "node scripts/subscription-test.mjs",
-    "test:plan-limits": "node scripts/plan-limits-test.mjs"
+    "test:plan-limits": "node scripts/plan-limits-test.mjs",
+    "test:telegram": "node scripts/telegram-test.mjs"
   },
   "devDependencies": {
     "wrangler": "^4.42.0",
