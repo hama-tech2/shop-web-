@@ -242,3 +242,9 @@
 
 .adm-h1--spaced { margin-top: 28px; }
 .adm-expiring .adm-intent__line { color: var(--muted); }
+
+.adm-grant .field__label { display: block; margin-top: 16px; }
+.adm-grant .field__input { width: 100%; }
+.adm-grant-review, .adm-grant-history { overflow-wrap: anywhere; }
+.adm-grant-review .adm-h2 { margin-top: 0; }
+.adm-grant-history .ltr { max-width: 100%; word-break: break-all; }

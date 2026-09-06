@@ -41,6 +41,8 @@ let rows = 1;                     // how many rows a write reports
 let mode = 'shop';                // shop | noshop
 let created = null;               // a shop made through onboarding
 let isAdmin = false;              // does the session own an admins row
+let adminActive = true;
+const manualGrants = new Map();
 let subDays = 20;                 // days until the subscription expires
 let subPlan = 'trial';            // trial | months_6 | year_1
 let productCount = 0;             // how many products the shop has
@@ -84,6 +86,7 @@ http.createServer(async (req, res) => {
   // The seller-facing plan flow is all dates and one row, so the tests
   // drive both directly rather than trying to age a fixture.
   if (p.startsWith('/__admin/')) { isAdmin = p.split('/')[2] === '1'; return send({ isAdmin }); }
+  if (p.startsWith('/__admin-active/')) { adminActive = p.split('/')[2] === '1'; return send({ adminActive }); }
   if (p.startsWith('/__sub/')) { subDays = Number(p.split('/')[2]); return send({ subDays }); }
   if (p.startsWith('/__plan/')) { subPlan = p.split('/')[2]; return send({ subPlan }); }
   if (p.startsWith('/__products/')) { productCount = Number(p.split('/')[2]); return send({ productCount }); }
@@ -159,8 +162,12 @@ http.createServer(async (req, res) => {
   // The admin gate reads this table with the caller's own token, so an
   // empty answer is exactly what a non-admin gets from RLS.
   if (table === 'admins') {
-    return send(isAdmin ? [{ user_id: USER.id, role: 'owner' }] : []);
+    return send(isAdmin && (adminActive || url.searchParams.get('is_active') !== 'eq.true')
+      ? [{ user_id: USER.id, role: 'superadmin', is_active: adminActive }] : []);
   }
+  if (table === 'subscriptions') return send([{ shop_id: SHOP.id, plan: subPlan,
+    status: subPlan === 'trial' ? 'trialing' : 'active', grace_days: 3,
+    expires_at: new Date(Date.now() + subDays * 86400000).toISOString() }]);
 
   if (table === 'payment_intents') {
     if (!write) {
@@ -201,6 +208,7 @@ http.createServer(async (req, res) => {
   }
 
   if (table === 'payments') {
+    if (url.searchParams.get('method') === 'eq.manual_grant') return send([...manualGrants.values()]);
     return send([
       { id: '11111111-1111-4111-8111-111111111111', plan: 'months_6',
         amount: 55000, status: 'confirmed', reference: 'SW-1234',
@@ -313,6 +321,15 @@ http.createServer(async (req, res) => {
     intent = { ...intent, status: 'paid' };
     return send({ id: 'p1', status: 'confirmed' });
   }
+  if (table === 'rpc/admin_grant_plan') {
+    if (!isAdmin || !adminActive) return send({ code: '42501' }, 403);
+    if (!rows) return send({ code: 'XX000' }, 500);
+    if (!manualGrants.has(lastBody.p_request)) manualGrants.set(lastBody.p_request, {
+      id: lastBody.p_request, plan: lastBody.p_plan, method: 'manual_grant', amount: 0,
+      note: lastBody.p_reason, recorded_by: USER.id, paid_at: new Date().toISOString(),
+    });
+    return send(manualGrants.get(lastBody.p_request));
+  }
   if (table === 'rpc/admin_intent_not_found') {
     const asServiceNf = (req.headers.authorization || '').includes(SERVICE_KEY);
     if (!isAdmin && !asServiceNf) return send({ code: '42501' }, 403);
@@ -321,7 +338,11 @@ http.createServer(async (req, res) => {
     return send(intent);
   }
   if (table === 'rpc/admin_stats') return send([{}]);
-  if (table === 'rpc/admin_shops') return send([]);
+  if (table === 'rpc/admin_shops') {
+    const q = String(lastBody.p_search || '').toLowerCase();
+    return send(!q || [SHOP.name, SHOP.slug].some((s) => s.toLowerCase().includes(q))
+      ? [{ ...SHOP, plan: subPlan, days_left: subDays, visible: subDays > -3, product_count: productCount }] : []);
+  }
   if (table === 'rpc/slug_available') return send([{ available: true, reason: null }]);
   if (table.startsWith('rpc/')) return send(null);
   return send([]);

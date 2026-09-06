@@ -22,7 +22,8 @@
     "test:plan-state": "node scripts/plan-state-test.mjs",
     "test:subscription": "node scripts/subscription-test.mjs",
     "test:plan-limits": "node scripts/plan-limits-test.mjs",
-    "test:telegram": "node scripts/telegram-test.mjs"
+    "test:telegram": "node scripts/telegram-test.mjs",
+    "test:admin-grants": "node scripts/admin-grants-test.mjs"
   },
   "devDependencies": {
     "wrangler": "^4.42.0",

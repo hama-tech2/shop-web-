@@ -225,11 +225,16 @@ function adminRoute(request, env, url, path, method) {
     if (path === '/admin/intents') return admin.intentsGet(request, env);
     if (path === '/admin/reports') return admin.reportsGet(request, env);
 
+    const grant = path.match(/^\/admin\/shops\/([0-9a-f-]{36})\/grant$/i);
+    if (grant) return admin.grantGet(request, env, grant[1]);
+
     const shop = path.match(/^\/admin\/shops\/([0-9a-f-]{36})$/i);
     if (shop) return admin.shopGet(request, env, url, shop[1]);
   }
 
   if (method === 'POST') {
+    const grant = path.match(/^\/admin\/shops\/([0-9a-f-]{36})\/grant$/i);
+    if (grant) return admin.grantPost(request, env, grant[1]);
     const shop = path.match(/^\/admin\/shops\/([0-9a-f-]{36})\/(status|expiry|note)$/i);
     if (shop) {
       if (shop[2] === 'status') return admin.shopStatusPost(request, env, shop[1]);

@@ -563,6 +563,9 @@ async function loadPayments(env, token, shopId) {
     search: {
       select: 'id,plan,amount,status,paid_at,created_at,reference',
       shop_id: `eq.${shopId}`,
+      // Free grants have a separate, explicitly labelled /admin history.
+      // Never present a grant as a confirmed bank transfer to the seller.
+      method: 'neq.manual_grant',
       order: 'paid_at.desc',
       limit: '50',
     },

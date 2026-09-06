@@ -80,6 +80,7 @@ export function adminHome({ stats, intents }) {
     `<p class="adm-stat__l">${esc(label)}</p></div>`;
 
   const body =
+    `<a class="btn btn--quiet" href="/admin/shops">بەخشینی پلان بە دوکانێک</a>` +
     `<section class="adm-stats">` +
     cell(A.statShops, s.shops_total) +
     cell(A.statActive, s.shops_active) +
@@ -160,7 +161,7 @@ function shopRow(row) {
    one shop
    ============================================================ */
 
-export function adminShop({ shop, sub, products, note, origin, saved, error }) {
+export function adminShop({ shop, sub, products, note, grants = [], origin, saved, error }) {
   const row = { ...shop, plan: sub?.plan, visible: sub?.visible };
 
   const line = (label, value) =>
@@ -189,6 +190,7 @@ export function adminShop({ shop, sub, products, note, origin, saved, error }) {
     `</div>` +
 
     `<div class="adm-actions">` +
+    `<a class="btn btn--primary" href="/admin/shops/${esc(shop.id)}/grant">بەخشینی پلان</a>` +
     `<a class="btn btn--quiet" href="${esc(origin)}/@${esc(shop.slug)}">${esc(A.viewShop)}</a>` +
     `<form method="post" action="/admin/shops/${esc(shop.id)}/status">` +
     `<input type="hidden" name="to" value="${suspended ? 'active' : 'suspended'}">` +
@@ -212,12 +214,49 @@ export function adminShop({ shop, sub, products, note, origin, saved, error }) {
     `<button class="btn btn--primary" type="submit">${esc(A.notesSave)}</button>` +
     `</form>` +
 
+    (grants.length ? `<h2 class="adm-h2">مێژووی بەخشینی پلان — بەخۆڕایی</h2>` +
+      grants.map((g) => `<article class="adm-card adm-grant-history">` +
+        `<strong>${esc(PLAN_LABEL[g.plan] || g.plan)}</strong> · ${ltr(day(g.paid_at))}` +
+        `<p class="adm-report__details">${esc(g.note)}</p>` +
+        `<p class="field__hint">ناسنامەی ئەدمین: ${ltr(g.recorded_by || '—')}</p>` +
+        `</article>`).join('') : '') +
     `<h2 class="adm-h2">${esc(A.productsTitle)}</h2>` +
     (products.length
       ? products.map((p) => productRow(p, shop)).join('')
       : `<p class="adm-empty">${esc(A.productsEmpty)}</p>`);
 
   return shell('shops', body, { title: A.detailTitle });
+}
+
+export function adminGrant({ shop, sub, plan = '', reason = '', review, proof, error }) {
+  const action = `/admin/shops/${esc(shop.id)}/grant`;
+  const hidden = (name, value) => `<input type="hidden" name="${name}" value="${esc(value)}">`;
+  const identity = `<h2 class="adm-h1">${esc(shop.name)}</h2>` +
+    `<p class="adm-row__slug" dir="ltr">/@${esc(shop.slug)}</p>` +
+    `<p class="field__hint">کۆتایی پلانی ئێستا: ${ltr(day(sub?.expires_at))}</p>`;
+  const fields = review
+    ? `<div class="adm-card adm-grant-review">` +
+      `<h2 class="adm-h2">پشتڕاستکردنەوەی بەخشین</h2>` + identity +
+      `<p><strong>${esc(PLAN_LABEL[plan])}</strong> — بەخۆڕایی، هیچ پارەیەک وەرنەگیراوە.</p>` +
+      `<p class="adm-report__details">هۆکار: ${esc(reason)}</p>` +
+      `<p class="field__hint">ماوەکە لە کۆتایی پلانی ئێستا یان ئەمڕۆوە زیاد دەکرێت، هەر کامیان دواتر بێت.</p>` +
+      `<p class="field__hint">ئەم بەخشینە بە ناسنامەی ئەکاونتەکەت تۆمار دەکرێت.</p>` +
+      hidden('plan', plan) + hidden('reason', reason) + hidden('request', review.request) +
+      hidden('until', review.until) + hidden('proof', proof) +
+      `<div class="adm-actions"><button class="btn btn--primary" name="step" value="confirm" type="submit">پشتڕاستە، پلانەکە ببەخشە</button>` +
+      `<button class="btn btn--quiet" name="step" value="edit" type="submit">گەڕانەوە بۆ دەستکاری</button></div></div>`
+    : `<div class="adm-card">${identity}` +
+      `<label class="field__label" for="grant-plan">پلان</label>` +
+      `<select class="field__input" id="grant-plan" name="plan" required>` +
+      `<option value="">پلانێک هەڵبژێرە</option>` +
+      ['months_6', 'year_1'].map((p) => `<option value="${p}"${p === plan ? ' selected' : ''}>${esc(PLAN_LABEL[p])}</option>`).join('') +
+      `</select><label class="field__label" for="grant-reason">هۆکاری بەخشین (پێویستە)</label>` +
+      `<textarea class="field__input field__input--area" id="grant-reason" name="reason" maxlength="500" required>${esc(reason)}</textarea>` +
+      `<p class="field__hint">بەخشینی بەخۆڕاییە؛ وەک پارەدان تۆمار ناکرێت.</p>` +
+      `<button class="btn btn--primary" name="step" value="review" type="submit"${!sub ? ' disabled' : ''}>پێداچوونەوە</button></div>`;
+  return shell('shops', `<a class="adm-back" href="/admin/shops/${esc(shop.id)}">${esc(A.back)}</a>` +
+    (error ? `<p class="alert alert--error" role="alert">${esc(error)}</p>` : '') +
+    `<form class="adm-grant" method="post" action="${action}">${fields}</form>`, { title: 'بەخشینی پلان' });
 }
 
 function productRow(p, shop) {
