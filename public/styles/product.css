@@ -348,3 +348,19 @@
   .publish-head, .cover-head { gap: 4px; }
 }
 #cover-rotate { flex: none; min-height: 44px; padding: 6px 10px; border-radius: 10px; background: var(--surface-2); font-size: 13px; }
+
+/* ---------- the free trial's product allowance ---------- */
+
+.publish-trial-left {
+  margin: 0 0 12px;
+  padding: 8px 12px;
+  border-radius: 9px;
+  background: var(--surface-2);
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.7;
+}
+
+/* The refusal is a page, not an inline error: it has to say the limit,
+   promise the existing products are safe, and offer a way forward. */
+.trial-limit .btn { width: auto; min-width: 200px; }

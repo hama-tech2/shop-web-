@@ -195,6 +195,15 @@ export const PRODUCT = {
   // seller's to change. Both must say so instead of claiming success.
   errGone: 'ئەم بەرهەمە نەدۆزرایەوە. لەوانەیە پێشتر سڕابێتەوە.',
 
+  // The trial limit. A refusal on its own leaves the seller stuck, so
+  // the message says what to do next and the screen carries the link.
+  trialLimitTitle: 'سنووری مانگی بەخۆڕایی',
+  trialLimitBody: (max) =>
+    `لە مانگی بەخۆڕاییدا تا ${max} بەرهەم دەتوانیت بڵاو بکەیتەوە. ` +
+    'بۆ بەرهەمی زیاتر پلانێک هەڵبژێرە — بەرهەمە ئێستاکانت وەک خۆیان دەمێننەوە.',
+  trialLimitAction: 'بینینی پلانەکان',
+  trialLeft: (n, max) => `${n} لە ${max} شوێنی ماوە لە مانگی بەخۆڕایی`,
+
   emptyTitle: 'هێشتا هیچ بەرهەمێکت نییە',
   emptyBody: 'یەکەم بەرهەمت زیاد بکە و لینکەکەت بڵاوبکەرەوە.',
 };
@@ -362,6 +371,11 @@ export const SUBSCRIPTION = {
   perMonth: (n) => `${n} مانگانە`,
   savings: 'لە بەرامبەر ٦ مانگ پاشەکەوت دەکەیت',
 
+  // The free month, named at the bottom of the plans, small. It is
+  // what a seller is already on, not something to sell them.
+  freeTitle: 'مانگی بەخۆڕایی',
+  freeBody: (n) => `تا ${n} بەرهەم، بۆ یەک مانگ.`,
+
   whatYouGet: 'چی وەردەگریت',
   benefits: [
     'تا ١٠٠٠ بەرهەم بەبێ سنوور',
@@ -414,7 +428,29 @@ export const SUBSCRIPTION = {
  */
 export const FIB_NUMBER = '07515298365';
 
-/** Banners on the seller dashboard as the plan runs out. */
+/**
+ * Products a shop may publish on the free trial. Paid plans are
+ * unlimited.
+ *
+ * app.trial_product_limit() in the database is the same number and is
+ * what actually refuses the insert; scripts/plan-limits-test.mjs fails
+ * if the two drift apart.
+ */
+export const TRIAL_PRODUCT_LIMIT = 5;
+
+/**
+ * Renewal banners on the seller's own screens.
+ *
+ * The two amber ones can be closed and come back on their own; the two
+ * red ones cannot be closed at all, because by then the shop is either
+ * about to go dark or already has. Dismissing is always "not now",
+ * never "never again" — the row only records when it was last closed.
+ *
+ * These belong to the seller's area and nowhere else. The public shop
+ * page and the product pages never carry one: a customer arriving from
+ * TikTok must not be shown a seller's billing state, and that HTML is
+ * edge-cached, so it has to be identical for everybody.
+ */
 export const PLAN_BANNER = {
   soon: (n) => `${n} ڕۆژ لە پلانەکەت ماوە`,
   soonOne: 'سبەی پلانەکەت تەواو دەبێت',
@@ -422,8 +458,23 @@ export const PLAN_BANNER = {
   hidden: 'بەرهەمەکانت شاراونەتەوە. پارە بدە بۆ ئەوەی یەکسەر بگەڕێنەوە.',
   pending: 'ناردنەکەت لە چاوەڕوانی پشتڕاستکردنەوەدایە.',
   action: 'پارەدان',
-  /** Show the countdown only inside the last stretch of the plan. */
-  soonDays: 10,
+  dismiss: 'داخستن',
+
+  /**
+   * When to start warning, in days left.
+   *
+   * A trial is one month, so two warnings are enough. A paid plan runs
+   * for six or twelve, and a seller who has not thought about it since
+   * they paid needs more than three days' notice, so it gets three.
+   */
+  trialDays: [10, 3],
+  paidDays: [14, 7, 3],
+
+  /**
+   * How long a dismissal lasts, per kind, in days. `urgent` is the last
+   * threshold before the plan ends; everything earlier is `soon`.
+   */
+  cooldown: { soon: 3, urgent: 1 },
 };
 
 /** Advertised prices. The monthly figure is display only. */
@@ -433,7 +484,7 @@ export const PLANS = [
 ];
 
 /** The number a seller reaches us on from the subscription page. */
-export const SUPPORT_WHATSAPP = '+9647500000000';
+export const SUPPORT_WHATSAPP = '+9647515298365';
 
 /**
  * The admin screen. Not linked from anywhere in the app — a seller who

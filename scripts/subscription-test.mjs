@@ -25,7 +25,7 @@
  *   node scripts/subscription-test.mjs
  */
 
-import { FIB_NUMBER, PLANS } from '../worker/config.js';
+import { FIB_NUMBER, PLANS, TRIAL_PRODUCT_LIMIT } from '../worker/config.js';
 
 const APP = process.argv[2] || 'http://127.0.0.1:8810';
 const STUB = process.argv[3] || 'http://127.0.0.1:8899';
@@ -40,6 +40,10 @@ const check = (name, got, want) =>
 const setAdmin = (on) => fetch(`${STUB}/__admin/${on ? 1 : 0}`).then((r) => r.json());
 const setSub = (days) => fetch(`${STUB}/__sub/${days}`).then((r) => r.json());
 const setIntent = (status) => fetch(`${STUB}/__intent/${status}`).then((r) => r.json());
+const setPlan = (plan) => fetch(`${STUB}/__plan/${plan}`).then((r) => r.json());
+const setProducts = (n) => fetch(`${STUB}/__products/${n}`).then((r) => r.json());
+const setDismissed = (kind, daysAgo) =>
+  fetch(`${STUB}/__dismissed/${kind}/${daysAgo}`).then((r) => r.json());
 const getWrites = () => fetch(`${STUB}/__writes`).then((r) => r.json());
 const resetCalls = () => fetch(`${STUB}/__calls/reset`).then((r) => r.json());
 
@@ -65,6 +69,9 @@ await fetch(`${STUB}/__rows/1`);
 await setAdmin(false);
 await setSub(20);
 await setIntent('none');
+await setPlan('trial');
+await setProducts(0);
+await setDismissed('reset', 0);
 
 /* ============================================================
    1. the seller picks a plan
@@ -169,33 +176,207 @@ r = await post('/app/subscription/sent', { intent: INTENT },
 check('a cross-origin "I sent it" is refused', r.status, 403);
 
 /* ============================================================
-   4. the banners on the dashboard
+   4. the renewal banners
    ============================================================ */
 
 await setIntent('none');
 
-const banner = async (days) => {
+const banner = async (days, path = '/app') => {
   await setSub(days);
-  const out = await page('/app');
+  const out = await page(path);
   const m = out.match(/class="plan-banner plan-banner--([a-z]+)"/);
   return m ? m[1] : null;
 };
 
-check('day 15 of the trial: no banner', await banner(15), null);
-check('day 20 (10 days left): countdown', await banner(10), 'soon');
-check('day 30 (grace started): grace banner', await banner(-1), 'grace');
-check('day 37 (products hidden): hidden banner', await banner(-8), 'hidden');
+// A one-month trial: two warnings.
+await setPlan('trial');
+check('trial, 15 days left: no banner', await banner(15), null);
+check('trial, 10 days left: amber', await banner(10), 'soon');
+check('trial, 3 days left: urgent', await banner(3), 'urgent');
+check('grace: red', await banner(-1), 'grace');
+check('past grace: red', await banner(-5), 'hidden');
 
-await setSub(-8);
+await setSub(-5);
 html = await page('/app');
-check('the hidden banner says paying restores them',
-      html.includes('پارە بدە'), true);
+check('the hidden banner says paying restores them', html.includes('پارە بدە'), true);
+check('the red banner has no close button',
+      /plan-banner--hidden[\s\S]*?plan-banner__close/.test(html), false);
 
-await setIntent('pending');
+await setSub(-1);
+html = await page('/app');
+check('grace has no close button either',
+      /plan-banner--grace[\s\S]*?plan-banner__close/.test(html), false);
+
+// A paid plan runs for months, so it is warned earlier and more often.
+await setPlan('year_1');
+check('paid, 20 days left: no banner', await banner(20), null);
+check('paid, 14 days left: amber', await banner(14), 'soon');
+check('paid, 7 days left: amber', await banner(7), 'soon');
+check('paid, 3 days left: urgent', await banner(3), 'urgent');
+await setPlan('trial');
+
+/* ---------- closing one, and it coming back ---------- */
+
 await setSub(10);
-check('a waiting transfer replaces the countdown', await banner(10), 'pending');
-await setIntent('none');
+html = await page('/app');
+check('the amber banner has a close button', html.includes('plan-banner__close'), true);
+check('and it posts the kind it is closing',
+      /name="kind" value="soon"/.test(html), true);
+
+await resetCalls();
+r = await post('/app/banner/dismiss', { kind: 'soon' });
+check('closing it redirects back to the dashboard', r.location, '/app');
+
+writes = await getWrites();
+check('the dismissal is stored against the shop',
+      writes.some((w) => w.table === 'plan_banner_dismissals'), true);
+check('and it records when, not that it is gone for good',
+      Boolean(writes.find((w) => w.table === 'plan_banner_dismissals')?.body.dismissed_at), true);
+
+check('once closed, the banner is gone', await banner(10), null);
+
+// Never "never again": it comes back on its own.
+await setDismissed('soon', 4);
+check('three days later it is back', await banner(10), 'soon');
+
+// The urgent one is its own banner and its own cooldown.
+await setDismissed('reset', 0);
+await setDismissed('soon', 0);
+check('closing the amber one does not silence the urgent one',
+      await banner(3), 'urgent');
+
+await setDismissed('urgent', 0);
+check('the urgent one closes too', await banner(3), null);
+await setDismissed('urgent', 1.5);
+check('and is back the next day', await banner(3), 'urgent');
+
+// A dismissal can never hide the red ones.
+await setDismissed('soon', 0);
+await setDismissed('urgent', 0);
+check('a stored dismissal cannot hide grace', await banner(-1), 'grace');
+check('a stored dismissal cannot hide the hidden banner', await banner(-5), 'hidden');
+await setDismissed('reset', 0);
+
+r = await post('/app/banner/dismiss', { kind: 'grace' });
+check('a red banner cannot be dismissed through the endpoint either', r.location, '/app');
+await resetCalls();
+await post('/app/banner/dismiss', { kind: 'grace' });
+check('and nothing is written for it',
+      (await getWrites()).some((w) => w.table === 'plan_banner_dismissals'), false);
+
+r = await post('/app/banner/dismiss', { kind: 'soon' },
+               { headers: { origin: 'https://evil.test' } });
+check('a cross-origin dismissal is refused', r.status, 403);
+
+/* ---------- and it appears in settings too ---------- */
+
+await setSub(10);
+html = await page('/app');
+check('the settings panel carries the same banner',
+      (html.match(/class="plan-banner /g) || []).length >= 2, true);
+
+/* ============================================================
+   4b. never on a page a customer can see
+   ============================================================
+
+   The public shop page and the product pages are edge-cached and are
+   served to everybody, so a seller's billing state must not appear on
+   them at all — not as a banner, not as a hidden element, not as a
+   data attribute.
+*/
+
+await setSub(-5);   // the loudest possible state
+
+for (const [name, path] of [
+  ['the public shop page', '/@nafin-boutique'],
+  ['a product page', '/@nafin-boutique/p/bbbbbbbb-1111-4111-8111-111111111111'],
+]) {
+  // Signed in as the shop's own owner: the hardest case, because the
+  // session that would render a banner is present.
+  const asOwner = await page(path);
+  const asVisitor = await fetch(`${APP}${path}`).then((res) => res.text());
+
+  check(`${name}: no banner for the owner`, asOwner.includes('plan-banner'), false);
+  check(`${name}: no banner for a customer`, asVisitor.includes('plan-banner'), false);
+  check(`${name}: no plan state leaks`, /data-plan-state|پارەدان/.test(asVisitor), false);
+  // Edge-cached: it has to be the same bytes whoever asks.
+  check(`${name}: identical for both`, asOwner === asVisitor, true);
+}
+
 await setSub(20);
+
+/* ============================================================
+   4c. five products on the free trial
+   ============================================================ */
+
+await setPlan('trial');
+await setProducts(2);
+
+html = await page('/app/new');
+check('the form says how many slots are left',
+      html.includes(`3 لە ${TRIAL_PRODUCT_LIMIT}`), true);
+check('and the form is there to use', html.includes('id="product-form"'), true);
+
+await setProducts(5);
+html = await page('/app/new');
+check('a full trial gets the limit page, not a form',
+      html.includes('id="product-form"'), false);
+check('which names the limit', html.includes('سنووری مانگی بەخۆڕایی'), true);
+check('promises the existing products are safe',
+      html.includes('بەرهەمە ئێستاکانت وەک خۆیان دەمێننەوە'), true);
+check('and links to the plans, rather than only refusing',
+      html.includes('href="/app/subscription"'), true);
+
+// Posting anyway is refused the same way.
+const img = (n) => ({
+  card: `products/aaaaaaaa-1111-4111-8111-111111111111/bbbbbbbb-1111-4111-8111-111111111111/${n}-card.webp`,
+  full: `products/aaaaaaaa-1111-4111-8111-111111111111/bbbbbbbb-1111-4111-8111-111111111111/${n}-full.webp`,
+});
+const publish = () => fetch(`${APP}/app/new`, {
+  method: 'POST', redirect: 'manual',
+  headers: { cookie: COOKIE, origin: APP,
+             'content-type': 'application/x-www-form-urlencoded' },
+  body: new URLSearchParams({
+    draft_id: 'bbbbbbbb-1111-4111-8111-111111111111',
+    images: JSON.stringify([img(1)]), title: 'کراسی کوردی', price: '25000',
+  }),
+}).then(async (res) => ({ status: res.status, html: await res.text() }));
+
+let out = await publish();
+check('publishing over the limit is refused', out.status, 200);
+check('with the same page that links to the plans',
+      out.html.includes('سنووری مانگی بەخۆڕایی'), true);
+
+// Paid plans are unlimited, whatever the count.
+await setPlan('year_1');
+await setProducts(40);
+html = await page('/app/new');
+check('a paid shop with 40 products still gets the form',
+      html.includes('id="product-form"'), true);
+check('and is told nothing about slots', html.includes('publish-trial-left'), false);
+
+out = await publish();
+check('and can publish', out.status, 303);
+
+await setPlan('trial');
+await setProducts(0);
+
+/* ============================================================
+   4d. the plans screen puts the year first
+   ============================================================ */
+
+html = await page('/app/subscription');
+const yearAt = html.indexOf('data-plan="year_1"');
+const sixAt = html.indexOf('data-plan="months_6"');
+const freeAt = html.indexOf('plan-free');
+
+check('the year card comes before the six-month one', yearAt < sixAt, true);
+check('the year is the one marked out', /plan--lead[\s\S]{0,200}data-plan="year_1"/.test(html)
+      || /data-plan="year_1"[^>]*/.test(html.slice(html.indexOf('plan--lead'))), true);
+check('the free month comes last of the three', freeAt > sixAt, true);
+check('free is not a selectable card',
+      /class="plan[^"]*"[^>]*data-plan="trial"/.test(html), false);
+check('but it is still named', html.includes('مانگی بەخۆڕایی'), true);
 
 /* ============================================================
    5. the admin gate

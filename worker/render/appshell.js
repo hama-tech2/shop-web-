@@ -47,15 +47,19 @@ const CATEGORY_UI = JSON.stringify({
 });
 
 /**
- * The plan running out, said once, at the top of the seller's own page.
+ * The plan running out, on the seller's own page.
  *
- * Three moments matter and they are all the same banner with different
- * words: the countdown before the plan ends, the grace week after it
- * where the shop is still public, and the point where the products have
- * actually been hidden. Only the last one is urgent, so only the last
- * one is loud.
+ * Amber while there is still time and the seller can close it; red once
+ * the plan has ended, where there is no close button at all — by then
+ * the shop is days from going dark, or already has, and a banner the
+ * seller can make disappear is one they will.
+ *
+ * Exported because the settings panel shows the same thing. It is never
+ * called from the public shop page or a product page: a customer must
+ * not be shown a seller's billing state, and that HTML is edge-cached,
+ * so it has to be byte-identical for everyone.
  */
-function planBannerHtml(banner) {
+export function planBannerHtml(banner) {
   if (!banner) return '';
 
   const text =
@@ -65,6 +69,8 @@ function planBannerHtml(banner) {
     : banner.days <= 1 ? PLAN_BANNER.soonOne
     : PLAN_BANNER.soon(banner.days);
 
+  const red = banner.kind === 'hidden' || banner.kind === 'grace';
+
   return (
     `<div class="plan-banner plan-banner--${esc(banner.kind)}" role="status">` +
     `<span class="plan-banner__text">${esc(text)}</span>` +
@@ -72,6 +78,14 @@ function planBannerHtml(banner) {
       ? ''
       : `<a class="plan-banner__action" href="/app/subscription">` +
         `${esc(PLAN_BANNER.action)}</a>`) +
+    // Closing is "not now", never "never again": the server records when
+    // it happened and brings the banner back on its own.
+    (banner.dismissible && !red
+      ? `<form class="plan-banner__close" method="post" action="/app/banner/dismiss">` +
+        `<input type="hidden" name="kind" value="${esc(banner.kind)}">` +
+        `<button type="submit" aria-label="${esc(PLAN_BANNER.dismiss)}">&times;</button>` +
+        `</form>`
+      : '') +
     `</div>`
   );
 }
@@ -92,7 +106,7 @@ export function appShell({ shop, origin, banner = null }) {
     ` data-cat-ui="${esc(CATEGORY_UI)}" aria-label="${esc(PRODUCT.listTitle)}">` +
     `<div class="notice"><a class="owner-preview-link" href="${esc('/@' + shop.slug)}">${esc(PROFILE.viewShop)} ‹</a></div>` +
     `</section></div>` +
-    settingsPanel({ shop }) +
+    settingsPanel({ shop, banner }) +
     `<template id="owner-delete-control"><button class="card__heart owner-delete" type="button" aria-label="سڕینەوەی بەرهەم">${iconTrash(18)}</button></template>` +
     bottomNav('account') +
     `<script src="/js/shop.js" defer></script>` +

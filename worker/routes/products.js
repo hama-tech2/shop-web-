@@ -11,7 +11,7 @@ import {
   APP_NAME, MAX_IMAGES, MAX_UPLOAD_BYTES, PRODUCT as T, PRODUCT_FILTERS,
 } from '../config.js';
 import { layout } from '../render/layout.js';
-import { productForm } from '../render/product-form.js';
+import { productForm, trialLimitPage } from '../render/product-form.js';
 import { productList } from '../render/product-list.js';
 import { asUser, getCategories } from '../supabase.js';
 import { getOwnShop, resolveSession, sameOrigin, setSessionCookies } from '../auth.js';
@@ -233,6 +233,26 @@ async function ownCategoryIdFor(env, token, shopId, raw) {
   return own.some((c) => c.id === id) ? id : null;
 }
 
+/**
+ * How many products this shop may still publish, or null on a paid plan.
+ *
+ * The database refuses the insert either way — app.enforce_trial_product_limit
+ * raises SW001 — but a seller meeting a bare refusal after preparing five
+ * images has been wasted. Asking first is what lets the screen say the
+ * limit before any of that work happens.
+ */
+async function trialSlotsLeft(env, token, shopId) {
+  const res = await asUser(env, token, 'rpc/trial_slots_left', {
+    method: 'POST', body: { p_shop: shopId },
+  });
+  if (!res.ok) return null;
+  const value = Array.isArray(res.data) ? res.data[0] : res.data;
+  return typeof value === 'number' ? value : null;
+}
+
+/** The database's own word for "the free trial is full". */
+const TRIAL_FULL = (res) => res.data?.code === 'SW001';
+
 async function readForm(request, env, token, shopId, productId) {
   const f = await form(request);
   const picked = cleanImages(f.images, shopId, productId);
@@ -285,6 +305,11 @@ export async function newGet(request, env) {
   const g = await guard(request, env);
   if (g.redirect) return g.redirect;
 
+  // A trial shop that is full gets the reason and a way out of it,
+  // rather than a form whose submit button cannot work.
+  const left = await trialSlotsLeft(env, g.token, g.shop.id);
+  if (left === 0) return page(trialLimitPage(), T.trialLimitTitle, g.headers);
+
   return page(
     productForm({
       mode: 'new',
@@ -292,6 +317,7 @@ export async function newGet(request, env) {
       categories: await getCategories(env),
       shopCategories: await ownCategories(env, g.token, g.shop.id),
       values: { status: 'active', images: [] },
+      trialLeft: left,
     }),
     T.newTitle, g.headers,
   );
@@ -308,12 +334,15 @@ export async function newPost(request, env) {
 
   const parsed = await readForm(request, env, g.token, g.shop.id, draftId);
   const categories = await getCategories(env);
+  const left = await trialSlotsLeft(env, g.token, g.shop.id);
+
+  if (left === 0) return page(trialLimitPage(), T.trialLimitTitle, g.headers);
 
   if (parsed.error) {
     return page(
       productForm({ mode: 'new', draftId, categories,
                     shopCategories: await ownCategories(env, g.token, g.shop.id),
-                    values: parsed.values, error: parsed.error }),
+                    values: parsed.values, error: parsed.error, trialLeft: left }),
       T.newTitle, g.headers,
     );
   }
@@ -325,10 +354,16 @@ export async function newPost(request, env) {
   });
 
   if (!created.ok) {
+    // The database is the one that actually enforces the trial limit,
+    // and it can refuse a request that looked fine a moment earlier —
+    // another tab, or a slot used between the check and the insert.
+    if (TRIAL_FULL(created)) {
+      return page(trialLimitPage(), T.trialLimitTitle, g.headers);
+    }
     return page(
       productForm({ mode: 'new', draftId, categories,
                     shopCategories: await ownCategories(env, g.token, g.shop.id),
-                    values: parsed.values, error: T.errSave }),
+                    values: parsed.values, error: T.errSave, trialLeft: left }),
       T.newTitle, g.headers,
     );
   }

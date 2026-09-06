@@ -497,3 +497,51 @@ body:has(.account-settings:target) .page--owner { display: none; }
 .pay-history__amount { flex: 1; min-width: 0; font-weight: var(--fw-bold); }
 .pay-history__status { flex: none; color: var(--muted); font-size: 12px; }
 .pay-history__status.is-done { color: var(--accent); }
+
+/* ---------- the plan banner, closable ---------- */
+
+.plan-banner--soon, .plan-banner--urgent { background: #F6EFE0; color: #6B4B12; }
+.plan-banner--urgent { font-weight: var(--fw-bold); }
+
+/* Amber banners carry a close button; the red ones deliberately do not,
+   because by then the shop is about to go dark or already has. */
+.plan-banner__close { flex: none; display: flex; }
+.plan-banner__close button {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: transparent;
+  color: inherit;
+  font-size: 20px;
+  line-height: 1;
+  opacity: .7;
+}
+.plan-banner__close button:hover { opacity: 1; }
+
+/* Inside the settings panel it is a card rather than a full-bleed bar. */
+.account-settings .plan-banner { margin: 0 0 var(--s-4); border-radius: 12px; }
+
+/* ---------- the free month, last and small ---------- */
+
+/* Not a card and not selectable: it is what the seller is already on,
+   so it reads as a footnote to the paid plans, never as an option
+   competing with them. */
+.plan-free {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s-3);
+  margin-top: var(--s-3);
+  padding: 10px var(--s-4);
+  border-radius: 12px;
+  background: var(--surface-2);
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.plan-free__name { font-weight: var(--fw-bold); flex: none; }
+.plan-free__body { text-align: end; }
+
+/* The year is the one a seller should land on first. */
+.plan--lead { outline: 2px solid var(--accent); outline-offset: -2px; }
+.plan--lead .plan__amount { font-size: 30px; }

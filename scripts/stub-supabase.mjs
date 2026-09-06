@@ -42,6 +42,9 @@ let mode = 'shop';                // shop | noshop
 let created = null;               // a shop made through onboarding
 let isAdmin = false;              // does the session own an admins row
 let subDays = 20;                 // days until the subscription expires
+let subPlan = 'trial';            // trial | months_6 | year_1
+let productCount = 0;             // how many products the shop has
+let dismissed = {};               // banner kind -> ISO timestamp
 let intent = null;                // the shop's live payment intent
 const INTENT_ID = 'eeeeeeee-1111-4111-8111-111111111111';
 const calls = [];
@@ -77,6 +80,14 @@ http.createServer(async (req, res) => {
   // drive both directly rather than trying to age a fixture.
   if (p.startsWith('/__admin/')) { isAdmin = p.split('/')[2] === '1'; return send({ isAdmin }); }
   if (p.startsWith('/__sub/')) { subDays = Number(p.split('/')[2]); return send({ subDays }); }
+  if (p.startsWith('/__plan/')) { subPlan = p.split('/')[2]; return send({ subPlan }); }
+  if (p.startsWith('/__products/')) { productCount = Number(p.split('/')[2]); return send({ productCount }); }
+  if (p.startsWith('/__dismissed/')) {
+    const [, , kind, when] = p.split('/');
+    if (kind === 'reset') dismissed = {};
+    else dismissed[kind] = new Date(Date.now() - Number(when) * 86400000).toISOString();
+    return send(dismissed);
+  }
   if (p.startsWith('/__intent/')) {
     const want = p.split('/')[2];
     intent = want === 'none' ? null : {
@@ -152,6 +163,14 @@ http.createServer(async (req, res) => {
     return send([intent]);
   }
 
+  if (table === 'plan_banner_dismissals') {
+    if (!write) {
+      return send(Object.entries(dismissed).map(([kind, at]) => ({ kind, dismissed_at: at })));
+    }
+    dismissed[lastBody.kind] = lastBody.dismissed_at ?? new Date().toISOString();
+    return send([lastBody]);
+  }
+
   if (table === 'payments') {
     return send([
       { id: '11111111-1111-4111-8111-111111111111', plan: 'months_6',
@@ -182,6 +201,13 @@ http.createServer(async (req, res) => {
   }
 
   if (table === 'products') {
+    // app.enforce_trial_product_limit raises SW001 once a trial shop is
+    // full. Modelling it here is the point: the Worker checks first, but
+    // the database is what actually refuses, and the route has to answer
+    // that refusal with the message that links to the plans.
+    if (write && req.method === 'POST' && subPlan === 'trial' && productCount >= 5) {
+      return send({ code: 'SW001', message: 'trial product limit of 5 reached' }, 400);
+    }
     // app.check_category_same_shop raises 23514 for a category_id that
     // does not exist or belongs to another shop. Modelling it here is
     // the point: without it a stale id looks harmless in a test and
@@ -212,15 +238,20 @@ http.createServer(async (req, res) => {
   }
   if (table === 'rpc/subscription_state') {
     const expires = new Date(Date.now() + subDays * 86400000).toISOString();
-    const graceEnds = new Date(Date.now() + (subDays + 7) * 86400000).toISOString();
+    // Grace is 3 days, matching subscriptions.grace_days.
+    const graceEnds = new Date(Date.now() + (subDays + 3) * 86400000).toISOString();
     return send([{
-      plan: 'trial', status: 'trialing',
+      plan: subPlan, status: subPlan === 'trial' ? 'trialing' : 'active',
       started_at: new Date(Date.now() - 10 * 86400000).toISOString(),
       expires_at: expires, grace_ends_at: graceEnds,
       days_left: Math.max(0, Math.ceil(subDays)), total_days: 30,
-      in_grace: subDays <= 0 && subDays > -7,
-      publicly_visible: subDays > -7,
+      in_grace: subDays <= 0 && subDays > -3,
+      publicly_visible: subDays > -3,
     }]);
+  }
+  // Null on a paid plan means unlimited, which is what the app checks.
+  if (table === 'rpc/trial_slots_left') {
+    return send(subPlan === 'trial' ? Math.max(0, 5 - productCount) : null);
   }
   if (table === 'rpc/mark_intent_sent') {
     if (!intent || intent.status !== 'open') return send({ code: '22023' }, 400);

@@ -1,5 +1,6 @@
 import {
-  FIB_NUMBER, PLANS, SUBSCRIPTION as T, SUPPORT_WHATSAPP, UI,
+  FIB_NUMBER, PLANS, SUBSCRIPTION as T, SUPPORT_WHATSAPP,
+  TRIAL_PRODUCT_LIMIT, UI,
 } from '../config.js';
 import { esc, price } from './html.js';
 import { bottomNav } from './appshell.js';
@@ -56,7 +57,13 @@ export function subscriptionPage({ state, selected, intent, payments = [], error
   const total = state?.total_days ?? 30;
   const used = Math.max(0, Math.min(1, 1 - plan.days / Math.max(total, 1)));
 
-  const cards = PLANS.map((p) => planCard(p, selected)).join('');
+  // A year first and largest, then six months. The free month is last
+  // and small: it is what the seller is already on, and putting it
+  // first makes the paid plans read as the alternative to it.
+  const ordered = PLANS.slice().sort(
+    (a, b) => (b.best ? 1 : 0) - (a.best ? 1 : 0) || b.amount - a.amount,
+  );
+  const cards = ordered.map((p, i) => planCard(p, selected, i === 0)).join('');
   const benefits = T.benefits
     .map((b) => `<li class="benefit"><span class="benefit__tick">${iconCheck()}</span>` +
                 `<span>${esc(b)}</span></li>`)
@@ -94,6 +101,12 @@ export function subscriptionPage({ state, selected, intent, payments = [], error
     `<input type="hidden" name="plan" id="plan-field" value="${esc(selected)}">` +
     `<div class="plans">${cards}</div>` +
 
+    // Last, and deliberately not a card: nothing here to choose.
+    `<div class="plan-free">` +
+    `<span class="plan-free__name">${esc(T.freeTitle)}</span>` +
+    `<span class="plan-free__body">${esc(T.freeBody(TRIAL_PRODUCT_LIMIT))}</span>` +
+    `</div>` +
+
     `<h2 class="sub-heading">${esc(T.whatYouGet)}</h2>` +
     `<ul class="benefits">${benefits}</ul>` +
 
@@ -110,10 +123,10 @@ export function subscriptionPage({ state, selected, intent, payments = [], error
   );
 }
 
-function planCard(plan, selected) {
+function planCard(plan, selected, lead = false) {
   const active = plan.key === selected;
   return (
-    `<button class="plan${plan.best ? ' plan--best' : ''}" type="button"` +
+    `<button class="plan${plan.best ? ' plan--best' : ''}${lead ? ' plan--lead' : ''}" type="button"` +
     ` data-plan="${esc(plan.key)}" aria-pressed="${active}">` +
     (plan.best ? `<span class="plan__badge">${esc(T.best)}</span>` : '') +
     `<span class="plan__name">${esc(plan.name)}</span>` +

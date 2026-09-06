@@ -12,13 +12,16 @@
  *
  *  2. Which of the five states a shop is in. Only trial, pending and
  *     active are stored; grace and expired fall out of the expiry date
- *     and the 7-day window, which is the same arithmetic RLS uses to
- *     decide whether the shop's products are public.
+ *     and the 3-day grace window, which is the same arithmetic RLS uses
+ *     to decide whether the shop's products are public.
+ *
+ *  3. Which renewal banner belongs on the seller's screens, when it can
+ *     be closed, and when a closed one comes back.
  *
  *   node scripts/plan-state-test.mjs
  */
 
-import { PLANS } from '../worker/config.js';
+import { PLANS, PLAN_BANNER, TRIAL_PRODUCT_LIMIT } from '../worker/config.js';
 import { bannerFor, daysUntil, planState } from '../worker/plan-state.js';
 
 const results = [];
@@ -80,7 +83,7 @@ check('6 months means 6 months, not 8',
    2. the five states
    ============================================================ */
 
-const sub = (days, plan = 'trial', graceDays = 7) => ({
+const sub = (days, plan = 'trial', graceDays = 3) => ({
   plan,
   status: plan === 'trial' ? 'trialing' : 'active',
   expires_at: at(days),
@@ -94,12 +97,12 @@ check('active, 200 days left', planState(sub(200, 'year_1'), false, NOW).key, 'a
 
 // Day 30: the plan has ended but the shop is still up.
 check('the day it expires: grace, not expired', planState(sub(0), false, NOW).key, 'grace');
-check('3 days past: still grace', planState(sub(-3), false, NOW).key, 'grace');
-check('3 days past: 4 days of grace left', planState(sub(-3), false, NOW).days, 4);
-check('6 days past: still grace', planState(sub(-6), false, NOW).key, 'grace');
+check('1 day past: still grace', planState(sub(-1), false, NOW).key, 'grace');
+check('1 day past: 2 days of grace left', planState(sub(-1), false, NOW).days, 2);
+check('2 days past: still grace', planState(sub(-2), false, NOW).key, 'grace');
 
-// Day 37: grace is over and the products are hidden.
-check('7 days past: expired', planState(sub(-7), false, NOW).key, 'expired');
+// Grace is three days. After that the products are hidden.
+check('3 days past: expired', planState(sub(-3), false, NOW).key, 'expired');
 check('30 days past: expired', planState(sub(-30), false, NOW).key, 'expired');
 
 // A transfer waiting on the owner is what the seller most needs to see,
@@ -109,18 +112,62 @@ check('pending is still flagged once expired', planState(sub(-30), true, NOW).pe
 check('but an expired shop is still expired',
       planState(sub(-30), true, NOW).key, 'expired');
 check('a pending transfer does not extend anything',
-      planState(sub(-8), true, NOW).key, 'expired');
+      planState(sub(-4), true, NOW).key, 'expired');
 
 check('no subscription row at all', planState(null, false, NOW).key, 'expired');
 
 /* ---------- the banners ---------- */
 
-check('day 20 of the trial: countdown', bannerFor(planState(sub(10), false, NOW), 10), 'soon');
-check('day 21: still counting', bannerFor(planState(sub(9), false, NOW), 10), 'soon');
-check('day 15: nothing yet', bannerFor(planState(sub(15), false, NOW), 10), null);
-check('day 30: grace banner', bannerFor(planState(sub(-1), false, NOW), 10), 'grace');
-check('day 37: hidden banner', bannerFor(planState(sub(-7), false, NOW), 10), 'hidden');
-check('waiting on the owner', bannerFor(planState(sub(20), true, NOW), 10), 'pending');
+const S = PLAN_BANNER;
+const banner = (days, plan = 'trial', closed = {}) =>
+  bannerFor(planState(sub(days, plan), false, NOW), S, closed, NOW);
+
+// A one-month trial gets two warnings.
+check('trial, 15 days left: nothing yet', banner(15), null);
+check('trial, day 20 (10 left): amber', banner(10)?.kind, 'soon');
+check('trial, day 20: it can be closed', banner(10)?.dismissible, true);
+check('trial, day 27 (3 left): urgent', banner(3)?.kind, 'urgent');
+check('trial, 1 day left: still urgent', banner(1)?.kind, 'urgent');
+
+// A paid plan runs for months, so it gets a third, earlier warning.
+check('paid, 20 days left: nothing yet', banner(20, 'year_1'), null);
+check('paid, 14 days left: amber', banner(14, 'year_1')?.kind, 'soon');
+check('paid, 7 days left: amber', banner(7, 'year_1')?.kind, 'soon');
+check('paid, 3 days left: urgent', banner(3, 'year_1')?.kind, 'urgent');
+check('paid, 10 days left: warned, unlike a trial at 14',
+      banner(10, 'year_1')?.kind, 'soon');
+
+// The red two cannot be closed at all.
+check('grace: red', banner(-1)?.kind, 'grace');
+check('grace cannot be dismissed', banner(-1)?.dismissible, false);
+check('hidden: red', banner(-5)?.kind, 'hidden');
+check('hidden cannot be dismissed', banner(-5)?.dismissible, false);
+check('waiting on the owner cannot be dismissed either',
+      bannerFor(planState(sub(10), true, NOW), S, {}, NOW)?.dismissible, false);
+
+/* Dismissing is "not now", never "never again". */
+
+const ago = (days) => new Date(NOW - days * DAY).toISOString();
+
+check('closed an hour ago: stays closed', banner(10, 'trial', { soon: ago(0.04) }), null);
+check('closed 2 days ago: still closed', banner(10, 'trial', { soon: ago(2) }), null);
+check('closed 4 days ago: back', banner(10, 'trial', { soon: ago(4) })?.kind, 'soon');
+
+check('the urgent one closed 2 hours ago: closed',
+      banner(3, 'trial', { urgent: ago(0.08) }), null);
+check('the urgent one closed yesterday: back the next day',
+      banner(3, 'trial', { urgent: ago(1.1) })?.kind, 'urgent');
+
+// Closing one does not close the other: a seller who dismissed the
+// 10-day warning must still meet the 3-day one.
+check('closing the amber one does not silence the urgent one',
+      banner(3, 'trial', { soon: ago(0) })?.kind, 'urgent');
+
+// And nothing dismisses the red ones, whatever is in the table.
+check('a stored dismissal cannot hide grace',
+      banner(-1, 'trial', { soon: ago(0), urgent: ago(0) })?.kind, 'grace');
+check('a stored dismissal cannot hide the products-are-gone banner',
+      banner(-5, 'trial', { soon: ago(0), urgent: ago(0) })?.kind, 'hidden');
 
 /* ---------- daysUntil ---------- */
 
@@ -141,6 +188,15 @@ const priceOf = (key) => PLANS.find((p) => p.key === key)?.amount;
 check('6 months costs 55,000 IQD', priceOf('months_6'), 55000);
 check('1 year costs 90,000 IQD', priceOf('year_1'), 90000);
 check('there are exactly two paid plans', PLANS.length, 2);
+
+// The year is what a seller should see first, and largest.
+const ordered = PLANS.slice().sort(
+  (a, b) => (b.best ? 1 : 0) - (a.best ? 1 : 0) || b.amount - a.amount,
+);
+check('the year comes first', ordered[0].key, 'year_1');
+check('then six months', ordered[1].key, 'months_6');
+
+check('the free trial allows five products', TRIAL_PRODUCT_LIMIT, 5);
 
 /* ============================================================ */
 

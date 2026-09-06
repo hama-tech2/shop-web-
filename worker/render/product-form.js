@@ -1,10 +1,34 @@
-import { CATEGORIES_UI as C, IMAGE_VARIANTS, MAX_IMAGES, PRODUCT as T } from '../config.js';
+import {
+  CATEGORIES_UI as C, IMAGE_VARIANTS, MAX_IMAGES, PRODUCT as T, TRIAL_PRODUCT_LIMIT,
+} from '../config.js';
 import { esc, price as fmtPrice } from './html.js';
 import { alert, field } from './forms.js';
 import { iconBack, iconPlus } from './icons.js';
 import { productCover } from './product-cover.js';
 
-export function productForm({ mode, draftId, categories, shopCategories = [], values, error }) {
+/**
+ * The free trial is full.
+ *
+ * Shown instead of the form, because offering a form that cannot be
+ * submitted is worse than saying so. It names the limit, says the
+ * existing products are safe, and links to the plans — a refusal with
+ * nowhere to go is where a seller gives up.
+ */
+export function trialLimitPage() {
+  return (
+    `<div class="shell publish-page">` +
+    `<header class="publish-head"><a class="icon-btn" href="/app/products" aria-label="گەڕانەوە">${iconBack()}</a>` +
+    `<h1>${esc(T.trialLimitTitle)}</h1><span></span></header>` +
+    `<div class="notice notice--tall trial-limit">` +
+    `<p class="notice__title">${esc(T.trialLimitTitle)}</p>` +
+    `<p>${esc(T.trialLimitBody(TRIAL_PRODUCT_LIMIT))}</p>` +
+    `<a class="btn btn--primary" href="/app/subscription">${esc(T.trialLimitAction)}</a>` +
+    `<a class="btn btn--ghost" href="/app/products">${esc(T.listTitle)}</a>` +
+    `</div></div>`
+  );
+}
+
+export function productForm({ mode, draftId, categories, shopCategories = [], values, error, trialLeft = null }) {
   const isEdit = mode === 'edit';
   const images = values.images ?? [];
   return (
@@ -15,6 +39,11 @@ export function productForm({ mode, draftId, categories, shopCategories = [], va
     `<p>تا ${MAX_IMAGES} وێنە زیاد بکە. وێنەیەک هەڵبژێرە بۆ کاڤەر؛ بە دوگمەکانی ڕیزکردن شوێنی وێنەکان بگۆڕە.</p></details></header>` +
     `<p class="publish-sub">زانیارییەکانی بەرهەمەکەت زیاد بکە و بڵاوی بکەرەوە.</p>` +
     alert(error) +
+    // How much of the free trial is left. Null once they are on a paid
+    // plan, where there is no limit to report.
+    (trialLeft === null
+      ? ''
+      : `<p class="publish-trial-left">${esc(T.trialLeft(trialLeft, TRIAL_PRODUCT_LIMIT))}</p>`) +
     `<form method="post" id="product-form" action="${esc(isEdit ? `/app/products/${draftId}` : '/app/new')}"` +
     ` data-mode="${esc(mode)}" data-restore-category="${!isEdit && !error && !values.category && !images.length}"` +
     ` data-draft="${esc(draftId)}" data-max="${MAX_IMAGES}"` +

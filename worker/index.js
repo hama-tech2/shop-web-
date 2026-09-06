@@ -13,7 +13,7 @@ import { layout } from './render/layout.js';
 import { APP_TAGLINE } from './config.js';
 import * as authRoutes from './routes/auth.js';
 import * as onboarding from './routes/onboarding.js';
-import { appGet } from './routes/app.js';
+import { appGet, bannerDismissPost } from './routes/app.js';
 import * as products from './routes/products.js';
 import { productGet, shopGet } from './routes/shop.js';
 import * as account from './routes/account.js';
@@ -162,6 +162,11 @@ export default {
       }
       if (path === '/app/subscription/sent' && method === 'POST') {
         return account.subscriptionSentPost(request, env);
+      }
+
+      // Closing a renewal banner. Stored per shop, never permanently.
+      if (path === '/app/banner/dismiss' && method === 'POST') {
+        return bannerDismissPost(request, env);
       }
 
       // ---- products (must be matched before the /app catch-all) ----

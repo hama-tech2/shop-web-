@@ -1,9 +1,10 @@
 import { AUTH } from '../config.js';
 import { esc } from './html.js';
 import { iconBack, iconGift, iconGlobe, iconUser, iconWhatsapp } from './icons.js';
+import { planBannerHtml } from './appshell.js';
 
 /** Presentation inside /app, under its existing server-side session guard. */
-export function settingsPanel({ shop }) {
+export function settingsPanel({ shop, banner = null }) {
   // /app does not pass user.email. SUPPORT_WHATSAPP currently contains a
   // placeholder, and no legal or account-deletion routes exist. Keep those
   // destinations unlinked rather than presenting unsupported actions.
@@ -20,6 +21,7 @@ export function settingsPanel({ shop }) {
     `<div class="settings-identity"><span class="settings-avatar">${iconUser(28)}</span>` +
     `<div><h2>هەژماری من</h2><p>${esc(shop.name)}</p>` +
     `<small>ئیمەیڵ لەم پەڕەیەدا بەردەست نییە.</small></div></div>` +
+    planBannerHtml(banner) +
     `<h2 class="settings-heading">بەشداریکردن</h2>` +
     `<div class="settings-group"><a class="settings-row" href="/app/subscription" id="settings-subscription">` +
     `<span class="settings-icon">${iconGift(22)}</span><span class="settings-row__body">` +

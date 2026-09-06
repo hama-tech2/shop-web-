@@ -152,6 +152,8 @@ create trigger payment_intents_set_price
 --
 -- The column defaulted to 3. Every shop created so far got that, and
 -- the rule is now 7 for everybody.
+--
+-- SUPERSEDED by 0025, which puts it back to 3. Left here as it ran.
 -- ------------------------------------------------------------
 alter table public.subscriptions alter column grace_days set default 7;
 update public.subscriptions set grace_days = 7 where grace_days = 3;
