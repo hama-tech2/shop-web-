@@ -13,7 +13,7 @@ import {
 import { layout } from '../render/layout.js';
 import { profilePage } from '../render/profile.js';
 import { categoriesPage } from '../render/categories.js';
-import { intentPage, subscriptionPage } from '../render/subscription.js';
+import { payPage, subscriptionPage } from '../render/subscription.js';
 import { asUser } from '../supabase.js';
 import { getOwnShop, resolveSession, sameOrigin, setSessionCookies } from '../auth.js';
 import { redirect } from './auth.js';
@@ -518,7 +518,16 @@ export async function categoryApiDelete(request, env, id) {
 }
 
 /* ============================================================
-   subscription
+   subscription and the manual payment flow
+   ============================================================
+
+   There is no processor. A seller picks a plan, we file an intent with
+   a short reference code, they transfer to the owner's FIB number with
+   that code in the note, and they tap "I sent it". The owner confirms
+   it by hand on /admin.
+
+   Nothing here ever tells the seller the payment succeeded. The only
+   thing this side of the app knows is that they say they sent it.
    ============================================================ */
 
 async function loadState(env, token, shopId) {
@@ -528,16 +537,60 @@ async function loadState(env, token, shopId) {
   return res.ok ? res.data?.[0] ?? null : null;
 }
 
+/**
+ * The intent this seller is in the middle of, if any.
+ *
+ * 'open' means filed but not yet transferred; 'pending' means they say
+ * they have sent the money. Both are live, and the database allows only
+ * one of them per plan, so this is the one the screens talk about.
+ */
+async function loadLiveIntent(env, token, shopId) {
+  const res = await asUser(env, token, 'payment_intents', {
+    search: {
+      select: 'id,plan,amount,status,reference,created_at',
+      shop_id: `eq.${shopId}`,
+      status: 'in.(open,pending)',
+      order: 'created_at.desc',
+      limit: '1',
+    },
+  });
+  return res.ok ? res.data?.[0] ?? null : null;
+}
+
+async function loadPayments(env, token, shopId) {
+  const res = await asUser(env, token, 'payments', {
+    search: {
+      select: 'id,plan,amount,status,paid_at,created_at,reference',
+      shop_id: `eq.${shopId}`,
+      order: 'paid_at.desc',
+      limit: '50',
+    },
+  });
+  return res.ok ? res.data ?? [] : [];
+}
+
+const subPage = (body, headers) => page(body, S.title, headers, ['/js/account.js']);
+
 export async function subscriptionGet(request, env, url) {
   const g = await guard(request, env, '/app/subscription');
   if (g.redirect) return g.redirect;
 
   const wanted = url.searchParams.get('plan');
   const selected = PLANS.some((p) => p.key === wanted) ? wanted : PLANS[0].key;
+  const errorKey = url.searchParams.get('e');
 
-  return page(
-    subscriptionPage({ state: await loadState(env, g.token, g.shop.id), selected }),
-    S.title, g.headers,
+  const [state, intent, payments] = await Promise.all([
+    loadState(env, g.token, g.shop.id),
+    loadLiveIntent(env, g.token, g.shop.id),
+    loadPayments(env, g.token, g.shop.id),
+  ]);
+
+  return subPage(
+    subscriptionPage({
+      state, selected, intent, payments,
+      error: errorKey && S[errorKey] ? S[errorKey] : null,
+    }),
+    g.headers,
   );
 }
 
@@ -547,26 +600,77 @@ export async function subscriptionPost(request, env) {
   if (g.redirect) return g.redirect;
 
   const { plan: wanted } = await form(request);
-  const plan = PLANS.find((p) => p.key === wanted) ?? PLANS[0];
+  const plan = PLANS.find((p) => p.key === wanted);
+  if (!plan) return redirect('/app/subscription?e=errPlan', g.headers);
 
-  // No processor yet. Record what they asked for, then say so plainly.
-  // The amount is snapshotted so a later price change does not rewrite
-  // what this seller was shown.
-  await asUser(env, g.token, 'payment_intents', {
+  // Already mid-payment for this plan: send them back to the code they
+  // were given rather than filing a second intent the owner would have
+  // to reconcile. The partial unique index would refuse it anyway.
+  const live = await loadLiveIntent(env, g.token, g.shop.id);
+  if (live && live.plan === plan.key) {
+    return redirect('/app/subscription/pay', g.headers);
+  }
+
+  // The amount is not sent from here: a BEFORE INSERT trigger sets it
+  // from app.plan_price, so a crafted post cannot name its own price.
+  // The value stored is the price at the time of the intent, which is
+  // what an early seller keeps if prices change later.
+  const res = await asUser(env, g.token, 'payment_intents', {
     method: 'POST',
+    prefer: 'return=representation',
     body: { shop_id: g.shop.id, plan: plan.key, amount: plan.amount },
   });
 
-  return redirect(`/app/subscription/requested?plan=${plan.key}`, g.headers);
+  if (!res.ok || !res.data?.[0]) {
+    return redirect('/app/subscription?e=errIntent', g.headers);
+  }
+  return redirect('/app/subscription/pay', g.headers);
 }
 
-export async function subscriptionRequestedGet(request, env, url) {
+/** Where to transfer, how much, and with which code. */
+export async function subscriptionPayGet(request, env, url) {
   const g = await guard(request, env, '/app/subscription');
   if (g.redirect) return g.redirect;
 
-  const plan = PLANS.find((p) => p.key === url.searchParams.get('plan')) ?? PLANS[0];
-  return page(
-    intentPage({ plan, origin: url.origin, shopName: g.shop.name }),
-    S.requestedTitle, g.headers,
+  const intent = await loadLiveIntent(env, g.token, g.shop.id);
+  if (!intent) return redirect('/app/subscription', g.headers);
+
+  const plan = PLANS.find((p) => p.key === intent.plan) ?? PLANS[0];
+  const errorKey = url.searchParams.get('e');
+
+  return subPage(
+    payPage({
+      plan, intent, shopName: g.shop.name,
+      error: errorKey && S[errorKey] ? S[errorKey] : null,
+    }),
+    g.headers,
+  );
+}
+
+/**
+ * "I sent it".
+ *
+ * open -> pending, and nothing else. The subscription is untouched:
+ * only the owner finding the money moves that. RLS still forbids a
+ * seller from updating payment_intents at all; mark_intent_sent is the
+ * one door, and it only opens in this direction, on their own intent.
+ */
+export async function subscriptionSentPost(request, env) {
+  if (!sameOrigin(request)) return new Response('bad origin', { status: 403 });
+  const g = await guard(request, env, '/app/subscription');
+  if (g.redirect) return g.redirect;
+
+  const { intent: id } = await form(request);
+  if (!UUID.test(String(id || ''))) {
+    return redirect('/app/subscription/pay?e=errSent', g.headers);
+  }
+
+  const res = await asUser(env, g.token, 'rpc/mark_intent_sent', {
+    method: 'POST', body: { p_intent: id },
+  });
+
+  return redirect(
+    res.ok ? '/app/subscription/pay' : '/app/subscription/pay?e=errSent',
+    g.headers,
   );
 }

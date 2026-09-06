@@ -240,26 +240,49 @@ function productRow(p, shop) {
    payment intents
    ============================================================ */
 
-export function adminIntents({ intents }) {
-  return shell('intents', `<h2 class="adm-h1">${esc(A.intentsTitle)}</h2>` + intentList(intents));
+export function adminIntents({ intents, expiring = [] }) {
+  return shell(
+    'intents',
+    `<h2 class="adm-h1">${esc(A.intentsTitle)}</h2>` +
+    intentList(intents) +
+    expiringList(expiring),
+  );
 }
 
+/**
+ * The payments waiting on the owner.
+ *
+ * Two buttons, and neither of them is a rejection. Activate applies the
+ * date rule and, because visibility is derived from the expiry date,
+ * unhides the shop in the same statement. Not-found puts the intent
+ * back where it was so the owner can chase the seller on WhatsApp —
+ * nothing is destroyed and no money is implied to have moved.
+ */
 function intentList(intents, limit) {
   const rows = limit ? intents.slice(0, limit) : intents;
   if (!rows.length) return `<p class="adm-empty">${esc(A.intentsEmpty)}</p>`;
 
   return rows
     .map((i) => {
-      const wa = String(i.shops?.whatsapp || '').replace(/[^0-9]/g, '');
+      const wa = String(i.whatsapp || i.shops?.whatsapp || '').replace(/[^0-9]/g, '');
+      const name = i.name || i.shops?.name || '—';
+      const slug = i.slug || i.shops?.slug || '';
+      const pending = i.status === 'pending';
       return (
-        `<div class="adm-card adm-intent">` +
-        `<a class="adm-intent__shop" href="/admin/shops/${esc(i.shop_id)}">` +
-        `${esc(i.shops?.name || '—')}</a>` +
-        `<p class="adm-row__slug ltr" dir="ltr">/@${esc(i.shops?.slug || '')}</p>` +
+        `<div class="adm-card adm-intent${pending ? ' adm-intent--pending' : ''}">` +
+        `<a class="adm-intent__shop" href="/admin/shops/${esc(i.shop_id)}">${esc(name)}</a>` +
+        `<span class="adm-intent__badge">` +
+        `${esc(pending ? A.intentPendingBadge : A.intentOpenBadge)}</span>` +
+        `<p class="adm-row__slug ltr" dir="ltr">/@${esc(slug)}</p>` +
         `<p class="adm-intent__line">` +
         `${esc(A.intentPlan)}: ${esc(PLAN_LABEL[i.plan] || i.plan)} · ` +
         `${esc(A.intentAmount)}: <span dir="ltr" class="ltr">${esc(price(i.amount))} ` +
         `${esc(UI.currency)}</span> · ${esc(A.intentDate)}: ${ltr(day(i.created_at))}</p>` +
+        // The code the seller was told to write in the transfer note.
+        // This is what the owner matches against the bank statement, so
+        // it is the one thing on the row that is set large and LTR.
+        `<p class="adm-intent__ref">${esc(A.intentReference)}: ` +
+        `<span class="adm-intent__code" dir="ltr">${esc(i.reference || '—')}</span></p>` +
         `<div class="adm-actions">` +
         (wa
           ? `<a class="btn btn--quiet" target="_blank" rel="noopener"` +
@@ -269,15 +292,51 @@ function intentList(intents, limit) {
         `<button class="btn btn--primary" type="submit"` +
         ` data-confirm="${esc(A.intentConfirm)}">${esc(A.intentActivate)}</button>` +
         `</form>` +
-        // Someone who asks and never pays should not sit in the queue
-        // for ever. Cancelling moves no money and no time.
-        `<form method="post" action="/admin/intents/${esc(i.id)}/cancel">` +
-        `<button class="btn btn--danger" type="submit"` +
-        ` data-confirm="${esc(A.intentCancelConfirm)}">${esc(A.intentCancel)}</button>` +
-        `</form></div></div>`
+        (pending
+          ? `<form method="post" action="/admin/intents/${esc(i.id)}/not-found">` +
+            `<button class="btn btn--danger" type="submit"` +
+            ` data-confirm="${esc(A.intentNotFoundConfirm)}">${esc(A.intentNotFound)}</button>` +
+            `</form>`
+          : '') +
+        `</div></div>`
       );
     })
     .join('');
+}
+
+/**
+ * Shops whose plan runs out within the week.
+ *
+ * The WhatsApp link opens a chat and stops there. Sending the message
+ * automatically would need the WhatsApp Business API; the owner types
+ * it himself.
+ */
+function expiringList(rows) {
+  const body = rows.length
+    ? rows.map((r) => {
+        const wa = String(r.whatsapp || '').replace(/[^0-9]/g, '');
+        return (
+          `<div class="adm-card adm-expiring">` +
+          `<a class="adm-intent__shop" href="/admin/shops/${esc(r.shop_id)}">` +
+          `${esc(r.name || '—')}</a>` +
+          `<p class="adm-row__slug ltr" dir="ltr">/@${esc(r.slug || '')}</p>` +
+          `<p class="adm-intent__line">` +
+          `${esc(PLAN_LABEL[r.plan] || r.plan)} · ` +
+          `${esc(A.intentDate)}: ${ltr(day(r.expires_at))} · ` +
+          `${r.in_grace
+            ? esc(A.expiringGrace)
+            : esc(A.expiringDays(Math.max(0, r.days_left ?? 0)))}</p>` +
+          (wa
+            ? `<div class="adm-actions">` +
+              `<a class="btn btn--quiet" target="_blank" rel="noopener"` +
+              ` href="https://wa.me/${esc(wa)}">${esc(A.expiringWhatsapp)}</a></div>`
+            : '') +
+          `</div>`
+        );
+      }).join('')
+    : `<p class="adm-empty">${esc(A.expiringEmpty)}</p>`;
+
+  return `<h2 class="adm-h1 adm-h1--spaced">${esc(A.expiringTitle)}</h2>${body}`;
 }
 
 /* ============================================================

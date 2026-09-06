@@ -348,16 +348,18 @@ export const MAX_CATEGORIES = 20;
 
 export const SUBSCRIPTION = {
   title: 'پلانی بەشداریکردن',
-  daysLeft: (n) => `تەنها ${n} ڕۆژ لە مانگی بەخۆڕایی ماوە`,
-  daysLeftOne: 'ڕۆژی کۆتایی مانگی بەخۆڕاییە',
-  expired: 'مانگی بەخۆڕایی تەواو بووە',
-  inGrace: (n) => `${n} ڕۆژ ماوە پێش ئەوەی بەرهەمەکانت بشاردرێنەوە`,
-  activeUntil: (d) => `چالاکە تا ${d}`,
+
+  // The five states a seller can be in. Only trial, pending and active
+  // are stored; grace and expired are read off the expiry date.
+  stateTrial: (n) => `مانگی بەخۆڕایی — ${n} ڕۆژ ماوە`,
+  stateTrialLast: 'ڕۆژی کۆتایی مانگی بەخۆڕاییە',
+  statePending: 'چاوەڕوانی پشتڕاستکردنەوە',
+  stateActive: (d) => `چالاکە تا ${d}`,
+  stateGrace: (n) => `بەسەرچووە — ${n} ڕۆژ ماوە پێش شاردنەوەی بەرهەمەکان`,
+  stateExpired: 'بەرهەمەکانت شاراونەتەوە. بۆ گەڕاندنەوەیان پارە بدە.',
 
   best: 'باشترین نرخ',
   perMonth: (n) => `${n} مانگانە`,
-  yearName: '١ ساڵ',
-  sixName: '٦ مانگ',
   savings: 'لە بەرامبەر ٦ مانگ پاشەکەوت دەکەیت',
 
   whatYouGet: 'چی وەردەگریت',
@@ -368,16 +370,60 @@ export const SUBSCRIPTION = {
     'پشتگیری خێرا',
   ],
 
-  offer: 'لە مانگی بەخۆڕاییدا پارە بدە و ٢ مانگی زیادە بەخۆڕایی وەربگرە',
   pay: 'پارەدان',
   payVia: 'پارەدان لە ڕێگەی FIB',
-  startFree: 'مانگی بەخۆڕاییەکەت بەکاربهێنە',
 
-  requestedTitle: 'داواکەت تۆمار کرا',
-  requestedBody: 'هێشتا پارەدانی ئۆتۆماتیکی نییە. تیمەکەمان لە ڕێگەی واتساپەوە پەیوەندیت پێوە دەکات بۆ تەواوکردنی پارەدان.',
-  requestedPlan: 'پلانی هەڵبژێردراو',
-  contactUs: 'پەیوەندیمان پێوە بکە',
-  backToPlans: 'گەڕانەوە بۆ پلانەکان',
+  // ---- the instructions screen ----
+  payTitle: 'ڕێنمایی پارەدان',
+  payPlan: 'پلان',
+  payAmount: 'بڕی پارە',
+  payReference: 'کۆدی ئاماژە',
+  payFib: 'ژمارەی FIB',
+  payNote: 'کۆدەکە لە تێبینی ناردنەکەدا بنووسە بۆ ئەوەی زوو بدۆزرێتەوە.',
+  paySent: 'پارەکەم نارد',
+  payCopy: 'کۆپی',
+  payCopied: 'کۆپی کرا',
+  // Never a success state before the owner has actually seen the money.
+  payWaitingTitle: 'چاوەڕوانی پشتڕاستکردنەوە',
+  payWaitingBody:
+    'ناردنەکەت تۆمار کرا. کاتێک پارەکە بدۆزرێتەوە، پلانەکەت چالاک دەکرێت. ' +
+    'ئەگەر پرسیارت هەیە، لە واتساپەوە پەیوەندیمان پێوە بکە.',
+  paySafety: 'هەرگیز داوای PIN، ووشەی نهێنی یان ژمارەی کارتت لێ ناکەین.',
+  payWhatsapp: 'پەیوەندی بە واتساپ',
+  payBack: 'گەڕانەوە بۆ پلانەکان',
+  payCancel: 'هەڵوەشاندنەوەی داواکاری',
+
+  // ---- history ----
+  historyTitle: 'مێژووی پارەدان',
+  historyEmpty: 'هێشتا هیچ پارەدانێک نییە.',
+  historyDate: 'بەروار',
+  historyAmount: 'بڕ',
+  historyStatus: 'دۆخ',
+  historyConfirmed: 'پشتڕاستکراوە',
+  historyPending: 'چاوەڕوانی پشتڕاستکردنەوە',
+
+  errPlan: 'پلانەکە نەناسرایەوە.',
+  errIntent: 'داواکارییەکە دروست نەکرا. تکایە دووبارە هەوڵ بدەوە.',
+  errSent: 'تۆمارکردنی ناردنەکە سەرکەوتوو نەبوو. تکایە دووبارە هەوڵ بدەوە.',
+};
+
+/**
+ * The owner's FIB number, printed on the instructions screen for the
+ * seller to transfer to. This is the whole payment integration: there
+ * is no processor, no merchant account and no API call.
+ */
+export const FIB_NUMBER = '07515298365';
+
+/** Banners on the seller dashboard as the plan runs out. */
+export const PLAN_BANNER = {
+  soon: (n) => `${n} ڕۆژ لە پلانەکەت ماوە`,
+  soonOne: 'سبەی پلانەکەت تەواو دەبێت',
+  grace: (n) => `پلانەکەت تەواو بووە. ${n} ڕۆژ ماوە پێش ئەوەی بەرهەمەکانت بشاردرێنەوە.`,
+  hidden: 'بەرهەمەکانت شاراونەتەوە. پارە بدە بۆ ئەوەی یەکسەر بگەڕێنەوە.',
+  pending: 'ناردنەکەت لە چاوەڕوانی پشتڕاستکردنەوەدایە.',
+  action: 'پارەدان',
+  /** Show the countdown only inside the last stretch of the plan. */
+  soonDays: 10,
 };
 
 /** Advertised prices. The monthly figure is display only. */
@@ -437,18 +483,31 @@ export const ADMIN = {
 
   shopsEmpty: 'هیچ دوکانێک نەدۆزرایەوە.',
 
-  intentsTitle: 'داواکاری پارەدانی کراوە',
+  intentsTitle: 'پارەدانەکان',
   intentsEmpty: 'هیچ داواکارییەکی کراوە نییە.',
+  intentShop: 'دوکان',
   intentPlan: 'پلان',
   intentAmount: 'بڕ',
+  intentReference: 'کۆدی ئاماژە',
   intentDate: 'بەروار',
   intentWhatsapp: 'واتساپ',
-  intentActivate: 'چالاککردنی پلان',
-  intentConfirm: 'دڵنیایت؟ پلانەکە چالاک دەکرێت و داواکارییەکە دەبێتە پارەدراو.',
+  intentActivate: 'چالاککردن',
+  intentConfirm: 'دڵنیایت؟ پلانەکە چالاک دەکرێت و بەرهەمەکان دەردەکەون.',
   intentDone: 'پلانەکە چالاک کرا.',
   intentFailed: 'چالاککردن سەرکەوتوو نەبوو.',
-  intentCancel: 'هەڵوەشاندنەوە',
-  intentCancelConfirm: 'داواکارییەکە هەڵبوەشێنرێتەوە؟ هیچ پلانێک چالاک ناکرێت.',
+  // Not a rejection: the intent goes back to where it was and the owner
+  // follows it up on WhatsApp himself.
+  intentNotFound: 'نەدۆزرایەوە',
+  intentNotFoundConfirm:
+    'پارەکە نەدۆزرایەوە؟ داواکارییەکە دەگەڕێتەوە دۆخی پێشوو و هیچ پلانێک چالاک ناکرێت.',
+  intentPendingBadge: 'ناردراوە',
+  intentOpenBadge: 'کراوە',
+
+  expiringTitle: 'بەم زووانە تەواو دەبن',
+  expiringEmpty: 'هیچ دوکانێک لەم ٧ ڕۆژەدا تەواو نابێت.',
+  expiringDays: (n) => `${n} ڕۆژ`,
+  expiringGrace: 'لە ماوەی مۆڵەتدایە',
+  expiringWhatsapp: 'واتساپ',
 
   detailTitle: 'دوکان',
   owner: 'خاوەن',

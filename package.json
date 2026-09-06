@@ -18,7 +18,9 @@
     "test:onboarding": "node scripts/onboarding-flow-test.mjs",
     "test:categories": "node scripts/categories-test.mjs",
     "test:profile": "node scripts/profile-test.mjs",
-    "test:category-ui": "node scripts/category-ui-test.mjs"
+    "test:category-ui": "node scripts/category-ui-test.mjs",
+    "test:plan-state": "node scripts/plan-state-test.mjs",
+    "test:subscription": "node scripts/subscription-test.mjs"
   },
   "devDependencies": {
     "wrangler": "^4.42.0",

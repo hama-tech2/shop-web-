@@ -155,8 +155,13 @@ export default {
           ? account.subscriptionPost(request, env)
           : account.subscriptionGet(request, env, url);
       }
-      if (path === '/app/subscription/requested') {
-        return account.subscriptionRequestedGet(request, env, url);
+      // The manual payment flow: file an intent, read the instructions,
+      // say you sent it. Nothing here confirms a payment.
+      if (path === '/app/subscription/pay') {
+        return account.subscriptionPayGet(request, env, url);
+      }
+      if (path === '/app/subscription/sent' && method === 'POST') {
+        return account.subscriptionSentPost(request, env);
       }
 
       // ---- products (must be matched before the /app catch-all) ----
@@ -220,11 +225,11 @@ function adminRoute(request, env, url, path, method) {
       return admin.shopNotePost(request, env, shop[1]);
     }
 
-    const intent = path.match(/^\/admin\/intents\/([0-9a-f-]{36})\/(activate|cancel)$/i);
+    const intent = path.match(/^\/admin\/intents\/([0-9a-f-]{36})\/(activate|not-found)$/i);
     if (intent) {
       return intent[2] === 'activate'
         ? admin.intentActivatePost(request, env, intent[1])
-        : admin.intentCancelPost(request, env, intent[1]);
+        : admin.intentNotFoundPost(request, env, intent[1]);
     }
 
     const report = path.match(/^\/admin\/reports\/([0-9a-f-]{36})\/(hide|dismiss)$/i);

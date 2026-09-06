@@ -1,5 +1,5 @@
 import {
-  CATEGORIES_UI as C, PRODUCT, PROFILE, SAVED, UI,
+  CATEGORIES_UI as C, PLAN_BANNER, PRODUCT, PROFILE, SAVED, UI,
 } from '../config.js';
 import { esc } from './html.js';
 import { shopHeader } from './shop.js';
@@ -46,8 +46,38 @@ const CATEGORY_UI = JSON.stringify({
   error: C.errCreate,
 });
 
+/**
+ * The plan running out, said once, at the top of the seller's own page.
+ *
+ * Three moments matter and they are all the same banner with different
+ * words: the countdown before the plan ends, the grace week after it
+ * where the shop is still public, and the point where the products have
+ * actually been hidden. Only the last one is urgent, so only the last
+ * one is loud.
+ */
+function planBannerHtml(banner) {
+  if (!banner) return '';
+
+  const text =
+    banner.kind === 'hidden' ? PLAN_BANNER.hidden
+    : banner.kind === 'grace' ? PLAN_BANNER.grace(banner.days)
+    : banner.kind === 'pending' ? PLAN_BANNER.pending
+    : banner.days <= 1 ? PLAN_BANNER.soonOne
+    : PLAN_BANNER.soon(banner.days);
+
+  return (
+    `<div class="plan-banner plan-banner--${esc(banner.kind)}" role="status">` +
+    `<span class="plan-banner__text">${esc(text)}</span>` +
+    (banner.kind === 'pending'
+      ? ''
+      : `<a class="plan-banner__action" href="/app/subscription">` +
+        `${esc(PLAN_BANNER.action)}</a>`) +
+    `</div>`
+  );
+}
+
 /** Owner controls stay inside the existing authenticated seller area. */
-export function appShell({ shop, origin }) {
+export function appShell({ shop, origin, banner = null }) {
   const controls =
     `<nav class="owner-controls" aria-label="بەڕێوەبردنی دوکان">` +
     `<a class="owner-control owner-control--primary" href="/app/profile">دەستکاری پرۆفایل</a>` +
@@ -56,6 +86,7 @@ export function appShell({ shop, origin }) {
 
   return (
     `<div class="page page--shop page--owner">` +
+    planBannerHtml(banner) +
     shopHeader({ shop, origin, controls }) +
     `<section id="owner-products" class="shop-products" data-shop-url="${esc('/@' + shop.slug)}"` +
     ` data-cat-ui="${esc(CATEGORY_UI)}" aria-label="${esc(PRODUCT.listTitle)}">` +

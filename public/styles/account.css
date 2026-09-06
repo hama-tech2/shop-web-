@@ -400,3 +400,100 @@ body:has(.account-settings:target) .page--owner { display: none; }
 }
 
 .app-menu__go { color: var(--muted); }
+
+/* ============================================================
+   the manual payment flow
+   ============================================================ */
+
+/* The plan banner sits above the shop header on the seller's own page.
+   Only the hidden state is loud — the other two are information, and a
+   red bar every day for a week stops being read. */
+.plan-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3);
+  padding: 10px 16px;
+  background: var(--surface-2);
+  font-size: 13px;
+  line-height: 1.7;
+}
+
+.plan-banner__text { min-width: 0; }
+.plan-banner__action { flex: none; color: var(--accent); font-weight: var(--fw-bold); min-height: 44px; display: flex; align-items: center; }
+.plan-banner--grace { background: #F6EFE0; }
+.plan-banner--hidden { background: #F6E7E4; color: #7C2D1B; }
+.plan-banner--hidden .plan-banner__action { color: #7C2D1B; text-decoration: underline; }
+
+/* ---------- instructions ---------- */
+
+.shell--pay { padding-bottom: calc(var(--nav-h) + 32px + env(safe-area-inset-bottom)); }
+
+.pay-card {
+  display: grid;
+  gap: var(--s-2);
+  padding: var(--s-4);
+  border-radius: var(--r-card);
+  background: var(--surface);
+  margin-bottom: var(--s-4);
+}
+
+.pay-row {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  min-height: 48px;
+}
+
+.pay-row__label { color: var(--muted); font-size: var(--fs-sm); flex: none; }
+
+/* The two values that get copied into a bank app are the largest thing
+   on the screen, and isolated so the digits never reorder. */
+.pay-row__value {
+  flex: 1;
+  min-width: 0;
+  text-align: start;
+  font-size: 17px;
+  font-weight: var(--fw-bold);
+  unicode-bidi: isolate;
+  overflow-wrap: anywhere;
+}
+
+.pay-row__copy { flex: none; width: auto; gap: 5px; min-height: 44px; padding: 8px 12px; font-size: 12px; background: var(--surface-2); color: var(--accent); }
+
+.pay-instruction { margin: 0 0 var(--s-4); line-height: 1.9; font-size: 13px; }
+.pay-sent { margin-bottom: var(--s-4); }
+
+/* Waiting, never succeeded. No green, no tick: the owner has not seen
+   the money yet, and a seller who reads this as "done" stops chasing. */
+.alert--wait { background: #F6EFE0; color: #6B4B12; }
+
+.pay-safety {
+  margin: 0 0 var(--s-4);
+  padding: var(--s-3);
+  border-radius: 10px;
+  background: var(--surface-2);
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.8;
+}
+
+/* ---------- history ---------- */
+
+.pay-history { margin-top: var(--s-6); }
+.pay-history__list { display: grid; gap: var(--s-2); }
+
+.pay-history__row {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  padding: var(--s-3);
+  border-radius: 12px;
+  background: var(--surface);
+  font-size: 13px;
+}
+
+.pay-history__date { color: var(--muted); flex: none; }
+.pay-history__amount { flex: 1; min-width: 0; font-weight: var(--fw-bold); }
+.pay-history__status { flex: none; color: var(--muted); font-size: 12px; }
+.pay-history__status.is-done { color: var(--accent); }

@@ -82,16 +82,22 @@ async function form(request) {
    reads
    ============================================================ */
 
-const INTENT_SELECT = 'id,shop_id,plan,amount,status,created_at,shops(name,slug,whatsapp)';
-
+/**
+ * Everything the owner still has to look at: intents a seller has filed
+ * ('open') and ones they say they have paid ('pending'), pending first.
+ * The RPC joins the shop so the list is one round trip.
+ */
 async function loadIntents(env, token) {
-  const res = await asUser(env, token, 'payment_intents', {
-    search: {
-      select: INTENT_SELECT,
-      status: 'eq.open',
-      order: 'created_at.asc',
-      limit: '100',
-    },
+  const res = await asUser(env, token, 'rpc/admin_open_intents', {
+    method: 'POST', body: {},
+  });
+  return res.ok ? res.data ?? [] : [];
+}
+
+/** Shops whose plan runs out inside the week. */
+async function loadExpiring(env, token) {
+  const res = await asUser(env, token, 'rpc/admin_expiring_soon', {
+    method: 'POST', body: { p_days: 7 },
   });
   return res.ok ? res.data ?? [] : [];
 }
@@ -134,7 +140,12 @@ export async function shopsGet(request, env, url) {
 export async function intentsGet(request, env) {
   const g = await guard(request, env);
   if (g.miss) return g.miss;
-  return page(adminIntents({ intents: await loadIntents(env, g.token) }), g.headers);
+
+  const [intents, expiring] = await Promise.all([
+    loadIntents(env, g.token),
+    loadExpiring(env, g.token),
+  ]);
+  return page(adminIntents({ intents, expiring }), g.headers);
 }
 
 export async function reportsGet(request, env) {
@@ -312,12 +323,21 @@ export async function intentActivatePost(request, env, id) {
   return redirect(`/admin/intents${res.ok ? '' : '?e=1'}`, g.headers);
 }
 
-export async function intentCancelPost(request, env, id) {
+/**
+ * The owner could not find the transfer.
+ *
+ * Not a rejection and not a new state: the intent goes back to 'open',
+ * exactly where it was before the seller said they had sent the money,
+ * and the owner follows it up on WhatsApp. The subscription was never
+ * moved by a pending intent, so there is nothing there to undo.
+ */
+export async function intentNotFoundPost(request, env, id) {
   const g = await post(request, env, id);
   if (g.deny) return g.deny;
 
-  const res = await asUser(env, g.token, 'rpc/admin_cancel_intent', {
-    method: 'POST', body: { p_intent: id, p_note: 'cancelled from the admin screen' },
+  const res = await asUser(env, g.token, 'rpc/admin_intent_not_found', {
+    method: 'POST',
+    body: { p_intent: id, p_note: 'transfer not found — returned to open' },
   });
 
   return redirect(`/admin/intents${res.ok ? '' : '?e=1'}`, g.headers);

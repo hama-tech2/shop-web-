@@ -87,6 +87,14 @@ export const iconGift = (s = 20) =>
   svg('<path d="M4 11h16v9H4zM3 7.5h18V11H3z"/><path d="M12 7.5V20"/>' +
       '<path d="M12 7.5S10.6 4 8.6 4a2 2 0 0 0 0 3.5Zm0 0S13.4 4 15.4 4a2 2 0 0 1 0 3.5Z"/>', s);
 export const iconPlus = (s = 20) => svg('<path d="M12 5v14M5 12h14"/>', s);
+
+/** Two stacked sheets — the one control on the payment instructions. */
+export const iconCopy = (s = 18) =>
+  svg(
+    '<rect x="9" y="9" width="11" height="11" rx="2.5"/>' +
+      '<path d="M6 15H5.5A1.5 1.5 0 0 1 4 13.5v-8A1.5 1.5 0 0 1 5.5 4h8A1.5 1.5 0 0 1 15 5.5V6"/>',
+    s,
+  );
 export const iconTrash = (s = 18) =>
   svg('<path d="M5 7h14M9.5 7V5h5v2M6.5 7l.8 12h9.4l.8-12"/>', s);
 export const iconArrowUp = (s = 18) => svg('<path d="M12 19V6M6 12l6-6 6 6"/>', s);
