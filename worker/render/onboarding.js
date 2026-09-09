@@ -4,6 +4,23 @@ import { alert, button, field, select } from './forms.js';
 
 const TOTAL = 4;
 
+export function cleanSlug(value) {
+  return String(value || '').toLowerCase().replace(/[\s_]+/g, '-')
+    .replace(/[^a-z0-9-]/g, '').replace(/-+/g, '-')
+    .replace(/^-+|-+$/g, '').slice(0, 40).replace(/-+$/g, '');
+}
+
+export function suggestedSlug(name) {
+  const letters = { 'ئ': '', 'ا': 'a', 'ە': 'a', 'ب': 'b', 'پ': 'p', 'ت': 't', 'ج': 'j', 'چ': 'ch', 'ح': 'h', 'خ': 'kh', 'د': 'd', 'ر': 'r', 'ڕ': 'r', 'ز': 'z', 'ژ': 'zh', 'س': 's', 'ش': 'sh', 'ع': 'a', 'غ': 'gh', 'ف': 'f', 'ڤ': 'v', 'ق': 'q', 'ک': 'k', 'ك': 'k', 'گ': 'g', 'ل': 'l', 'ڵ': 'l', 'م': 'm', 'ن': 'n', 'ه': 'h', 'ھ': 'h', 'و': 'w', 'ۆ': 'o', 'ی': 'i', 'ي': 'i', 'ێ': 'e' };
+  const value = cleanSlug([...String(name || '')].map(c => letters[c] ?? c).join(''));
+  return value.length >= 3 ? value : value ? `${value}-shop` : 'shop';
+}
+
+export function completeSlug(value, name) {
+  const clean = cleanSlug(value);
+  return clean.length >= 3 ? clean : clean ? `${clean}-shop` : suggestedSlug(name);
+}
+
 function frame(step, title, sub, inner) {
   const bars = Array.from({ length: TOTAL }, (_, i) =>
     `<span class="wizard__step" data-done="${i < step}"></span>`).join('');
@@ -38,17 +55,15 @@ export const stepSlug = ({ draft = {}, error, origin }) =>
     `<div class="field">` +
     `<label class="field__label" for="f-slug">${esc(T.slugLabel)}</label>` +
     `<div class="slug-row">` +
-    `<span class="slug-row__prefix">${esc(origin.replace(/^https?:\/\//, ''))}/@</span>` +
-    `<input class="field__input" id="f-slug" name="slug" type="text" required` +
-    ` value="${esc(draft.slug ?? '')}" autocomplete="off" autocapitalize="none"` +
-    ` spellcheck="false" inputmode="url" maxlength="40"` +
+    `<input class="field__input" id="f-slug" name="slug" type="text" dir="ltr"` +
+    ` value="${esc(completeSlug(draft.slug, draft.name))}" data-suggestion="${esc(suggestedSlug(draft.name))}" autocomplete="off" autocapitalize="none"` +
+    ` spellcheck="false" inputmode="url"` +
     ` data-check-url="/api/slug-check" aria-describedby="slug-hint">` +
     `</div>` +
-    `<p class="slug-url" id="slug-url" data-origin="${esc(origin)}"></p>` +
     `<p class="field__hint" id="slug-hint"` +
     ` data-msg-checking="${esc(T.slugChecking)}" data-msg-ok="${esc(T.slugOk)}"` +
     ` data-msg-taken="${esc(T.slugTaken)}" data-msg-reserved="${esc(T.slugReserved)}"` +
-    ` data-msg-format="${esc(T.slugFormat)}">${esc(T.slugFormat)}</p>` +
+    ` data-msg-format="لینکەکەت خۆکارانە ڕێک دەخرێت؛ 3 تا 40 پیت.">لینکەکەت خۆکارانە ڕێک دەخرێت؛ 3 تا 40 پیت.</p>` +
     `</div>` +
     `<div class="wizard__actions">` +
     button(T.next, { id: 'slug-next' }) +

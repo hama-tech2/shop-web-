@@ -13,7 +13,7 @@ import { layout } from './render/layout.js';
 import { APP_TAGLINE } from './config.js';
 import * as authRoutes from './routes/auth.js';
 import * as onboarding from './routes/onboarding.js';
-import { appGet } from './routes/app.js';
+import { appGet, bannerDismissPost } from './routes/app.js';
 import * as products from './routes/products.js';
 import { productGet, shopGet } from './routes/shop.js';
 import * as account from './routes/account.js';
@@ -21,6 +21,7 @@ import * as admin from './routes/admin.js';
 import { searchGet } from './routes/search.js';
 import * as favorites from './routes/favorites.js';
 import { scheduled } from './cron.js';
+import { webhookPost } from './routes/telegram.js';
 
 const IMG_CACHE = 'public, max-age=31536000, immutable';
 const HTML_CACHE = 'public, max-age=0, s-maxage=60, stale-while-revalidate=300';
@@ -34,6 +35,12 @@ export default {
 
     try {
       if (path.startsWith('/img/')) return serveImage(request, env, url);
+
+      // The Telegram webhook. Public, so the secret is in the path and
+      // checked again in the header before the body is even read; a
+      // request that fails either gets the ordinary 404.
+      const hook = path.match(/^\/api\/telegram\/([A-Za-z0-9_-]{16,128})$/);
+      if (hook && method === 'POST') return webhookPost(request, env, hook[1]);
       if (path === '/api/feed') return feedFragment(env, url);
       if (path === '/api/slug-check') return onboarding.slugCheck(env, url);
       if (path === '/api/favorites/cards') return favorites.cardsGet(env, url);
@@ -44,6 +51,20 @@ export default {
       }
       if (path === '/api/favorites/merge' && method === 'POST') {
         return favorites.mergePost(request, env);
+      }
+      // The seller's own categories, as JSON: the owner-profile rail and
+      // the inline creator in the product form both edit them without
+      // leaving the page they are on.
+      if (path === '/api/categories') {
+        return method === 'POST'
+          ? account.categoryApiPost(request, env)
+          : account.categoriesApiGet(request, env);
+      }
+      const categoryApi = path.match(/^\/api\/categories\/([0-9a-f-]{36})(\/delete)?$/i);
+      if (categoryApi && method === 'POST') {
+        return categoryApi[2]
+          ? account.categoryApiDelete(request, env, categoryApi[1])
+          : account.categoryApiRename(request, env, categoryApi[1]);
       }
       if (path === '/search') return searchGet(env, url);
       if (path === '/saved') return favorites.savedGet(request, env);
@@ -141,8 +162,18 @@ export default {
           ? account.subscriptionPost(request, env)
           : account.subscriptionGet(request, env, url);
       }
-      if (path === '/app/subscription/requested') {
-        return account.subscriptionRequestedGet(request, env, url);
+      // The manual payment flow: file an intent, read the instructions,
+      // say you sent it. Nothing here confirms a payment.
+      if (path === '/app/subscription/pay') {
+        return account.subscriptionPayGet(request, env, url);
+      }
+      if (path === '/app/subscription/sent' && method === 'POST') {
+        return account.subscriptionSentPost(request, env, ctx);
+      }
+
+      // Closing a renewal banner. Stored per shop, never permanently.
+      if (path === '/app/banner/dismiss' && method === 'POST') {
+        return bannerDismissPost(request, env);
       }
 
       // ---- products (must be matched before the /app catch-all) ----
@@ -194,11 +225,16 @@ function adminRoute(request, env, url, path, method) {
     if (path === '/admin/intents') return admin.intentsGet(request, env);
     if (path === '/admin/reports') return admin.reportsGet(request, env);
 
+    const grant = path.match(/^\/admin\/shops\/([0-9a-f-]{36})\/grant$/i);
+    if (grant) return admin.grantGet(request, env, grant[1]);
+
     const shop = path.match(/^\/admin\/shops\/([0-9a-f-]{36})$/i);
     if (shop) return admin.shopGet(request, env, url, shop[1]);
   }
 
   if (method === 'POST') {
+    const grant = path.match(/^\/admin\/shops\/([0-9a-f-]{36})\/grant$/i);
+    if (grant) return admin.grantPost(request, env, grant[1]);
     const shop = path.match(/^\/admin\/shops\/([0-9a-f-]{36})\/(status|expiry|note)$/i);
     if (shop) {
       if (shop[2] === 'status') return admin.shopStatusPost(request, env, shop[1]);
@@ -206,11 +242,11 @@ function adminRoute(request, env, url, path, method) {
       return admin.shopNotePost(request, env, shop[1]);
     }
 
-    const intent = path.match(/^\/admin\/intents\/([0-9a-f-]{36})\/(activate|cancel)$/i);
+    const intent = path.match(/^\/admin\/intents\/([0-9a-f-]{36})\/(activate|not-found)$/i);
     if (intent) {
       return intent[2] === 'activate'
         ? admin.intentActivatePost(request, env, intent[1])
-        : admin.intentCancelPost(request, env, intent[1]);
+        : admin.intentNotFoundPost(request, env, intent[1]);
     }
 
     const report = path.match(/^\/admin\/reports\/([0-9a-f-]{36})\/(hide|dismiss)$/i);

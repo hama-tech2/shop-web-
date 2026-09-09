@@ -11,7 +11,7 @@ import {
   APP_NAME, MAX_IMAGES, MAX_UPLOAD_BYTES, PRODUCT as T, PRODUCT_FILTERS,
 } from '../config.js';
 import { layout } from '../render/layout.js';
-import { productForm } from '../render/product-form.js';
+import { productForm, trialLimitPage } from '../render/product-form.js';
 import { productList } from '../render/product-list.js';
 import { asUser, getCategories } from '../supabase.js';
 import { getOwnShop, resolveSession, sameOrigin, setSessionCookies } from '../auth.js';
@@ -51,7 +51,7 @@ async function guard(request, env) {
   if (refreshed) setSessionCookies(headers, refreshed);
 
   if (!user) return { redirect: redirect('/login?next=/app/products', headers) };
-  const shop = await getOwnShop(env, token);
+  const shop = await getOwnShop(env, token, user.id);
   if (!shop) return { redirect: redirect('/onboarding', headers) };
 
   return { user, token, shop, headers };
@@ -142,28 +142,59 @@ export async function uploadPost(request, env) {
    shared form handling
    ============================================================ */
 
+/**
+ * A price, or null if there isn't one.
+ *
+ * Two things this has to get right for a Sorani seller:
+ *
+ *  - Arabic-Indic digits. A seller in Erbil types ٢٥٠٠٠ as readily as
+ *    25000. The client folds them, but the server cannot assume the
+ *    client ran, and rejecting them reads as "your price is invalid".
+ *  - An empty or non-numeric value. Stripping non-digits turns '',
+ *    'abc' and '-5' into '', and Number('') is 0 — which used to
+ *    publish the product at 0 IQD rather than asking for a price.
+ *
+ * A price must be a positive number: nothing here is free, and a
+ * negative one is a typo, not a discount.
+ */
 const parsePrice = (raw) => {
-  const digits = String(raw || '').replace(/[^\d.]/g, '');
+  const text = String(raw ?? '')
+    .replace(/[\u0660-\u0669]/g, (d) => String(d.charCodeAt(0) - 0x0660))
+    .replace(/[\u06F0-\u06F9]/g, (d) => String(d.charCodeAt(0) - 0x06F0))
+    .trim();
+
+  if (/^-/.test(text)) return null;
+
+  const digits = text.replace(/[^\d.]/g, '');
+  if (!/\d/.test(digits)) return null;
+
   const value = Number(digits);
-  return Number.isFinite(value) && value >= 0 ? Math.round(value) : null;
+  return Number.isFinite(value) && value > 0 ? Math.round(value) : null;
 };
 
-/** Only keys this shop and this product could legitimately own. */
+/**
+ * Only keys this shop and this product could legitimately own.
+ *
+ * Returns { images } or { error }. A single null could not tell "you
+ * sent no image" from "you sent six", and the seller was shown the
+ * add-an-image message either way.
+ */
 function cleanImages(raw, shopId, productId) {
   let list;
-  try { list = JSON.parse(raw || '[]'); } catch { return null; }
-  if (!Array.isArray(list) || list.length === 0 || list.length > MAX_IMAGES) return null;
+  try { list = JSON.parse(raw || '[]'); } catch { return { error: T.errNoImage }; }
+  if (!Array.isArray(list) || list.length === 0) return { error: T.errNoImage };
+  if (list.length > MAX_IMAGES) return { error: T.onlyMax };
 
   const prefix = `products/${shopId}/${productId}/`;
   const out = [];
   for (const item of list) {
     const card = String(item?.card || '');
     const full = String(item?.full || '');
-    if (!card.startsWith(prefix) || card.includes('..')) return null;
-    if (full && (!full.startsWith(prefix) || full.includes('..'))) return null;
+    if (!card.startsWith(prefix) || card.includes('..')) return { error: T.errNoImage };
+    if (full && (!full.startsWith(prefix) || full.includes('..'))) return { error: T.errNoImage };
     out.push({ card, full: full || null });
   }
-  return out;
+  return { images: out };
 }
 
 async function categoryIdFor(env, slug) {
@@ -181,10 +212,53 @@ async function ownCategories(env, token, shopId) {
   return res.ok ? res.data ?? [] : [];
 }
 
-async function readForm(request, env, shopId, productId) {
+/**
+ * The shop category the seller picked, or null.
+ *
+ * The id comes from a <select> the browser has been holding, sometimes
+ * for a long time: the category may have been renamed, deleted from the
+ * owner profile in another tab, or the option may be left over from a
+ * bfcache restore. Passing that id on made `check_category_same_shop`
+ * raise 23514, which surfaced as the generic "پاشەکەوتکردن سەرکەوتوو
+ * نەبوو" — a category, which is optional, blocking a publish.
+ *
+ * So it is checked here against the seller's real categories and simply
+ * dropped when it is not one of them. An optional field must never be
+ * the reason a product does not go out.
+ */
+async function ownCategoryIdFor(env, token, shopId, raw) {
+  const id = String(raw || '');
+  if (!UUID.test(id)) return null;
+  const own = await ownCategories(env, token, shopId);
+  return own.some((c) => c.id === id) ? id : null;
+}
+
+/**
+ * How many products this shop may still publish, or null on a paid plan.
+ *
+ * The database refuses the insert either way — app.enforce_trial_product_limit
+ * raises SW001 — but a seller meeting a bare refusal after preparing five
+ * images has been wasted. Asking first is what lets the screen say the
+ * limit before any of that work happens.
+ */
+async function trialSlotsLeft(env, token, shopId) {
+  const res = await asUser(env, token, 'rpc/trial_slots_left', {
+    method: 'POST', body: { p_shop: shopId },
+  });
+  if (!res.ok) return null;
+  const value = Array.isArray(res.data) ? res.data[0] : res.data;
+  return typeof value === 'number' ? value : null;
+}
+
+/** The database's own word for "the free trial is full". */
+const TRIAL_FULL = (res) => res.data?.code === 'SW001';
+
+async function readForm(request, env, token, shopId, productId) {
   const f = await form(request);
-  const images = cleanImages(f.images, shopId, productId);
+  const picked = cleanImages(f.images, shopId, productId);
+  const images = picked.images ?? null;
   const price = parsePrice(f.price);
+  const ownCategory = await ownCategoryIdFor(env, token, shopId, f.own_category);
 
   const values = {
     title: (f.title || '').replace(/\s+/g, ' ').trim(),
@@ -192,11 +266,16 @@ async function readForm(request, env, shopId, productId) {
     description: (f.description || '').trim(),
     category: f.category || '',
     status: f.status === 'hidden' ? 'hidden' : 'active',
-    ownCategory: UUID.test(String(f.own_category || '')) ? f.own_category : '',
+    // Redrawing the form with an id that no longer exists would offer
+    // the seller a category that is not there. Show "none" instead.
+    ownCategory: ownCategory ?? '',
     images: images || [],
   };
 
-  if (!images) return { error: T.errNoImage, values };
+  // Exactly three things are required to publish: an image, a name and
+  // a price. Category, shop category and description are optional and
+  // must never block. Each failure names its own field.
+  if (!images) return { error: picked.error, values };
   if (values.title.length < 2 || values.title.length > 200) {
     return { error: T.errTitle, values };
   }
@@ -209,11 +288,10 @@ async function readForm(request, env, shopId, productId) {
       price,
       description: values.description || null,
       status: values.status,
+      // An unknown market slug resolves to null rather than an error:
+      // like the shop category, it is optional and must not block.
       platform_category_id: await categoryIdFor(env, values.category),
-      // A category belonging to another shop is rejected by the
-      // products_category_same_shop trigger, so an id from the form is
-      // safe to pass straight through.
-      category_id: values.ownCategory || null,
+      category_id: ownCategory,
     },
     images,
   };
@@ -227,6 +305,11 @@ export async function newGet(request, env) {
   const g = await guard(request, env);
   if (g.redirect) return g.redirect;
 
+  // A trial shop that is full gets the reason and a way out of it,
+  // rather than a form whose submit button cannot work.
+  const left = await trialSlotsLeft(env, g.token, g.shop.id);
+  if (left === 0) return page(trialLimitPage(), T.trialLimitTitle, g.headers);
+
   return page(
     productForm({
       mode: 'new',
@@ -234,6 +317,7 @@ export async function newGet(request, env) {
       categories: await getCategories(env),
       shopCategories: await ownCategories(env, g.token, g.shop.id),
       values: { status: 'active', images: [] },
+      trialLeft: left,
     }),
     T.newTitle, g.headers,
   );
@@ -248,14 +332,17 @@ export async function newPost(request, env) {
   const draftId = String(raw.get('draft_id') || '');
   if (!UUID.test(draftId)) return redirect('/app/new', g.headers);
 
-  const parsed = await readForm(request, env, g.shop.id, draftId);
+  const parsed = await readForm(request, env, g.token, g.shop.id, draftId);
   const categories = await getCategories(env);
+  const left = await trialSlotsLeft(env, g.token, g.shop.id);
+
+  if (left === 0) return page(trialLimitPage(), T.trialLimitTitle, g.headers);
 
   if (parsed.error) {
     return page(
       productForm({ mode: 'new', draftId, categories,
                     shopCategories: await ownCategories(env, g.token, g.shop.id),
-                    values: parsed.values, error: parsed.error }),
+                    values: parsed.values, error: parsed.error, trialLeft: left }),
       T.newTitle, g.headers,
     );
   }
@@ -267,10 +354,16 @@ export async function newPost(request, env) {
   });
 
   if (!created.ok) {
+    // The database is the one that actually enforces the trial limit,
+    // and it can refuse a request that looked fine a moment earlier —
+    // another tab, or a slot used between the check and the insert.
+    if (TRIAL_FULL(created)) {
+      return page(trialLimitPage(), T.trialLimitTitle, g.headers);
+    }
     return page(
       productForm({ mode: 'new', draftId, categories,
                     shopCategories: await ownCategories(env, g.token, g.shop.id),
-                    values: parsed.values, error: T.errSave }),
+                    values: parsed.values, error: T.errSave, trialLeft: left }),
       T.newTitle, g.headers,
     );
   }
@@ -336,7 +429,7 @@ export async function editPost(request, env, id) {
   if (g.redirect) return g.redirect;
   if (!UUID.test(id)) return redirect('/app/products', g.headers);
 
-  const parsed = await readForm(request, env, g.shop.id, id);
+  const parsed = await readForm(request, env, g.token, g.shop.id, id);
   const categories = await getCategories(env);
 
   if (parsed.error) {

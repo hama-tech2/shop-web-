@@ -1,26 +1,56 @@
-import { CATEGORIES_UI as C, IMAGE_VARIANTS, MAX_IMAGES, PRODUCT as T } from '../config.js';
+import {
+  CATEGORIES_UI as C, IMAGE_VARIANTS, MAX_IMAGES, PRODUCT as T, TRIAL_PRODUCT_LIMIT,
+} from '../config.js';
 import { esc, price as fmtPrice } from './html.js';
 import { alert, field } from './forms.js';
 import { iconBack, iconPlus } from './icons.js';
 import { productCover } from './product-cover.js';
 
-export function productForm({ mode, draftId, categories, shopCategories = [], values, error }) {
+/**
+ * The free trial is full.
+ *
+ * Shown instead of the form, because offering a form that cannot be
+ * submitted is worse than saying so. It names the limit, says the
+ * existing products are safe, and links to the plans — a refusal with
+ * nowhere to go is where a seller gives up.
+ */
+export function trialLimitPage() {
+  return (
+    `<div class="shell publish-page">` +
+    `<header class="publish-head"><a class="icon-btn" href="/app/products" aria-label="گەڕانەوە">${iconBack()}</a>` +
+    `<h1>${esc(T.trialLimitTitle)}</h1><span></span></header>` +
+    `<div class="notice notice--tall trial-limit">` +
+    `<p class="notice__title">${esc(T.trialLimitTitle)}</p>` +
+    `<p>${esc(T.trialLimitBody(TRIAL_PRODUCT_LIMIT))}</p>` +
+    `<a class="btn btn--primary" href="/app/subscription">${esc(T.trialLimitAction)}</a>` +
+    `<a class="btn btn--ghost" href="/app/products">${esc(T.listTitle)}</a>` +
+    `</div></div>`
+  );
+}
+
+export function productForm({ mode, draftId, categories, shopCategories = [], values, error, trialLeft = null }) {
   const isEdit = mode === 'edit';
   const images = values.images ?? [];
   return (
     `<div class="shell publish-page">` +
-    `<header class="publish-head"><a class="icon-btn" href="/app/products" aria-label="گەڕانەوە">${iconBack()}</a>` +
+    `<header class="publish-head"><a class="icon-btn" href="/app" aria-label="گەڕانەوە">${iconBack()}</a>` +
     `<h1>${esc(isEdit ? T.editTitle : T.newTitle)}</h1>` +
     `<details class="publish-help"><summary>ڕێنمایی ⓘ</summary>` +
-    `<p>تا ١٠ وێنە زیاد بکە. وێنەیەک هەڵبژێرە بۆ کاڤەر؛ بە دوگمەکانی ڕیزکردن شوێنی وێنەکان بگۆڕە.</p></details></header>` +
+    `<p>تا ${MAX_IMAGES} وێنە زیاد بکە. وێنەیەک هەڵبژێرە بۆ کاڤەر؛ بە دوگمەکانی ڕیزکردن شوێنی وێنەکان بگۆڕە.</p></details></header>` +
     `<p class="publish-sub">زانیارییەکانی بەرهەمەکەت زیاد بکە و بڵاوی بکەرەوە.</p>` +
     alert(error) +
+    // How much of the free trial is left. Null once they are on a paid
+    // plan, where there is no limit to report.
+    (trialLeft === null
+      ? ''
+      : `<p class="publish-trial-left">${esc(T.trialLeft(trialLeft, TRIAL_PRODUCT_LIMIT))}</p>`) +
     `<form method="post" id="product-form" action="${esc(isEdit ? `/app/products/${draftId}` : '/app/new')}"` +
     ` data-mode="${esc(mode)}" data-restore-category="${!isEdit && !error && !values.category && !images.length}"` +
     ` data-draft="${esc(draftId)}" data-max="${MAX_IMAGES}"` +
     ` data-card-w="${IMAGE_VARIANTS.card.width}" data-card-h="${IMAGE_VARIANTS.card.height}" data-card-q="${IMAGE_VARIANTS.card.quality}"` +
     ` data-full-w="${IMAGE_VARIANTS.full.width}" data-full-h="${IMAGE_VARIANTS.full.height}" data-full-q="${IMAGE_VARIANTS.full.quality}"` +
-    ` data-msg-limit="${esc(T.onlyTen)}" data-msg-type="${esc(T.errType)}" data-msg-upload="${esc(T.errUpload)}">` +
+    ` data-msg-limit="${esc(T.onlyMax)}" data-msg-type="${esc(T.errType)}" data-msg-upload="${esc(T.errUpload)}"` +
+    ` data-msg-cat-name="${esc(C.errName)}" data-msg-cat-create="${esc(C.errCreate)}">` +
     `<input type="hidden" name="draft_id" value="${esc(draftId)}">` +
     `<input type="hidden" name="images" id="images-field" value="${esc(JSON.stringify(images))}">` +
     `<input type="hidden" name="status" id="status-field" value="${esc(values.status ?? 'active')}">` +
@@ -44,11 +74,21 @@ export function productForm({ mode, draftId, categories, shopCategories = [], va
     `<div class="field"><label class="field__label" for="f-own-category">پۆلی دوکان</label>` +
     `<select class="field__input" id="f-own-category" name="own_category"><option value="">${esc(C.none)}</option>` +
     shopCategories.map(c => `<option value="${esc(c.id)}"${values.ownCategory === c.id ? ' selected' : ''}>${esc(c.name)}</option>`).join('') +
-    `</select><a class="category-manage" href="/app/profile#shop-categories" target="_blank" rel="noopener">${iconPlus(16)} زیادکردن و بەڕێوەبردنی پۆلەکان ↗</a></div>` +
-    `<div class="publish-visibility"><div><span class="field__label" id="visibility-label">نیشاندان لە بۆ تۆ</span>` +
-    `<p id="visibility-help">لە ئێستادا، ناچالاککردن بەرهەمەکە لە بۆ تۆ، لاپەڕەی گشتیی دوکان و گەڕان دەشارێتەوە.</p></div>` +
-    `<button class="switch" type="button" id="visibility" role="switch" aria-labelledby="visibility-label" aria-describedby="visibility-help"` +
-    ` aria-checked="${values.status !== 'hidden'}"><span class="switch__dot"></span></button></div>` +
+    `</select>` +
+    // A new category is made here, in this form. The old link opened the
+    // profile in another tab, and coming back to a reloaded form meant
+    // the title, the price and every prepared image were gone.
+    `<div class="category-inline">` +
+    `<button class="category-inline__open" type="button" id="category-add-open">` +
+    `${iconPlus(16)}<span>${esc(C.addInline)}</span></button>` +
+    `<div class="category-inline__form" id="category-add-form" hidden>` +
+    `<input class="field__input" id="category-add-name" type="text" maxlength="60"` +
+    ` autocomplete="off" placeholder="${esc(C.addPlaceholder)}">` +
+    `<button class="btn btn--quiet" type="button" id="category-add-save">${esc(C.create)}</button>` +
+    `<button class="btn btn--ghost" type="button" id="category-add-cancel">${esc(C.cancel)}</button>` +
+    `</div>` +
+    `<p class="category-inline__error" id="category-add-error" role="status" hidden></p>` +
+    `</div></div>` +
     `<div class="field"><label class="field__label" for="f-description">پێناسە <span class="field__optional">${esc(T.optional)}</span></label>` +
     `<textarea class="field__input field__input--area" id="f-description" name="description" rows="3" placeholder="${esc(T.descriptionPlaceholder)}">${esc(values.description ?? '')}</textarea>` +
     `<span class="description-count" id="description-count"></span></div>` +

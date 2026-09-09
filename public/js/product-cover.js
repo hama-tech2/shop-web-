@@ -51,10 +51,6 @@
     ctx.stroke(); ctx.strokeStyle = '#fff'; ctx.lineWidth = 5; ctx.lineCap = 'round'; ctx.beginPath();
     [[f.x, f.y, 1, 1], [f.x + f.w, f.y, -1, 1], [f.x, f.y + f.h, 1, -1], [f.x + f.w, f.y + f.h, -1, -1]].forEach(function (p) { ctx.moveTo(p[0] + 16 * p[2], p[1]); ctx.lineTo(p[0], p[1]); ctx.lineTo(p[0], p[1] + 16 * p[3]); }); ctx.stroke();
     zoom.value = view.zoom; zoom.setAttribute('aria-valuetext', Math.round(view.zoom * 100) + '%');
-    dialog.querySelectorAll('[name="cover-ratio"]').forEach(function (radio) { radio.checked = Number(radio.value) === view.ratio; });
-    var item = session.items.find(function (entry) { return entry.id === view.id; });
-    var preview = view.changed ? cropped(180).toDataURL('image/webp', .75) : item.preview;
-    document.getElementById('cover-market-img').src = preview; document.getElementById('cover-shop-img').src = preview;
   }
   function repaint() { if (scheduled) return; scheduled = true; requestAnimationFrame(function () { scheduled = false; paint(); }); }
   function snapshot() { return { ratio: view.ratio, rotation: view.rotation, zoom: view.zoom, x: view.x, y: view.y }; }
@@ -64,12 +60,12 @@
     if (view) view.bitmap.close(); view = null; pointers.clear();
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     var item = session.items.find(function (entry) { return entry.id === id; });
-    dialog.querySelectorAll('.cover-thumb').forEach(function (button) { button.setAttribute('aria-pressed', String(button.dataset.id === id)); });
     try {
       var bitmap = await createImageBitmap(await session.source(item));
       if (mine !== token || !dialog.open) { bitmap.close(); return; }
-      var draft = session.drafts[id], state = (draft && draft.state) || item.cropState || { ratio: item.previewRatio > 1.1 ? 1.25 : 1, rotation: 0, zoom: 1, x: 0, y: 0 };
+      var draft = session.drafts[id], state = (draft && draft.state) || item.cropState || { ratio: 1.25, rotation: 0, zoom: 1, x: 0, y: 0 };
       view = Object.assign({ id: id, bitmap: bitmap, changed: !!(draft && draft.changed) }, state);
+      if (view.ratio !== 1.25) { view.ratio = 1.25; view.changed = true; }
       say(''); save.disabled = false; paint();
     } catch (e) { if (mine === token) say('وێنەکە بار نەکرا؛ دووبارە هەڵیبژێرە.'); }
   }
@@ -78,10 +74,7 @@
   zoom.addEventListener('input', function () { setZoom(Number(zoom.value)); });
   document.getElementById('cover-plus').addEventListener('click', function () { if (view) setZoom(view.zoom + .1); });
   document.getElementById('cover-minus').addEventListener('click', function () { if (view) setZoom(view.zoom - .1); });
-  document.getElementById('cover-right').addEventListener('click', function () { change(function () { view.rotation = (view.rotation + 90) % 360; view.x = view.y = 0; }); });
-  document.getElementById('cover-left').addEventListener('click', function () { change(function () { view.rotation = (view.rotation + 270) % 360; view.x = view.y = 0; }); });
-  document.getElementById('cover-reset').addEventListener('click', function () { change(function () { view.rotation = 0; view.zoom = 1; view.x = view.y = 0; }); });
-  dialog.querySelectorAll('[name="cover-ratio"]').forEach(function (radio) { radio.addEventListener('change', function () { change(function () { view.ratio = Number(radio.value); view.zoom = 1; view.x = view.y = 0; }); }); });
+  document.getElementById('cover-rotate').addEventListener('click', function () { change(function () { view.rotation = (view.rotation + 90) % 360; view.x = view.y = 0; }); });
   function spread() { var p = Array.from(pointers.values()); return Math.hypot(p[0].x - p[1].x, p[0].y - p[1].y); }
   stage.addEventListener('pointerdown', function (e) { if (!view) return; stage.setPointerCapture(e.pointerId); pointers.set(e.pointerId, { x: e.clientX, y: e.clientY }); if (pointers.size === 2) { pinchDistance = spread(); pinchZoom = view.zoom; } });
   stage.addEventListener('pointermove', function (e) {
@@ -99,8 +92,6 @@
     change(function () { if (e.key === 'ArrowLeft') view.x -= .03; if (e.key === 'ArrowRight') view.x += .03; if (e.key === 'ArrowUp') view.y -= .03; if (e.key === 'ArrowDown') view.y += .03; });
   });
   new ResizeObserver(repaint).observe(stage);
-  document.getElementById('cover-preview').addEventListener('click', function () { document.getElementById('cover-previews').focus(); });
-  document.getElementById('cover-strip').addEventListener('click', function (e) { var button = e.target.closest('.cover-thumb'); if (button && !save.dataset.busy) select(button.dataset.id); });
   function finish(result) {
     token++; if (view) view.bitmap.close(); view = null; pointers.clear();
     var done = resolveOpen; resolveOpen = null; session = null;
@@ -121,10 +112,6 @@
   window.ProductCover = { open: function (options) {
     if (dialog.open) return Promise.resolve(null);
     session = Object.assign({ drafts: {} }, options);
-    var strip = document.getElementById('cover-strip'); strip.replaceChildren();
-    options.items.forEach(function (item, index) { var button = document.createElement('button'); button.type = 'button'; button.className = 'cover-thumb'; button.dataset.id = item.id; button.setAttribute('aria-label', 'کاڤەر: وێنەی ' + (index + 1)); var img = document.createElement('img'); img.src = item.preview; img.alt = ''; button.appendChild(img); strip.appendChild(button); });
-    dialog.querySelectorAll('.cover-preview-title').forEach(function (el) { el.textContent = options.title || 'ناوی بەرهەم'; });
-    dialog.querySelectorAll('.cover-preview-price').forEach(function (el) { el.textContent = options.price ? options.price + ' د.ع' : ''; });
     return new Promise(function (resolve) { resolveOpen = resolve; dialog.showModal(); dialog.scrollTop = 0; select(options.id); });
   } };
 })();

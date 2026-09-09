@@ -40,6 +40,62 @@ Every `/admin` write goes through the database as the admin's own user,
 so RLS is a second, independent check. A client-side test is never the
 only thing standing between a seller and an admin action.
 
+## Adding and removing an admin
+
+The `admins` table is the whole of it. There is no admin UI for this on
+purpose: making somebody an admin is a database action, done
+deliberately, not a button somebody can be talked into pressing.
+
+A user must have signed in at least once before they can be made an
+admin — the row is keyed on `auth.users.id`, which does not exist until
+their first sign-in.
+
+Find the user first, and read the email back before you act:
+
+```sql
+select id, email, raw_app_meta_data->>'provider' as provider, created_at
+from auth.users
+where lower(email) = lower('someone@example.com');
+```
+
+Add:
+
+```sql
+insert into public.admins (user_id, role)
+select id, 'superadmin' from auth.users
+where lower(email) = lower('someone@example.com')
+on conflict (user_id) do update set is_active = true;
+```
+
+`role` is `'admin'` or `'superadmin'` — the CHECK allows nothing else.
+
+Remove — prefer deactivating, which keeps the audit trail intact:
+
+```sql
+update public.admins set is_active = false
+where user_id = (select id from auth.users
+                 where lower(email) = lower('someone@example.com'));
+```
+
+Delete outright only if the row was created by mistake:
+
+```sql
+delete from public.admins
+where user_id = (select id from auth.users
+                 where lower(email) = lower('someone@example.com'));
+```
+
+List who has it:
+
+```sql
+select u.email, a.role, a.is_active, a.created_at
+from public.admins a join auth.users u on u.id = a.user_id
+order by a.created_at;
+```
+
+`app.is_admin()` reads `is_active`, so deactivating takes effect on the
+next request. Nothing is cached.
+
 ## Project identity guard
 
 If a future message clearly conflicts with this project's product, repository,

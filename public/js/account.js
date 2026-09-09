@@ -18,9 +18,11 @@
     var copyLabel = copy.textContent;
     var copyTimer;
     copy.addEventListener('click', function () {
-      var target = document.getElementById('shop-url');
-      if (!target) return;
-      var text = target.textContent.trim();
+      // The full URL is carried on the button, not printed on the page:
+      // the seller has no use for the host, only for the link on their
+      // clipboard.
+      var text = (copy.dataset.url || '').trim();
+      if (!text) return;
       var done = function () {
         clearTimeout(copyTimer);
         copy.textContent = copy.dataset.copied || 'ok';
@@ -43,6 +45,42 @@
       else fallback();
     });
   }
+
+  /* =========================================================
+     the payment instructions: copy the code and the number
+
+     A reference code mistyped off a phone screen is a transfer the
+     owner cannot match to a shop, so both fields get a button rather
+     than asking the seller to select tiny LTR text inside an RTL page.
+     ========================================================= */
+
+  document.querySelectorAll('[data-copy]').forEach(function (button) {
+    var label = button.querySelector('span:last-child') || button;
+    var original = label.textContent;
+    var timer;
+    button.addEventListener('click', function () {
+      var text = button.dataset.copy || '';
+      if (!text) return;
+      var done = function () {
+        clearTimeout(timer);
+        label.textContent = button.dataset.copied || 'ok';
+        timer = setTimeout(function () { label.textContent = original; }, 1600);
+      };
+      function fallback() {
+        var box = document.createElement('textarea');
+        box.className = 'visually-hidden';
+        box.value = text;
+        document.body.appendChild(box);
+        box.select();
+        try { if (document.execCommand('copy')) done(); } catch (e) { /* selection stays */ }
+        document.body.removeChild(box);
+        button.focus();
+      }
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(done, fallback);
+      } else fallback();
+    });
+  });
 
   /* =========================================================
      bio counter
@@ -165,7 +203,7 @@
      ========================================================= */
 
   var planForm = document.getElementById('plan-form');
-  if (planForm) {
+  if (planForm && !planForm.hasAttribute('data-native-plans')) {
     var planField = document.getElementById('plan-field');
     planForm.addEventListener('click', function (e) {
       var card = e.target.closest && e.target.closest('.plan');

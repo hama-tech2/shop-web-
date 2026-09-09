@@ -50,8 +50,8 @@ export function productPage({ product, more, origin }) {
   const moreRow = more.length
     ? `<section class="more">` +
       `<h2 class="more__title">${esc(T.moreFromShop)}</h2>` +
-      `<div class="more__rail">` +
-      more.map((p, i) => `<div class="more__item">${cardHtml(p, i + 2)}</div>`).join('') +
+      `<div class="grid">` +
+      more.map((p, i) => cardHtml(p, i + 2)).join('') +
       `</div></section>`
     : '';
 
@@ -84,7 +84,6 @@ export function productPage({ product, more, origin }) {
     `<a class="shop-row" href="${esc(shopUrl)}">${avatar}` +
     `<span class="shop-row__body">` +
     `<span class="shop-row__label">دوکان</span><span class="shop-row__name">${esc(shop.name)}</span>` +
-    `<span class="shop-row__username"><bdi dir="ltr">@${esc(shop.slug)}</bdi></span>` +
     (city ? `<span class="shop-row__city">${iconPin(12)}${esc(city)}</span>` : '') +
     `</span>` +
     `<span class="shop-row__go">${esc(T.viewShop)}</span></a>` +

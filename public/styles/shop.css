@@ -9,7 +9,6 @@
 .shop-sharing { position: absolute; top: 12px; right: 16px; display: flex; gap: 8px; }
 .shop-id { min-height: 86px; padding: 16px 16px 0 128px; }
 .shop-name { font-size: clamp(19px, 4.5vw, 25px); line-height: 1.55; overflow-wrap: anywhere; }
-.shop-username { margin: 2px 0 0; color: var(--muted); font-size: 15px; overflow-wrap: anywhere; }
 .shop-city { display: flex; align-items: center; gap: 4px; margin: 4px 0 0; color: var(--muted); font-size: 12px; }
 .shop-about { margin: 10px 16px 0; }
 .shop-bio { margin: 0; line-height: 1.8; white-space: pre-line; overflow-wrap: anywhere; font-size: 14px; }
@@ -18,6 +17,9 @@
 .shop-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 14px 16px 0; }
 .shop-actions .btn { flex: 1 1 140px; width: auto; min-height: 46px; padding: 10px 12px; border-radius: 999px; font-size: 12px; }
 .btn--whatsapp { background: var(--whatsapp); color: var(--text); gap: 8px; }
+/* The location is a button next to WhatsApp, not a line of metadata:
+   a customer standing on the street taps it to get directions. */
+.btn--maps { background: var(--surface-2); color: var(--text); gap: 8px; }
 .round-row { display: flex; flex-wrap: wrap; gap: 6px; }
 .round-row:empty { display: none; }
 .round-btn { width: 44px; height: 44px; border-radius: 50%; background: var(--surface); color: var(--text); display: grid; place-items: center; flex: none; }
@@ -38,6 +40,20 @@
 .owner-controls { display: flex; align-items: stretch; gap: 8px; padding: 14px 16px 0; }
 .owner-delete { color: var(--text); }
 .owner-delete:disabled { opacity: .5; cursor: wait; }
+
+/* Categories are edited on the rail that shows them: the chip turns the
+   row below into rename / delete / add, and back again. */
+.chip--manage { color: var(--accent); font-weight: 700; }
+.chip--manage[aria-expanded="true"] { background: var(--accent); color: var(--accent-ink); }
+.cat-edit { margin: 0 16px 16px; padding: 12px; border-radius: 12px; background: var(--surface); }
+.cat-edit__list { display: grid; gap: 8px; }
+.cat-edit__row { display: flex; align-items: center; gap: 6px; }
+.cat-edit__name { flex: 1; min-width: 0; min-height: 44px; padding-inline: 12px; border: 1px solid var(--surface-2); border-radius: 10px; background: var(--bg); font-size: 13px; }
+.cat-edit__row .btn { flex: none; width: auto; min-height: 44px; padding: 8px 12px; border-radius: 10px; font-size: 12px; }
+.cat-edit__row--add { margin-top: 4px; padding-top: 10px; border-top: 1px solid var(--surface-2); }
+.cat-edit__status { margin: 10px 0 0; color: var(--accent); font-size: 12px; line-height: 1.8; }
+.cat-edit__status:empty { display: none; }
+.cat-edit :is(button, input):disabled { opacity: .6; cursor: wait; }
 .owner-delete:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .owner-control { display: flex; justify-content: center; align-items: center; gap: 5px; min-height: 44px; padding: 8px 12px; border: 1px solid #D5D0C6; border-radius: 999px; font-size: 12px; cursor: pointer; }
 .owner-control--primary { background: var(--accent); color: white; border-color: var(--accent); flex: 1; }
@@ -51,12 +67,12 @@
 .pdp-toolbar { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; gap: 12px; }
 .pdp-back { display: flex; align-items: center; gap: 4px; min-height: 44px; font-size: 13px; }
 .pdp-tools { display: flex; gap: 8px; }
-.pdp-gallery { position: relative; margin: 0 16px; }
-.carousel { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; aspect-ratio: 1 / 1; border-radius: 14px; background: var(--surface-2); }
+.pdp-gallery { position: relative; }
+.carousel { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; aspect-ratio: 4 / 5; background: var(--surface-2); }
 .carousel::-webkit-scrollbar { display: none; }
-.carousel__img { flex: 0 0 100%; width: 100%; height: 100%; object-fit: contain; scroll-snap-align: center; }
+.carousel__img { display: block; flex: 0 0 100%; min-width: 0; width: 100%; height: 100%; object-fit: cover; scroll-snap-align: start; scroll-snap-stop: always; }
 .carousel__img--empty { background: var(--surface-2); }
-.dots--pdp { bottom: 10px; }
+.dots--pdp { position: static; padding: 10px 0; }
 .dots--pdp .dot { width: 7px; height: 7px; background: var(--muted); opacity: .5; }
 .dots--pdp .dot.is-active { width: 18px; opacity: 1; background: var(--accent); }
 .pdp-body { padding: 20px 16px 0; }
@@ -68,26 +84,24 @@
 .pdp-description { margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--surface-2); }
 .pdp-description h2 { font-size: 15px; line-height: 1.6; }
 .pdp-desc { margin: 8px 0 0; white-space: pre-line; overflow-wrap: anywhere; line-height: 1.9; }
-.shop-row { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; margin-top: 20px; padding: 14px; border: 1px solid var(--surface-2); border-radius: 14px; background: var(--surface); }
-.shop-row__logo { width: 60px; height: 60px; border-radius: 50%; object-fit: cover; flex: none; background: var(--surface-2); }
+.shop-row { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; margin-top: 16px; padding: 10px; border: 1px solid var(--surface-2); border-radius: 14px; background: var(--surface); }
+.shop-row__logo { width: 44px; height: 44px; border-radius: 50%; object-fit: cover; flex: none; background: var(--surface-2); }
 .shop-row__logo--initial { display: grid; place-items: center; font-size: 22px; font-weight: 700; color: var(--accent); }
 .shop-row__body { flex: 1; min-width: 100px; }
 .shop-row__label, .shop-row__username { display: block; color: var(--muted); font-size: 12px; overflow-wrap: anywhere; }
-.shop-row__name { display: block; font-size: 16px; font-weight: 700; overflow-wrap: anywhere; }
+.shop-row__name { display: block; font-size: 14px; font-weight: 700; overflow-wrap: anywhere; }
 .shop-row__city { display: flex; align-items: center; gap: 4px; color: var(--muted); font-size: 12px; }
 .shop-row__go { color: var(--accent); font-size: 12px; font-weight: 700; }
 .pdp-order { margin-top: 14px; }
-.pdp-order .btn { min-height: 50px; border-radius: 12px; }
+.pdp-order .btn { min-height: 44px; padding: 10px 12px; border-radius: 12px; background: var(--accent); color: white; font-size: 14px; }
+.pdp-order .btn svg { width: 20px; height: 20px; }
 .more { margin-top: 28px; }
 .more__title { font-size: 15px; padding: 0 16px; margin-bottom: 14px; }
-.more__rail { display: flex; gap: 12px; overflow-x: auto; padding: 0 16px 8px; scroll-snap-type: x proximity; }
-.more__item { flex: 0 0 38%; max-width: 180px; min-width: 0; scroll-snap-align: start; }
 @media (min-width: 480px) {
   .shop-logo { width: 112px; height: 112px; bottom: -54px; }
   .shop-id { padding-left: 144px; min-height: 96px; }
   .owner-control { font-size: 14px; }
   .shop-actions .btn { flex-basis: 240px; }
-  .more__item { flex-basis: 31%; }
 }
 @media (prefers-reduced-motion: reduce) {
   :is(.page--shop, .page--pdp) * { scroll-behavior: auto; transition: none; }

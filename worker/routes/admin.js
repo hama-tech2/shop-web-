@@ -14,10 +14,11 @@
 import { ADMIN as A, APP_NAME } from '../config.js';
 import { layout } from '../render/layout.js';
 import {
-  adminHome, adminIntents, adminReports, adminShop, adminShops,
+  adminHome, adminIntents, adminReports, adminShop, adminShops, adminGrant,
 } from '../render/admin.js';
 import { asUser } from '../supabase.js';
 import { resolveSession, sameOrigin, setSessionCookies } from '../auth.js';
+import { grantProof, validGrantProof } from '../admin-grant.js';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const STATUSES = ['all', 'active', 'trial', 'expired', 'suspended'];
@@ -62,9 +63,9 @@ async function guard(request, env) {
   if (refreshed) setSessionCookies(headers, refreshed);
 
   // RLS on `admins` lets anyone read their own row and nobody else's,
-  // so a row coming back is proof, not a hint.
+  // so require their active row; an inactive self-row is still readable.
   const res = await asUser(env, token, 'admins', {
-    search: { select: 'user_id,role', user_id: `eq.${user.id}`, limit: '1' },
+    search: { select: 'user_id,role', user_id: `eq.${user.id}`, is_active: 'eq.true', limit: '1' },
   });
   if (!res.ok || !res.data?.length) return miss();
 
@@ -82,16 +83,22 @@ async function form(request) {
    reads
    ============================================================ */
 
-const INTENT_SELECT = 'id,shop_id,plan,amount,status,created_at,shops(name,slug,whatsapp)';
-
+/**
+ * Everything the owner still has to look at: intents a seller has filed
+ * ('open') and ones they say they have paid ('pending'), pending first.
+ * The RPC joins the shop so the list is one round trip.
+ */
 async function loadIntents(env, token) {
-  const res = await asUser(env, token, 'payment_intents', {
-    search: {
-      select: INTENT_SELECT,
-      status: 'eq.open',
-      order: 'created_at.asc',
-      limit: '100',
-    },
+  const res = await asUser(env, token, 'rpc/admin_open_intents', {
+    method: 'POST', body: {},
+  });
+  return res.ok ? res.data ?? [] : [];
+}
+
+/** Shops whose plan runs out inside the week. */
+async function loadExpiring(env, token) {
+  const res = await asUser(env, token, 'rpc/admin_expiring_soon', {
+    method: 'POST', body: { p_days: 7 },
   });
   return res.ok ? res.data ?? [] : [];
 }
@@ -134,7 +141,12 @@ export async function shopsGet(request, env, url) {
 export async function intentsGet(request, env) {
   const g = await guard(request, env);
   if (g.miss) return g.miss;
-  return page(adminIntents({ intents: await loadIntents(env, g.token) }), g.headers);
+
+  const [intents, expiring] = await Promise.all([
+    loadIntents(env, g.token),
+    loadExpiring(env, g.token),
+  ]);
+  return page(adminIntents({ intents, expiring }), g.headers);
 }
 
 export async function reportsGet(request, env) {
@@ -169,7 +181,7 @@ async function loadShop(env, token, id) {
   const shop = shopFirst.ok ? shopFirst.data?.[0] ?? null : null;
   if (!shop) return null;
 
-  const [subRes, prodRes, noteRes, rowRes] = await Promise.all([
+  const [subRes, prodRes, noteRes, rowRes, grantRes] = await Promise.all([
     asUser(env, token, 'subscriptions', {
       search: {
         select: 'plan,status,expires_at,grace_days,started_at',
@@ -191,6 +203,10 @@ async function loadShop(env, token, id) {
     asUser(env, token, 'rpc/admin_shops', {
       method: 'POST', body: { p_search: shop.slug, p_status: 'all', p_limit: 20 },
     }),
+    asUser(env, token, 'payments', {
+      search: { select: 'id,plan,note,recorded_by,paid_at', shop_id: `eq.${id}`,
+        method: 'eq.manual_grant', order: 'paid_at.desc', limit: '50' },
+    }),
   ]);
 
   const derived = rowRes.ok ? (rowRes.data ?? []).find((r) => r.id === id) : null;
@@ -205,6 +221,7 @@ async function loadShop(env, token, id) {
     },
     products: prodRes.ok ? prodRes.data ?? [] : [],
     note: noteRes.ok ? noteRes.data?.[0]?.note ?? '' : '',
+    grants: grantRes.ok ? grantRes.data ?? [] : [],
   };
 }
 
@@ -239,6 +256,46 @@ async function post(request, env, id) {
   if (!sameOrigin(request)) return { deny: new Response('bad origin', { status: 403 }) };
   if (id && !UUID.test(id)) return { deny: env.ASSETS.fetch(request) };
   return g;
+}
+
+export async function grantGet(request, env, id) {
+  const g = await guard(request, env);
+  if (g.miss) return g.miss;
+  if (!UUID.test(id)) return env.ASSETS.fetch(request);
+  const data = await loadShop(env, g.token, id);
+  if (!data) return env.ASSETS.fetch(request);
+  return page(adminGrant({ ...data }), g.headers);
+}
+
+export async function grantPost(request, env, id) {
+  const g = await post(request, env, id);
+  if (g.deny) return g.deny;
+  const data = await loadShop(env, g.token, id);
+  if (!data) return env.ASSETS.fetch(request);
+  const f = await form(request);
+  const plan = typeof f.plan === 'string' ? f.plan : '';
+  const reason = typeof f.reason === 'string' ? f.reason : '';
+  const render = (extra = {}) => page(adminGrant({ ...data, plan, reason, ...extra }), g.headers);
+  if (!['months_6', 'year_1'].includes(plan) || !reason || reason.length > 500) {
+    return render({ error: 'پلانێک هەڵبژێرە و هۆکارێک بنووسە (تا 500 پیت).' });
+  }
+  if (!data.sub) return render({ error: A.intentFailed });
+  if (f.step === 'edit') return render();
+  if (f.step !== 'confirm') {
+    const review = { shop: id, admin: g.user.id, plan, reason,
+      request: crypto.randomUUID(), until: Date.now() + 20 * 60 * 1000 };
+    return render({ review, proof: await grantProof(g.token, review) });
+  }
+  const review = { shop: id, admin: g.user.id, plan, reason,
+    request: f.request, until: Number(f.until) };
+  if (!UUID.test(review.request || '') || !await validGrantProof(g.token, review, f.proof)) {
+    return render({ error: 'پشتڕاستکردنەوەکە بەسەرچووە؛ تکایە دووبارە پێداچوونەوە بکە.' });
+  }
+  const res = await asUser(env, g.token, 'rpc/admin_grant_plan', {
+    method: 'POST', body: { p_shop: id, p_plan: plan, p_reason: reason, p_request: review.request },
+  });
+  if (!res.ok) return render({ review, proof: f.proof, error: A.intentFailed });
+  return redirect(`/admin/shops/${id}?saved=1`, g.headers);
 }
 
 /** Suspend or reopen a shop. `shops_guard_columns` allows this for admins only. */
@@ -312,12 +369,21 @@ export async function intentActivatePost(request, env, id) {
   return redirect(`/admin/intents${res.ok ? '' : '?e=1'}`, g.headers);
 }
 
-export async function intentCancelPost(request, env, id) {
+/**
+ * The owner could not find the transfer.
+ *
+ * Not a rejection and not a new state: the intent goes back to 'open',
+ * exactly where it was before the seller said they had sent the money,
+ * and the owner follows it up on WhatsApp. The subscription was never
+ * moved by a pending intent, so there is nothing there to undo.
+ */
+export async function intentNotFoundPost(request, env, id) {
   const g = await post(request, env, id);
   if (g.deny) return g.deny;
 
-  const res = await asUser(env, g.token, 'rpc/admin_cancel_intent', {
-    method: 'POST', body: { p_intent: id, p_note: 'cancelled from the admin screen' },
+  const res = await asUser(env, g.token, 'rpc/admin_intent_not_found', {
+    method: 'POST',
+    body: { p_intent: id, p_note: 'transfer not found — returned to open' },
   });
 
   return redirect(`/admin/intents${res.ok ? '' : '?e=1'}`, g.headers);

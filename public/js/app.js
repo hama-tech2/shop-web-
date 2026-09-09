@@ -17,11 +17,21 @@
 
   if (slug) {
     var hint = document.getElementById('slug-hint');
-    var urlOut = document.getElementById('slug-url');
     var next = document.getElementById('slug-next');
-    var origin = (urlOut && urlOut.dataset.origin) || window.location.origin;
     var timer = null;
     var seq = 0;
+    var previousValue = slug.value, pendingHyphen = false;
+
+    function clean(value) {
+      return value.toLowerCase().replace(/[\s_]+/g, '-').replace(/[^a-z0-9-]/g, '')
+        .replace(/-+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40).replace(/-+$/g, '');
+    }
+
+    function complete() {
+      var value = clean(slug.value);
+      slug.value = value.length >= 3 ? value : value ? value + '-shop' : slug.dataset.suggestion;
+      previousValue = slug.value; pendingHyphen = false;
+    }
 
     function say(state, key) {
       if (!hint) return;
@@ -33,23 +43,18 @@
       if (next) next.disabled = busy;
     }
 
-    function paintUrl(value) {
-      if (urlOut) urlOut.textContent = value ? origin + '/@' + value : '';
-    }
-
     function check() {
-      var value = slug.value.trim().toLowerCase();
+      var value = clean(slug.value);
       if (slug.value !== value) slug.value = value;
-      paintUrl(value);
 
-      if (!value) {
+      if (value.length < 3) {
         say('', 'Format');
         setBusy(false);
         return;
       }
 
       say('', 'Checking');
-      setBusy(true);
+      setBusy(false);
       var mine = ++seq;
 
       fetch('/api/slug-check?slug=' + encodeURIComponent(value), {
@@ -62,11 +67,9 @@
             say('ok', 'Ok');
             setBusy(false);
           } else {
-            var key = verdict.reason === 'taken' ? 'Taken'
-                    : verdict.reason === 'reserved' ? 'Reserved'
-                    : 'Format';
-            say('bad', key);
-            setBusy(true);
+            var unavailable = verdict.reason === 'taken' || verdict.reason === 'reserved';
+            say(unavailable ? 'bad' : '', unavailable ? 'Taken' : 'Format');
+            setBusy(unavailable);
           }
         })
         .catch(function () {
@@ -75,17 +78,29 @@
         });
     }
 
-    slug.addEventListener('input', function () {
+    slug.addEventListener('input', function (event) {
       // Invalidate the old request immediately, including when cleared.
       seq++;
       clearTimeout(timer);
-      paintUrl(slug.value.trim().toLowerCase());
+      if (event.isComposing) { setBusy(false); return; }
+      var raw = slug.value, caret = slug.selectionStart;
+      // Remember a space typed at the end even though the visible slug is trimmed.
+      if (pendingHyphen && event.inputType !== 'deleteContentBackward' && raw.indexOf(previousValue) === 0 && raw.length > previousValue.length) {
+        raw = previousValue + '-' + raw.slice(previousValue.length); caret++;
+      }
+      pendingHyphen = /[\s_-]$/.test(raw);
+      slug.value = clean(raw);
+      previousValue = slug.value;
+      var position = clean(raw.slice(0, caret)).length;
+      slug.setSelectionRange(position, position);
       say('', 'Format');
       setBusy(false);
       timer = setTimeout(check, 300);
     });
 
-    paintUrl(slug.value.trim().toLowerCase());
+    slug.addEventListener('blur', function () { complete(); check(); });
+    document.getElementById('slug-form').addEventListener('submit', complete);
+
     if (slug.value.trim()) check();
   }
 
@@ -112,32 +127,7 @@
     });
   }
 
-  /* ---------------------------------------------------------
-     the seller's link — one tap to copy
-     --------------------------------------------------------- */
-
-  var copy = document.getElementById('copy-link');
-  if (copy) {
-    copy.addEventListener('click', function () {
-      var target = document.getElementById('shop-url');
-      if (!target) return;
-      var text = target.textContent.trim();
-      var done = function () {
-        var original = copy.textContent;
-        copy.textContent = copy.dataset.copied || 'ok';
-        setTimeout(function () { copy.textContent = original; }, 1600);
-      };
-
-      if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(text).then(done, function () {});
-      } else {
-        var box = document.createElement('textarea');
-        box.value = text;
-        document.body.appendChild(box);
-        box.select();
-        try { document.execCommand('copy'); done(); } catch (e) {}
-        document.body.removeChild(box);
-      }
-    });
-  }
+  // The shop link and its copy button live on the profile screen, which
+  // loads /js/account.js. Nothing on the pages this file serves renders
+  // one, so there is no copy handler here.
 })();

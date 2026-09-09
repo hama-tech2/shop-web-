@@ -9,13 +9,7 @@ const STATUS_LABEL = {
   archived: PRODUCT_FILTERS[3].label,
 };
 
-export function productList({ products, filter, error }) {
-  const chips = PRODUCT_FILTERS.map(
-    (f) =>
-      `<a class="chip" href="/app/products?filter=${esc(f.key)}"` +
-      `${f.key === filter ? ' aria-current="true"' : ''}>${esc(f.label)}</a>`,
-  ).join('');
-
+export function productList({ products, error }) {
   const rows = products.map(rowHtml).join('');
 
   return (
@@ -25,7 +19,6 @@ export function productList({ products, filter, error }) {
     `<a class="btn btn--primary btn--compact" href="/app/new">${esc(T.add)}</a>` +
     `</div>` +
 
-    `<nav class="chips chips--inline" aria-label="${esc(T.listTitle)}">${chips}</nav>` +
     alert(error) +
 
     (products.length
@@ -50,7 +43,7 @@ function rowHtml(product) {
     `<span class="row__body">` +
     `<span class="row__title">${esc(product.title)}</span>` +
     `<span class="row__price"><b>${esc(price(product.price))}</b> ` +
-    `<span class="card__currency">${esc(UI.currency)}</span></span>` +
+    `<span class="card__currency">${esc(UI.currency === 'IQD' ? 'د.ع' : UI.currency)}</span></span>` +
     `</span>` +
     `<span class="row__meta">` +
     `<span class="pill pill--${esc(product.status)}">` +

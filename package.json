@@ -13,7 +13,17 @@
     "test:security": "node scripts/security-test.mjs",
     "test:favorites": "node scripts/favorites-test.mjs",
     "test:auth": "node scripts/auth-next-test.mjs",
-    "test:affected": "node scripts/affected-rows-test.mjs"
+    "test:affected": "node scripts/affected-rows-test.mjs",
+    "test:publish": "node scripts/publish-flow-test.mjs",
+    "test:onboarding": "node scripts/onboarding-flow-test.mjs",
+    "test:categories": "node scripts/categories-test.mjs",
+    "test:profile": "node scripts/profile-test.mjs",
+    "test:category-ui": "node scripts/category-ui-test.mjs",
+    "test:plan-state": "node scripts/plan-state-test.mjs",
+    "test:subscription": "node scripts/subscription-test.mjs",
+    "test:plan-limits": "node scripts/plan-limits-test.mjs",
+    "test:telegram": "node scripts/telegram-test.mjs",
+    "test:admin-grants": "node scripts/admin-grants-test.mjs"
   },
   "devDependencies": {
     "wrangler": "^4.42.0",

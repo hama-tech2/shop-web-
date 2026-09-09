@@ -3,7 +3,7 @@
   'use strict';
   var form = document.getElementById('product-form');
   if (!form) return;
-  var D = form.dataset, max = Number(D.max) || 10;
+  var D = form.dataset, max = Number(D.max) || 5;
   var thumbs = document.getElementById('thumbs');
   var add = document.getElementById('add-photo');
   var input = document.getElementById('photo-input');
@@ -89,9 +89,9 @@
       var scale = Math.min(1, +D.fullW / bitmap.width, +D.fullH / bitmap.height);
       var full = document.createElement('canvas'); full.width = Math.max(1, Math.round(bitmap.width * scale)); full.height = Math.max(1, Math.round(bitmap.height * scale));
       full.getContext('2d').drawImage(bitmap, 0, 0, full.width, full.height);
-      var side = Math.min(bitmap.width, bitmap.height);
-      var card = document.createElement('canvas'); card.width = card.height = Math.min(+D.cardW, side);
-      card.getContext('2d').drawImage(bitmap, (bitmap.width - side) / 2, (bitmap.height - side) / 2, side, side, 0, 0, card.width, card.height);
+      var cropW = Math.min(bitmap.width, bitmap.height * 4 / 5), cropH = cropW * 5 / 4;
+      var card = document.createElement('canvas'); card.width = Math.round(Math.min(+D.cardW, cropW)); card.height = Math.round(card.width * 5 / 4);
+      card.getContext('2d').drawImage(bitmap, (bitmap.width - cropW) / 2, (bitmap.height - cropH) / 2, cropW, cropH, 0, 0, card.width, card.height);
       return { full: await toBlob(full, +D.fullQ), card: await toBlob(card, +D.cardQ) };
     } finally { bitmap.close(); }
   }
@@ -140,25 +140,56 @@
     try { var last = localStorage.getItem(categoryKey); if (last !== null && Array.from(category.options).some(function (option) { return option.value === last; })) category.value = last; } catch (e) { /* Storage is optional. */ }
   }
   category.addEventListener('change', function () { try { localStorage.setItem(categoryKey, category.value); } catch (e) { /* Storage is optional. */ } });
-  // Category management opens separately; refresh just the options on return.
-  var refreshCategories = false;
-  document.querySelector('.category-manage').addEventListener('click', function () { refreshCategories = true; });
-  window.addEventListener('focus', async function () {
-    if (!refreshCategories || busy) return;
-    refreshCategories = false;
+  /* ---------------------------------------------------------
+     a new shop category, without leaving this form
+     Nothing below navigates or reloads: the title, the price, the
+     description and every prepared image stay exactly where they are,
+     including when the request fails.
+     --------------------------------------------------------- */
+  var own = document.getElementById('f-own-category');
+  var catOpen = document.getElementById('category-add-open');
+  var catForm = document.getElementById('category-add-form');
+  var catName = document.getElementById('category-add-name');
+  var catSave = document.getElementById('category-add-save');
+  var catCancel = document.getElementById('category-add-cancel');
+  var catError = document.getElementById('category-add-error');
+
+  function catSay(text) { catError.textContent = text || ''; catError.hidden = !text; }
+  function catShow(open) {
+    catForm.hidden = !open;
+    catOpen.hidden = open;
+    if (open) { catName.value = ''; catSay(''); catName.focus(); }
+    else { catOpen.focus(); }
+  }
+  async function createCategory() {
+    var name = catName.value.replace(/\s+/g, ' ').trim();
+    if (!name) { catSay(D.msgCatName); catName.focus(); return; }
+    catSave.disabled = catName.disabled = true;
+    catSay('');
     try {
-      var response = await fetch('/app/new', { credentials: 'same-origin' });
-      if (!response.ok) return;
-      var doc = new DOMParser().parseFromString(await response.text(), 'text/html');
-      var options = doc.querySelector('#f-own-category');
-      if (!options) return;
-      var own = document.getElementById('f-own-category'), selected = own.value;
-      own.replaceChildren.apply(own, Array.from(options.children));
-      own.value = Array.from(own.options).some(function (option) { return option.value === selected; }) ? selected : '';
-    } catch (e) { /* Existing options and the unsaved product remain available. */ }
+      var body = new URLSearchParams(); body.append('name', name);
+      var response = await fetch('/api/categories', { method: 'POST', credentials: 'same-origin', body: body });
+      var data = await response.json().catch(function () { return null; });
+      if (!response.ok || !data || !data.id) throw new Error(data && data.error);
+      var option = Array.from(own.options).find(function (o) { return o.value === data.id; });
+      if (option) option.textContent = data.name;
+      else { option = document.createElement('option'); option.value = data.id; option.textContent = data.name; own.appendChild(option); }
+      own.value = data.id;
+      catShow(false);
+    } catch (error) {
+      catSay(error.message || D.msgCatCreate);
+      catName.focus();
+    } finally { catSave.disabled = catName.disabled = false; }
+  }
+  catOpen.addEventListener('click', function () { catShow(true); });
+  catCancel.addEventListener('click', function () { catShow(false); });
+  catSave.addEventListener('click', createCategory);
+  catName.addEventListener('keydown', function (e) {
+    // Enter inside a form submits it. Here it means "create this category",
+    // and publishing a half-typed product is the last thing it should do.
+    if (e.key === 'Enter') { e.preventDefault(); createCategory(); }
+    else if (e.key === 'Escape') { e.preventDefault(); catShow(false); }
   });
-  var toggle = document.getElementById('visibility');
-  toggle.addEventListener('click', function () { var on = toggle.getAttribute('aria-checked') !== 'true'; toggle.setAttribute('aria-checked', String(on)); document.getElementById('status-field').value = on ? 'active' : 'hidden'; });
   var description = document.getElementById('f-description');
   function countDescription() { document.getElementById('description-count').textContent = Array.from(description.value).length + ' پیت'; }
   description.addEventListener('input', countDescription); countDescription();

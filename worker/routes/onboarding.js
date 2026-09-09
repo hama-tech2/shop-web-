@@ -9,7 +9,7 @@
 
 import { APP_NAME, ONBOARDING as T } from '../config.js';
 import { layout } from '../render/layout.js';
-import { stepContact, stepLogo, stepName, stepSlug } from '../render/onboarding.js';
+import { completeSlug, stepContact, stepLogo, stepName, stepSlug } from '../render/onboarding.js';
 import { asUser, slugAvailable } from '../supabase.js';
 import {
   clearDraft, getOwnShop, readCookies, readDraft, resolveSession,
@@ -38,7 +38,7 @@ async function guard(request, env, { needsShop = false } = {}) {
 
   if (!user) return { redirect: redirect('/login?next=/onboarding', headers) };
 
-  const shop = await getOwnShop(env, token);
+  const shop = await getOwnShop(env, token, user.id);
   if (needsShop && !shop) return { redirect: redirect('/onboarding', headers) };
   if (!needsShop && shop) return { redirect: redirect('/app', headers) };
 
@@ -82,15 +82,14 @@ export async function slugPost(request, env, url) {
   if (g.redirect) return g.redirect;
 
   const { slug } = await form(request);
-  const clean = (slug || '').toLowerCase().trim();
+  const clean = completeSlug(slug, g.draft.name);
 
   // Re-checked here, not only in the browser: the live check is a
   // convenience, this is the gate.
   const verdict = await slugAvailable(env, clean);
   if (!verdict.available) {
     const message =
-      verdict.reason === 'taken' ? T.slugTaken
-      : verdict.reason === 'reserved' ? T.slugReserved
+      verdict.reason === 'taken' || verdict.reason === 'reserved' ? T.slugTaken
       : T.slugFormat;
     return page(
       stepSlug({ draft: { ...g.draft, slug: clean }, error: message, origin: url.origin }),

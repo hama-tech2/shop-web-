@@ -217,3 +217,34 @@
 @media (max-width: 380px) {
   .adm-stats { grid-template-columns: repeat(2, 1fr); }
 }
+
+/* ---------- payments waiting on the owner ---------- */
+
+/* A pending row is one somebody is actually waiting on, so it is marked
+   and sorted first; an open one is only a seller who picked a plan. */
+.adm-intent--pending { border-inline-start: 3px solid var(--accent); }
+.adm-intent__badge { display: inline-block; margin-inline-start: 8px; padding: 2px 8px; border-radius: 999px; background: var(--surface-2); font-size: 11px; }
+.adm-intent--pending .adm-intent__badge { background: var(--accent); color: var(--accent-ink); }
+.adm-intent__ref { margin: 6px 0 0; font-size: 12px; color: var(--muted); }
+
+/* The code the owner matches against a bank statement. */
+.adm-intent__code {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 6px;
+  background: var(--surface-2);
+  color: var(--text);
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: .04em;
+  unicode-bidi: isolate;
+}
+
+.adm-h1--spaced { margin-top: 28px; }
+.adm-expiring .adm-intent__line { color: var(--muted); }
+
+.adm-grant .field__label { display: block; margin-top: 16px; }
+.adm-grant .field__input { width: 100%; }
+.adm-grant-review, .adm-grant-history { overflow-wrap: anywhere; }
+.adm-grant-review .adm-h2 { margin-top: 0; }
+.adm-grant-history .ltr { max-width: 100%; word-break: break-all; }

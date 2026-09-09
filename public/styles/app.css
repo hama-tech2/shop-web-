@@ -386,3 +386,10 @@
 
 .card__heart { z-index: 2; }
 .card__media, .card__body { position: relative; }
+
+/* Shared favourite feedback; owner trash buttons have no data-fav attribute. */
+button[data-fav] { min-width: 44px; min-height: 44px; }
+button[data-fav] svg { width: 18px; height: 18px; fill: none; }
+button[data-fav][aria-pressed="true"] { color: #D62F45; }
+button[data-fav][aria-pressed="true"] svg { fill: currentColor; }
+.fav-status { position: fixed; z-index: 50; inset-inline: 16px; bottom: calc(var(--nav-h) + 16px + env(safe-area-inset-bottom)); max-width: 440px; margin: 0 auto; padding: 10px 14px; border-radius: 12px; background: var(--text); color: var(--surface); font-size: 13px; text-align: center; }

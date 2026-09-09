@@ -1,9 +1,16 @@
-import { BIO_MAX, CITIES, PROFILE as T, PROFILE_VARIANTS as V } from '../config.js';
+import {
+  BIO_MAX, CITIES, PRODUCT, PROFILE as T, PROFILE_VARIANTS as V,
+} from '../config.js';
+
+const PRODUCT_OPTIONAL = PRODUCT.optional;
 import { esc } from './html.js';
 import { alert, button, field, select } from './forms.js';
 import { bottomNav } from './appshell.js';
 import { cropSheet } from './crop-sheet.js';
-import { iconBack, iconCamera, iconFacebook, iconInstagram, iconPhone, iconTiktok, iconWhatsapp } from './icons.js';
+import {
+  iconBack, iconCamera, iconFacebook, iconInstagram, iconPhone, iconPin,
+  iconSnapchat, iconTiktok, iconWhatsapp,
+} from './icons.js';
 
 const imgUrl = (key) => `/img/${key.split('/').map(encodeURIComponent).join('/')}`;
 
@@ -78,19 +85,15 @@ export function profilePage({ shop, values, origin, error, saved }) {
     `<div class="profile-name">` +
     field({ name: 'name', label: T.nameLabel, value: v.name ?? '', extra: ' minlength="2" maxlength="80"' }) +
     `</div>` +
-    field({ name: 'slug', label: 'ناونیشانی دوکان', value: shop.slug,
-      hint: 'ئەم ناونیشانە جێگیرە و لێرە ناگۆڕدرێت.', required: false,
-      extra: ' readonly dir="ltr"' }) +
-
     // ---------- the link ----------
-    `<div class="link-card">` +
-    `<div class="link-card__body">` +
-    `<p class="link-card__label">${esc(T.linkLabel)}</p>` +
-    `<p class="link-card__url" id="shop-url">${esc(url)}</p>` +
-    `<a class="link-card__view" href="${esc(`/@${shop.slug}`)}">${esc(T.viewShop)} ‹</a>` +
-    `</div>` +
-    `<button class="btn btn--quiet link-card__copy" type="button" id="copy-link"` +
-    ` data-copied="${esc(T.copied)}">${esc(T.copy)}</button>` +
+    // One row: a label and a copy button. The full URL is carried on
+    // the button for the clipboard but never rendered — the seller has
+    // no use for the workers.dev host, and it makes the page look like
+    // a developer tool rather than their shop.
+    `<div class="link-row-compact">` +
+    `<span class="link-row-compact__label">${esc(T.linkLabel)}</span>` +
+    `<button class="btn btn--quiet link-row-compact__copy" type="button" id="copy-link"` +
+    ` data-url="${esc(url)}" data-copied="${esc(T.copied)}">${esc(T.linkCopy)}</button>` +
     `</div>` +
 
     // ---------- fields ----------
@@ -127,29 +130,24 @@ export function profilePage({ shop, values, origin, error, saved }) {
     socialRow('instagram', 'Instagram', iconInstagram(20), v.instagram) +
     socialRow('tiktok', 'TikTok', iconTiktok(20), v.tiktok) +
     socialRow('facebook', 'Facebook', iconFacebook(20), v.facebook) +
-    `<div class="profile-unavailable">` +
-    `<label class="field__label" for="f-snapchat">Snapchat <small>— لە ئێستادا بەردەست نییە</small></label>` +
-    `<input class="field__input" id="f-snapchat" placeholder="@username" dir="ltr" disabled>` +
+    socialRow('snapchat', T.snapchatLabel, iconSnapchat(20), v.snapchat) +
     `</div>` +
+    `<div class="field">` +
+    `<label class="field__label" for="f-maps">${esc(T.mapsLabel)} ` +
+    `<span class="field__optional">${esc(PRODUCT_OPTIONAL)}</span></label>` +
+    `<div class="icon-field icon-field--maps">` +
+    iconPin(20) +
+    `<input class="field__input" id="f-maps" name="maps_url" type="url"` +
+    ` dir="ltr" inputmode="url" autocomplete="off" spellcheck="false"` +
+    ` value="${esc(v.maps_url ?? '')}" placeholder="${esc(T.mapsPlaceholder)}">` +
     `</div>` +
-    `<details class="profile-optional"><summary>لینکی تر (هەڵبژاردەیی)</summary>` +
-    `<p class="field__hint">زیادکردنی ئەم لینکانە لە ئێستادا بەردەست نییە.</p>` +
-    field({ name: 'website', label: 'وێبسایت', type: 'url', required: false, extra: ' disabled dir="ltr"', placeholder: 'https://example.com' }) +
-    field({ name: 'maps', label: 'شوێنی دوکان — Google Maps', type: 'url', required: false, extra: ' disabled dir="ltr"', placeholder: 'https://maps.app.goo.gl/…' }) +
-    `</details>` +
+    `<p class="field__hint">${esc(T.mapsHint)}</p></div>` +
     `</form>` +
-    `<section class="profile-categories" id="shop-categories" aria-labelledby="profile-categories-title">` +
-    `<h2 id="profile-categories-title">بەشەکانی دوکان</h2>` +
-    `<p class="field__hint">بۆ دەستکاری بەشێک لێی بدە. گۆڕانکارییەکانی بەشەکان یەکسەر پاشەکەوت دەکرێن.</p>` +
-    `<p id="category-status" role="status" aria-live="polite"></p>` +
-    `<div id="profile-category-content"><a href="/app/categories">بەشەکان بکەرەوە ‹</a></div>` +
-    `</section>` +
     `<div class="profile-save">` +
     button(T.save, { id: 'save-btn', attrs: ` form="profile-form" data-saving="${esc(T.saving)}"` }) +
     `</div>` +
     `</div>` +
     cropSheet() +
-    `<script src="/js/profile-categories.js" defer></script>` +
     bottomNav('account')
   );
 }

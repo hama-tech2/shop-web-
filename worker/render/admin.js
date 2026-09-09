@@ -80,6 +80,7 @@ export function adminHome({ stats, intents }) {
     `<p class="adm-stat__l">${esc(label)}</p></div>`;
 
   const body =
+    `<a class="btn btn--quiet" href="/admin/shops">بەخشینی پلان بە دوکانێک</a>` +
     `<section class="adm-stats">` +
     cell(A.statShops, s.shops_total) +
     cell(A.statActive, s.shops_active) +
@@ -160,7 +161,7 @@ function shopRow(row) {
    one shop
    ============================================================ */
 
-export function adminShop({ shop, sub, products, note, origin, saved, error }) {
+export function adminShop({ shop, sub, products, note, grants = [], origin, saved, error }) {
   const row = { ...shop, plan: sub?.plan, visible: sub?.visible };
 
   const line = (label, value) =>
@@ -189,6 +190,7 @@ export function adminShop({ shop, sub, products, note, origin, saved, error }) {
     `</div>` +
 
     `<div class="adm-actions">` +
+    `<a class="btn btn--primary" href="/admin/shops/${esc(shop.id)}/grant">بەخشینی پلان</a>` +
     `<a class="btn btn--quiet" href="${esc(origin)}/@${esc(shop.slug)}">${esc(A.viewShop)}</a>` +
     `<form method="post" action="/admin/shops/${esc(shop.id)}/status">` +
     `<input type="hidden" name="to" value="${suspended ? 'active' : 'suspended'}">` +
@@ -212,12 +214,49 @@ export function adminShop({ shop, sub, products, note, origin, saved, error }) {
     `<button class="btn btn--primary" type="submit">${esc(A.notesSave)}</button>` +
     `</form>` +
 
+    (grants.length ? `<h2 class="adm-h2">مێژووی بەخشینی پلان — بەخۆڕایی</h2>` +
+      grants.map((g) => `<article class="adm-card adm-grant-history">` +
+        `<strong>${esc(PLAN_LABEL[g.plan] || g.plan)}</strong> · ${ltr(day(g.paid_at))}` +
+        `<p class="adm-report__details">${esc(g.note)}</p>` +
+        `<p class="field__hint">ناسنامەی ئەدمین: ${ltr(g.recorded_by || '—')}</p>` +
+        `</article>`).join('') : '') +
     `<h2 class="adm-h2">${esc(A.productsTitle)}</h2>` +
     (products.length
       ? products.map((p) => productRow(p, shop)).join('')
       : `<p class="adm-empty">${esc(A.productsEmpty)}</p>`);
 
   return shell('shops', body, { title: A.detailTitle });
+}
+
+export function adminGrant({ shop, sub, plan = '', reason = '', review, proof, error }) {
+  const action = `/admin/shops/${esc(shop.id)}/grant`;
+  const hidden = (name, value) => `<input type="hidden" name="${name}" value="${esc(value)}">`;
+  const identity = `<h2 class="adm-h1">${esc(shop.name)}</h2>` +
+    `<p class="adm-row__slug" dir="ltr">/@${esc(shop.slug)}</p>` +
+    `<p class="field__hint">کۆتایی پلانی ئێستا: ${ltr(day(sub?.expires_at))}</p>`;
+  const fields = review
+    ? `<div class="adm-card adm-grant-review">` +
+      `<h2 class="adm-h2">پشتڕاستکردنەوەی بەخشین</h2>` + identity +
+      `<p><strong>${esc(PLAN_LABEL[plan])}</strong> — بەخۆڕایی، هیچ پارەیەک وەرنەگیراوە.</p>` +
+      `<p class="adm-report__details">هۆکار: ${esc(reason)}</p>` +
+      `<p class="field__hint">ماوەکە لە کۆتایی پلانی ئێستا یان ئەمڕۆوە زیاد دەکرێت، هەر کامیان دواتر بێت.</p>` +
+      `<p class="field__hint">ئەم بەخشینە بە ناسنامەی ئەکاونتەکەت تۆمار دەکرێت.</p>` +
+      hidden('plan', plan) + hidden('reason', reason) + hidden('request', review.request) +
+      hidden('until', review.until) + hidden('proof', proof) +
+      `<div class="adm-actions"><button class="btn btn--primary" name="step" value="confirm" type="submit">پشتڕاستە، پلانەکە ببەخشە</button>` +
+      `<button class="btn btn--quiet" name="step" value="edit" type="submit">گەڕانەوە بۆ دەستکاری</button></div></div>`
+    : `<div class="adm-card">${identity}` +
+      `<label class="field__label" for="grant-plan">پلان</label>` +
+      `<select class="field__input" id="grant-plan" name="plan" required>` +
+      `<option value="">پلانێک هەڵبژێرە</option>` +
+      ['months_6', 'year_1'].map((p) => `<option value="${p}"${p === plan ? ' selected' : ''}>${esc(PLAN_LABEL[p])}</option>`).join('') +
+      `</select><label class="field__label" for="grant-reason">هۆکاری بەخشین (پێویستە)</label>` +
+      `<textarea class="field__input field__input--area" id="grant-reason" name="reason" maxlength="500" required>${esc(reason)}</textarea>` +
+      `<p class="field__hint">بەخشینی بەخۆڕاییە؛ وەک پارەدان تۆمار ناکرێت.</p>` +
+      `<button class="btn btn--primary" name="step" value="review" type="submit"${!sub ? ' disabled' : ''}>پێداچوونەوە</button></div>`;
+  return shell('shops', `<a class="adm-back" href="/admin/shops/${esc(shop.id)}">${esc(A.back)}</a>` +
+    (error ? `<p class="alert alert--error" role="alert">${esc(error)}</p>` : '') +
+    `<form class="adm-grant" method="post" action="${action}">${fields}</form>`, { title: 'بەخشینی پلان' });
 }
 
 function productRow(p, shop) {
@@ -240,26 +279,49 @@ function productRow(p, shop) {
    payment intents
    ============================================================ */
 
-export function adminIntents({ intents }) {
-  return shell('intents', `<h2 class="adm-h1">${esc(A.intentsTitle)}</h2>` + intentList(intents));
+export function adminIntents({ intents, expiring = [] }) {
+  return shell(
+    'intents',
+    `<h2 class="adm-h1">${esc(A.intentsTitle)}</h2>` +
+    intentList(intents) +
+    expiringList(expiring),
+  );
 }
 
+/**
+ * The payments waiting on the owner.
+ *
+ * Two buttons, and neither of them is a rejection. Activate applies the
+ * date rule and, because visibility is derived from the expiry date,
+ * unhides the shop in the same statement. Not-found puts the intent
+ * back where it was so the owner can chase the seller on WhatsApp —
+ * nothing is destroyed and no money is implied to have moved.
+ */
 function intentList(intents, limit) {
   const rows = limit ? intents.slice(0, limit) : intents;
   if (!rows.length) return `<p class="adm-empty">${esc(A.intentsEmpty)}</p>`;
 
   return rows
     .map((i) => {
-      const wa = String(i.shops?.whatsapp || '').replace(/[^0-9]/g, '');
+      const wa = String(i.whatsapp || i.shops?.whatsapp || '').replace(/[^0-9]/g, '');
+      const name = i.name || i.shops?.name || '—';
+      const slug = i.slug || i.shops?.slug || '';
+      const pending = i.status === 'pending';
       return (
-        `<div class="adm-card adm-intent">` +
-        `<a class="adm-intent__shop" href="/admin/shops/${esc(i.shop_id)}">` +
-        `${esc(i.shops?.name || '—')}</a>` +
-        `<p class="adm-row__slug ltr" dir="ltr">/@${esc(i.shops?.slug || '')}</p>` +
+        `<div class="adm-card adm-intent${pending ? ' adm-intent--pending' : ''}">` +
+        `<a class="adm-intent__shop" href="/admin/shops/${esc(i.shop_id)}">${esc(name)}</a>` +
+        `<span class="adm-intent__badge">` +
+        `${esc(pending ? A.intentPendingBadge : A.intentOpenBadge)}</span>` +
+        `<p class="adm-row__slug ltr" dir="ltr">/@${esc(slug)}</p>` +
         `<p class="adm-intent__line">` +
         `${esc(A.intentPlan)}: ${esc(PLAN_LABEL[i.plan] || i.plan)} · ` +
         `${esc(A.intentAmount)}: <span dir="ltr" class="ltr">${esc(price(i.amount))} ` +
         `${esc(UI.currency)}</span> · ${esc(A.intentDate)}: ${ltr(day(i.created_at))}</p>` +
+        // The code the seller was told to write in the transfer note.
+        // This is what the owner matches against the bank statement, so
+        // it is the one thing on the row that is set large and LTR.
+        `<p class="adm-intent__ref">${esc(A.intentReference)}: ` +
+        `<span class="adm-intent__code" dir="ltr">${esc(i.reference || '—')}</span></p>` +
         `<div class="adm-actions">` +
         (wa
           ? `<a class="btn btn--quiet" target="_blank" rel="noopener"` +
@@ -269,15 +331,51 @@ function intentList(intents, limit) {
         `<button class="btn btn--primary" type="submit"` +
         ` data-confirm="${esc(A.intentConfirm)}">${esc(A.intentActivate)}</button>` +
         `</form>` +
-        // Someone who asks and never pays should not sit in the queue
-        // for ever. Cancelling moves no money and no time.
-        `<form method="post" action="/admin/intents/${esc(i.id)}/cancel">` +
-        `<button class="btn btn--danger" type="submit"` +
-        ` data-confirm="${esc(A.intentCancelConfirm)}">${esc(A.intentCancel)}</button>` +
-        `</form></div></div>`
+        (pending
+          ? `<form method="post" action="/admin/intents/${esc(i.id)}/not-found">` +
+            `<button class="btn btn--danger" type="submit"` +
+            ` data-confirm="${esc(A.intentNotFoundConfirm)}">${esc(A.intentNotFound)}</button>` +
+            `</form>`
+          : '') +
+        `</div></div>`
       );
     })
     .join('');
+}
+
+/**
+ * Shops whose plan runs out within the week.
+ *
+ * The WhatsApp link opens a chat and stops there. Sending the message
+ * automatically would need the WhatsApp Business API; the owner types
+ * it himself.
+ */
+function expiringList(rows) {
+  const body = rows.length
+    ? rows.map((r) => {
+        const wa = String(r.whatsapp || '').replace(/[^0-9]/g, '');
+        return (
+          `<div class="adm-card adm-expiring">` +
+          `<a class="adm-intent__shop" href="/admin/shops/${esc(r.shop_id)}">` +
+          `${esc(r.name || '—')}</a>` +
+          `<p class="adm-row__slug ltr" dir="ltr">/@${esc(r.slug || '')}</p>` +
+          `<p class="adm-intent__line">` +
+          `${esc(PLAN_LABEL[r.plan] || r.plan)} · ` +
+          `${esc(A.intentDate)}: ${ltr(day(r.expires_at))} · ` +
+          `${r.in_grace
+            ? esc(A.expiringGrace)
+            : esc(A.expiringDays(Math.max(0, r.days_left ?? 0)))}</p>` +
+          (wa
+            ? `<div class="adm-actions">` +
+              `<a class="btn btn--quiet" target="_blank" rel="noopener"` +
+              ` href="https://wa.me/${esc(wa)}">${esc(A.expiringWhatsapp)}</a></div>`
+            : '') +
+          `</div>`
+        );
+      }).join('')
+    : `<p class="adm-empty">${esc(A.expiringEmpty)}</p>`;
+
+  return `<h2 class="adm-h1 adm-h1--spaced">${esc(A.expiringTitle)}</h2>${body}`;
 }
 
 /* ============================================================

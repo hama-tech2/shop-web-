@@ -73,6 +73,12 @@ export const iconFacebook = (s = 18) =>
     s,
   );
 
+export const iconSnapchat = (s = 18) =>
+  brand(
+    '<path d="M12 2c2.7 0 4.6 1.9 4.7 4.6 0 .6 0 1.3-.1 1.9.3.1.6.1.9 0 .5-.2 1 .1 1.1.5.1.4-.1.8-.6 1-.6.3-1.3.5-1.5.9-.1.3.1.8.4 1.4.6 1.1 1.5 2.4 3 2.8.3.1.5.4.4.7-.1.5-1 .9-2.3 1.1-.1.2-.2.6-.3.9-.1.3-.3.4-.6.4h-.2c-.4-.1-.9-.1-1.4-.1-.8 0-1.4.2-2 .8-.7.6-1.5 1.1-2.5 1.1s-1.8-.5-2.5-1.1c-.6-.6-1.2-.8-2-.8-.5 0-1 0-1.4.1h-.2c-.3 0-.5-.1-.6-.4-.1-.3-.2-.7-.3-.9-1.3-.2-2.2-.6-2.3-1.1-.1-.3.1-.6.4-.7 1.5-.4 2.4-1.7 3-2.8.3-.6.5-1.1.4-1.4-.2-.4-.9-.6-1.5-.9-.5-.2-.7-.6-.6-1 .1-.4.6-.7 1.1-.5.3.1.6.1.9 0-.1-.6-.1-1.3-.1-1.9C7.4 3.9 9.3 2 12 2Z"/>',
+    s,
+  );
+
 export const iconCamera = (s = 20) =>
   svg('<path d="M4 8.5h3l1.4-2h7.2L17 8.5h3v10H4z"/><circle cx="12" cy="13" r="3.2"/>', s);
 
@@ -81,7 +87,23 @@ export const iconGift = (s = 20) =>
   svg('<path d="M4 11h16v9H4zM3 7.5h18V11H3z"/><path d="M12 7.5V20"/>' +
       '<path d="M12 7.5S10.6 4 8.6 4a2 2 0 0 0 0 3.5Zm0 0S13.4 4 15.4 4a2 2 0 0 1 0 3.5Z"/>', s);
 export const iconPlus = (s = 20) => svg('<path d="M12 5v14M5 12h14"/>', s);
+
+/** Two stacked sheets — the one control on the payment instructions. */
+export const iconCopy = (s = 18) =>
+  svg(
+    '<rect x="9" y="9" width="11" height="11" rx="2.5"/>' +
+      '<path d="M6 15H5.5A1.5 1.5 0 0 1 4 13.5v-8A1.5 1.5 0 0 1 5.5 4h8A1.5 1.5 0 0 1 15 5.5V6"/>',
+    s,
+  );
 export const iconTrash = (s = 18) =>
   svg('<path d="M5 7h14M9.5 7V5h5v2M6.5 7l.8 12h9.4l.8-12"/>', s);
 export const iconArrowUp = (s = 18) => svg('<path d="M12 19V6M6 12l6-6 6 6"/>', s);
 export const iconArrowDown = (s = 18) => svg('<path d="M12 5v13M6 12l6 6 6-6"/>', s);
+
+/* Account rows use the shared outline family. */
+export const iconStore = (s = 22) => svg('<path d="M4 10v10h16V10M3 10l2-6h14l2 6M3 10c0 3 4.5 3 4.5 0 0 3 4.5 3 4.5 0 0 3 4.5 3 4.5 0 0 3 4.5 3 4.5 0M9 20v-6h6v6"/>', s);
+export const iconCalendar = (s = 22) => svg('<rect x="4" y="5" width="16" height="16" rx="2"/><path d="M8 3v4m8-4v4M4 10h16m-12 4h3m-3 3h6"/>', s);
+export const iconExternal = (s = 22) => svg('<path d="M14 3h7v7m0-7L11 13M10 5H5a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-5"/>', s);
+export const iconShield = (s = 22) => svg('<path d="m12 3 8 3v6c0 5-8 9-8 9s-8-4-8-9V6l8-3Z"/><path d="m8 12 3 3 5-6"/>', s);
+export const iconDocument = (s = 22) => svg('<path d="M14 3H5v18h14V8l-5-5Zm0 0v5h5M8 12h8m-8 4h6"/>', s);
+export const iconLogout = (s = 22) => svg('<path d="M10 4H4v16h6m4-12 4 4-4 4M8 12h10"/>', s);

@@ -157,7 +157,7 @@ export const PRODUCT = {
   addPhoto: 'زیادکردنی وێنە',
   removePhoto: 'لابردنی وێنە',
   counter: (n, max) => `${n} / ${max}`,
-  onlyTen: 'تەنها ١٠ وێنە هەتایە.',
+  onlyMax: 'تەنها ٥ وێنە هەتایە.',
 
   cropTitle: 'ڕێکخستنی وێنە',
   cropHint: 'ڕایبکێشە و گەورەی بکە.',
@@ -195,6 +195,15 @@ export const PRODUCT = {
   // seller's to change. Both must say so instead of claiming success.
   errGone: 'ئەم بەرهەمە نەدۆزرایەوە. لەوانەیە پێشتر سڕابێتەوە.',
 
+  // The trial limit. A refusal on its own leaves the seller stuck, so
+  // the message says what to do next and the screen carries the link.
+  trialLimitTitle: 'سنووری مانگی بەخۆڕایی',
+  trialLimitBody: (max) =>
+    `لە مانگی بەخۆڕاییدا تا ${max} بەرهەم دەتوانیت بڵاو بکەیتەوە. ` +
+    'بۆ بەرهەمی زیاتر پلانێک هەڵبژێرە — بەرهەمە ئێستاکانت وەک خۆیان دەمێننەوە.',
+  trialLimitAction: 'بینینی پلانەکان',
+  trialLeft: (n, max) => `${n} لە ${max} شوێنی ماوە لە مانگی بەخۆڕایی`,
+
   emptyTitle: 'هێشتا هیچ بەرهەمێکت نییە',
   emptyBody: 'یەکەم بەرهەمت زیاد بکە و لینکەکەت بڵاوبکەرەوە.',
 };
@@ -213,7 +222,10 @@ export const IMAGE_VARIANTS = {
   full: { width: 1200, height: 1500, quality: 0.82 },
 };
 
-export const MAX_IMAGES = 10;
+// Locked product decision: five images per product. The database
+// enforces the same number (trigger + save_product_images), so client
+// and server cannot drift apart.
+export const MAX_IMAGES = 5;
 export const MAX_UPLOAD_BYTES = 4 * 1024 * 1024;
 
 /** The public shop page and the product page — the shared link. */
@@ -226,6 +238,8 @@ export const SHOP = {
   instagram: 'ئینستاگرام',
   tiktok: 'تیک تۆک',
   facebook: 'فەیسبووک',
+  snapchat: 'سناپچات',
+  mapsOpen: 'شوێنەکەمان لە نەخشە',
   share: 'بڵاوکردنەوە',
   save: 'پاشەکەوتکردن',
   linkCopied: 'لینک کۆپی کرا',
@@ -288,10 +302,18 @@ export const PROFILE = {
   phoneLabel: 'ژمارەی تەلەفۆن',
   socialLabel: 'سۆشیال',
 
+  mapsLabel: 'شوێنی دوکان لە نەخشە',
+  mapsHint: 'لینکی Google Maps لێرە بلکێنە. تەنها لینکی https قبوڵ دەکرێت.',
+  mapsPlaceholder: 'https://maps.app.goo.gl/…',
+  mapsOpen: 'شوێنەکەمان لە نەخشە',
+  snapchatLabel: 'Snapchat',
+  linkCopy: 'کۆپیکردنی لینک',
+
   errName: 'ناوی دوکان دەبێت لانیکەم ٢ پیت بێت.',
   errWhatsapp: 'ژمارەی واتساپ بەم شێوەیە بنووسە: 07501234567',
   errPhone: 'ژمارەی تەلەفۆن دروست نییە.',
   errHandle: 'تەنها پیت، ژمارە، . و _ بەکاربهێنە.',
+  errMaps: 'لینکی نەخشە دەبێت بە https:// دەست پێبکات.',
   errImage: 'ناردنی وێنە سەرکەوتوو نەبوو.',
   errType: 'تەنها JPG، PNG یان WebP.',
 };
@@ -319,23 +341,40 @@ export const CATEGORIES_UI = {
   errGone: 'ئەم جۆرە نەدۆزرایەوە. لەوانەیە پێشتر سڕابێتەوە.',
   productCategory: 'جۆری دوکانەکەت',
   none: 'هیچ',
+
+  // Inline creation, from inside the product form and the owner profile.
+  addInline: '+ بەشی نوێ',
+  addPlaceholder: 'ناوی بەشی نوێ',
+  create: 'دروستکردن',
+  cancel: 'پاشگەزبوونەوە',
+  manage: 'ڕێکخستن',
+  done: 'تەواو',
+  errCreate: 'بەشەکە دروست نەکرا. دووبارە هەوڵ بدەرەوە.',
+  deleteConfirm: 'ئەم بەشە بسڕدرێتەوە؟ بەرهەمەکان نەسڕدرێنەوە — تەنها بێ بەش دەبن.',
 };
 
 export const MAX_CATEGORIES = 20;
 
 export const SUBSCRIPTION = {
   title: 'پلانی بەشداریکردن',
-  daysLeft: (n) => `تەنها ${n} ڕۆژ لە مانگی بەخۆڕایی ماوە`,
-  daysLeftOne: 'ڕۆژی کۆتایی مانگی بەخۆڕاییە',
-  expired: 'مانگی بەخۆڕایی تەواو بووە',
-  inGrace: (n) => `${n} ڕۆژ ماوە پێش ئەوەی بەرهەمەکانت بشاردرێنەوە`,
-  activeUntil: (d) => `چالاکە تا ${d}`,
+
+  // The five states a seller can be in. Only trial, pending and active
+  // are stored; grace and expired are read off the expiry date.
+  stateTrial: (n) => `مانگی بەخۆڕایی — ${n} ڕۆژ ماوە`,
+  stateTrialLast: 'ڕۆژی کۆتایی مانگی بەخۆڕاییە',
+  statePending: 'چاوەڕوانی پشتڕاستکردنەوە',
+  stateActive: (d) => `چالاکە تا ${d}`,
+  stateGrace: (n) => `بەسەرچووە — ${n} ڕۆژ ماوە پێش شاردنەوەی بەرهەمەکان`,
+  stateExpired: 'بەرهەمەکانت شاراونەتەوە. بۆ گەڕاندنەوەیان پارە بدە.',
 
   best: 'باشترین نرخ',
   perMonth: (n) => `${n} مانگانە`,
-  yearName: '١ ساڵ',
-  sixName: '٦ مانگ',
   savings: 'لە بەرامبەر ٦ مانگ پاشەکەوت دەکەیت',
+
+  // The free month, named at the bottom of the plans, small. It is
+  // what a seller is already on, not something to sell them.
+  freeTitle: 'مانگی بەخۆڕایی',
+  freeBody: (n) => `تا ${n} بەرهەم، بۆ یەک مانگ.`,
 
   whatYouGet: 'چی وەردەگریت',
   benefits: [
@@ -345,16 +384,121 @@ export const SUBSCRIPTION = {
     'پشتگیری خێرا',
   ],
 
-  offer: 'لە مانگی بەخۆڕاییدا پارە بدە و ٢ مانگی زیادە بەخۆڕایی وەربگرە',
   pay: 'پارەدان',
   payVia: 'پارەدان لە ڕێگەی FIB',
-  startFree: 'مانگی بەخۆڕاییەکەت بەکاربهێنە',
 
-  requestedTitle: 'داواکەت تۆمار کرا',
-  requestedBody: 'هێشتا پارەدانی ئۆتۆماتیکی نییە. تیمەکەمان لە ڕێگەی واتساپەوە پەیوەندیت پێوە دەکات بۆ تەواوکردنی پارەدان.',
-  requestedPlan: 'پلانی هەڵبژێردراو',
-  contactUs: 'پەیوەندیمان پێوە بکە',
-  backToPlans: 'گەڕانەوە بۆ پلانەکان',
+  // ---- the instructions screen ----
+  payTitle: 'ڕێنمایی پارەدان',
+  payPlan: 'پلان',
+  payAmount: 'بڕی پارە',
+  payReference: 'کۆدی ئاماژە',
+  payFib: 'ژمارەی FIB',
+  payNote: 'کۆدەکە لە تێبینی ناردنەکەدا بنووسە بۆ ئەوەی زوو بدۆزرێتەوە.',
+  paySent: 'پارەکەم نارد',
+  payCopy: 'کۆپی',
+  payCopied: 'کۆپی کرا',
+  // Never a success state before the owner has actually seen the money.
+  payWaitingTitle: 'چاوەڕوانی پشتڕاستکردنەوە',
+  payWaitingBody:
+    'ناردنەکەت تۆمار کرا. کاتێک پارەکە بدۆزرێتەوە، پلانەکەت چالاک دەکرێت. ' +
+    'ئەگەر پرسیارت هەیە، لە واتساپەوە پەیوەندیمان پێوە بکە.',
+  paySafety: 'هەرگیز داوای PIN، ووشەی نهێنی یان ژمارەی کارتت لێ ناکەین.',
+  payWhatsapp: 'پەیوەندی بە واتساپ',
+  payBack: 'گەڕانەوە بۆ پلانەکان',
+  payCancel: 'هەڵوەشاندنەوەی داواکاری',
+
+  // ---- history ----
+  historyTitle: 'مێژووی پارەدان',
+  historyEmpty: 'هێشتا هیچ پارەدانێک نییە.',
+  historyDate: 'بەروار',
+  historyAmount: 'بڕ',
+  historyStatus: 'دۆخ',
+  historyConfirmed: 'پشتڕاستکراوە',
+  historyPending: 'چاوەڕوانی پشتڕاستکردنەوە',
+
+  errPlan: 'پلانەکە نەناسرایەوە.',
+  errIntent: 'داواکارییەکە دروست نەکرا. تکایە دووبارە هەوڵ بدەوە.',
+  errSent: 'تۆمارکردنی ناردنەکە سەرکەوتوو نەبوو. تکایە دووبارە هەوڵ بدەوە.',
+};
+
+/**
+ * The Telegram messages the owner gets.
+ *
+ * Only the owner ever sees these, so they are the one place in the app
+ * where brevity beats explanation: he is reading them on a lock screen
+ * and deciding whether to tap a button.
+ *
+ * Sellers are never messaged on Telegram.
+ */
+export const TELEGRAM = {
+  newPayment: 'پارەدانی نوێ',
+  plan: { months_6: '٦ مانگ', year_1: '١ ساڵ' },
+  activate: 'چالاک بکە',
+  notFound: 'نەدۆزرایەوە',
+
+  // What the message becomes once he has tapped. The buttons go with
+  // it, so the same message cannot be actioned twice.
+  activated: 'چالاک کرا ✓',
+  markedNotFound: 'نەدۆزرایەوە',
+  // He tapped a payment that /admin had already dealt with.
+  alreadyHandled: 'پێشتر کرابوو',
+  failed: 'سەرکەوتوو نەبوو — لە /admin هەوڵ بدەرەوە',
+};
+
+/**
+ * The owner's FIB number, printed on the instructions screen for the
+ * seller to transfer to. This is the whole payment integration: there
+ * is no processor, no merchant account and no API call.
+ */
+export const FIB_NUMBER = '07515298365';
+
+/**
+ * Products a shop may publish on the free trial. Paid plans are
+ * unlimited.
+ *
+ * app.trial_product_limit() in the database is the same number and is
+ * what actually refuses the insert; scripts/plan-limits-test.mjs fails
+ * if the two drift apart.
+ */
+export const TRIAL_PRODUCT_LIMIT = 5;
+
+/**
+ * Renewal banners on the seller's own screens.
+ *
+ * The two amber ones can be closed and come back on their own; the two
+ * red ones cannot be closed at all, because by then the shop is either
+ * about to go dark or already has. Dismissing is always "not now",
+ * never "never again" — the row only records when it was last closed.
+ *
+ * These belong to the seller's area and nowhere else. The public shop
+ * page and the product pages never carry one: a customer arriving from
+ * TikTok must not be shown a seller's billing state, and that HTML is
+ * edge-cached, so it has to be identical for everybody.
+ */
+export const PLAN_BANNER = {
+  soon: (n) => `${n} ڕۆژ لە پلانەکەت ماوە`,
+  soonOne: 'سبەی پلانەکەت تەواو دەبێت',
+  grace: (n) => `پلانەکەت تەواو بووە. ${n} ڕۆژ ماوە پێش ئەوەی بەرهەمەکانت بشاردرێنەوە.`,
+  hidden: 'بەرهەمەکانت شاراونەتەوە. پارە بدە بۆ ئەوەی یەکسەر بگەڕێنەوە.',
+  pending: 'ناردنەکەت لە چاوەڕوانی پشتڕاستکردنەوەدایە.',
+  action: 'پارەدان',
+  dismiss: 'داخستن',
+
+  /**
+   * When to start warning, in days left.
+   *
+   * A trial is one month, so two warnings are enough. A paid plan runs
+   * for six or twelve, and a seller who has not thought about it since
+   * they paid needs more than three days' notice, so it gets three.
+   */
+  trialDays: [10, 3],
+  paidDays: [14, 7, 3],
+
+  /**
+   * How long a dismissal lasts, per kind, in days. `urgent` is the last
+   * threshold before the plan ends; everything earlier is `soon`.
+   */
+  cooldown: { soon: 3, urgent: 1 },
 };
 
 /** Advertised prices. The monthly figure is display only. */
@@ -364,7 +508,7 @@ export const PLANS = [
 ];
 
 /** The number a seller reaches us on from the subscription page. */
-export const SUPPORT_WHATSAPP = '+9647500000000';
+export const SUPPORT_WHATSAPP = '+9647515298365';
 
 /**
  * The admin screen. Not linked from anywhere in the app — a seller who
@@ -414,18 +558,31 @@ export const ADMIN = {
 
   shopsEmpty: 'هیچ دوکانێک نەدۆزرایەوە.',
 
-  intentsTitle: 'داواکاری پارەدانی کراوە',
+  intentsTitle: 'پارەدانەکان',
   intentsEmpty: 'هیچ داواکارییەکی کراوە نییە.',
+  intentShop: 'دوکان',
   intentPlan: 'پلان',
   intentAmount: 'بڕ',
+  intentReference: 'کۆدی ئاماژە',
   intentDate: 'بەروار',
   intentWhatsapp: 'واتساپ',
-  intentActivate: 'چالاککردنی پلان',
-  intentConfirm: 'دڵنیایت؟ پلانەکە چالاک دەکرێت و داواکارییەکە دەبێتە پارەدراو.',
+  intentActivate: 'چالاککردن',
+  intentConfirm: 'دڵنیایت؟ پلانەکە چالاک دەکرێت و بەرهەمەکان دەردەکەون.',
   intentDone: 'پلانەکە چالاک کرا.',
   intentFailed: 'چالاککردن سەرکەوتوو نەبوو.',
-  intentCancel: 'هەڵوەشاندنەوە',
-  intentCancelConfirm: 'داواکارییەکە هەڵبوەشێنرێتەوە؟ هیچ پلانێک چالاک ناکرێت.',
+  // Not a rejection: the intent goes back to where it was and the owner
+  // follows it up on WhatsApp himself.
+  intentNotFound: 'نەدۆزرایەوە',
+  intentNotFoundConfirm:
+    'پارەکە نەدۆزرایەوە؟ داواکارییەکە دەگەڕێتەوە دۆخی پێشوو و هیچ پلانێک چالاک ناکرێت.',
+  intentPendingBadge: 'ناردراوە',
+  intentOpenBadge: 'کراوە',
+
+  expiringTitle: 'بەم زووانە تەواو دەبن',
+  expiringEmpty: 'هیچ دوکانێک لەم ٧ ڕۆژەدا تەواو نابێت.',
+  expiringDays: (n) => `${n} ڕۆژ`,
+  expiringGrace: 'لە ماوەی مۆڵەتدایە',
+  expiringWhatsapp: 'واتساپ',
 
   detailTitle: 'دوکان',
   owner: 'خاوەن',
