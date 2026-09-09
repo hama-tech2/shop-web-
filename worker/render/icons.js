@@ -99,3 +99,11 @@ export const iconTrash = (s = 18) =>
   svg('<path d="M5 7h14M9.5 7V5h5v2M6.5 7l.8 12h9.4l.8-12"/>', s);
 export const iconArrowUp = (s = 18) => svg('<path d="M12 19V6M6 12l6-6 6 6"/>', s);
 export const iconArrowDown = (s = 18) => svg('<path d="M12 5v13M6 12l6 6 6-6"/>', s);
+
+/* Account rows use the shared outline family. */
+export const iconStore = (s = 22) => svg('<path d="M4 10v10h16V10M3 10l2-6h14l2 6M3 10c0 3 4.5 3 4.5 0 0 3 4.5 3 4.5 0 0 3 4.5 3 4.5 0 0 3 4.5 3 4.5 0M9 20v-6h6v6"/>', s);
+export const iconCalendar = (s = 22) => svg('<rect x="4" y="5" width="16" height="16" rx="2"/><path d="M8 3v4m8-4v4M4 10h16m-12 4h3m-3 3h6"/>', s);
+export const iconExternal = (s = 22) => svg('<path d="M14 3h7v7m0-7L11 13M10 5H5a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-5"/>', s);
+export const iconShield = (s = 22) => svg('<path d="m12 3 8 3v6c0 5-8 9-8 9s-8-4-8-9V6l8-3Z"/><path d="m8 12 3 3 5-6"/>', s);
+export const iconDocument = (s = 22) => svg('<path d="M14 3H5v18h14V8l-5-5Zm0 0v5h5M8 12h8m-8 4h6"/>', s);
+export const iconLogout = (s = 22) => svg('<path d="M10 4H4v16h6m4-12 4 4-4 4M8 12h10"/>', s);

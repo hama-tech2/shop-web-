@@ -583,6 +583,10 @@ export async function subscriptionGet(request, env, url) {
   const selected = PLANS.some((p) => p.key === wanted) ? wanted : PLANS[0].key;
   const errorKey = url.searchParams.get('e');
 
+  // Hosted checkout is not connected yet. Old chooser bookmarks also land
+  // safely here. Never interpret query parameters as a verified result.
+  const checkoutUnavailable = ['checkout', 'method'].includes(url.searchParams.get('step'));
+
   const [state, intent, payments] = await Promise.all([
     loadState(env, g.token, g.shop.id),
     loadLiveIntent(env, g.token, g.shop.id),
@@ -592,7 +596,9 @@ export async function subscriptionGet(request, env, url) {
   return subPage(
     subscriptionPage({
       state, selected, intent, payments,
-      error: errorKey && S[errorKey] ? S[errorKey] : null,
+      error: checkoutUnavailable
+        ? 'پارەدانی ئۆنلاین هێشتا چالاک نەکراوە. هیچ پارەیەک لێت وەرناگیرێت.'
+        : errorKey && S[errorKey] ? S[errorKey] : null,
     }),
     g.headers,
   );

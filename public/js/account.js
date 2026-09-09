@@ -203,7 +203,7 @@
      ========================================================= */
 
   var planForm = document.getElementById('plan-form');
-  if (planForm) {
+  if (planForm && !planForm.hasAttribute('data-native-plans')) {
     var planField = document.getElementById('plan-field');
     planForm.addEventListener('click', function (e) {
       var card = e.target.closest && e.target.closest('.plan');

@@ -1,11 +1,11 @@
 import {
-  FIB_NUMBER, PLANS, SUBSCRIPTION as T, SUPPORT_WHATSAPP,
+  APP_NAME, FIB_NUMBER, PLANS, SUBSCRIPTION as T, SUPPORT_WHATSAPP,
   TRIAL_PRODUCT_LIMIT, UI,
 } from '../config.js';
 import { esc, price } from './html.js';
 import { bottomNav } from './appshell.js';
 import { planState } from '../plan-state.js';
-import { iconBack, iconCheck, iconCopy } from './icons.js';
+import { iconBack, iconCheck, iconCopy, iconGift, iconLink, iconShield, iconStore, iconWhatsapp } from './icons.js';
 
 /** 2026/09/06 — Latin digits, isolated so the slashes do not flip. */
 function formatDate(iso) {
@@ -52,91 +52,82 @@ function copyRow(label, value, id) {
    the plan screen
    ============================================================ */
 
+// Pricing remains in PLANS. These names are display-only Latin-digit labels.
+const planName = (p) => p.key === 'year_1' ? '1 ساڵ' : '6 مانگ';
+const monthly = (p) => `<bdi>${esc(price(p.monthly))} د.ع</bdi> مانگانە`;
+const amount = (p) => `<span class="billing-amount"><bdi>${esc(price(p.amount))}</bdi> <span>د.ع</span></span>`;
+const bestBadge = (p) => p.best ? `<span class="billing-best">${esc(T.best)}</span>` : '';
+const billingHeader = (title, back) =>
+  `<header class="billing-head"><a class="icon-btn" href="${esc(back)}" aria-label="گەڕانەوە">${iconBack()}</a>` +
+  `<h1>${esc(title)}</h1><span></span></header>`;
+const trust = () => `<p class="billing-trust">${iconShield(18)}<span>پارەدان بە سەلامەتی لەڕێی <bdi>Wayl</bdi></span></p>` +
+  `<p class="billing-safety">${esc(APP_NAME)} هیچ <bdi>PIN</bdi>، <bdi>OTP</bdi> یان ژمارەی کارت وەرناگرێت</p>`;
+const availability = 'پارەدانی ئۆنلاین هێشتا چالاک نەکراوە. هیچ پارەیەک لێت وەرناگیرێت.';
+
 export function subscriptionPage({ state, selected, intent, payments = [], error }) {
-  const plan = planState(state, Boolean(intent && intent.status === 'pending'));
-  const total = state?.total_days ?? 30;
-  const used = Math.max(0, Math.min(1, 1 - plan.days / Math.max(total, 1)));
-
-  // A year first and largest, then six months. The free month is last
-  // and small: it is what the seller is already on, and putting it
-  // first makes the paid plans read as the alternative to it.
-  const ordered = PLANS.slice().sort(
-    (a, b) => (b.best ? 1 : 0) - (a.best ? 1 : 0) || b.amount - a.amount,
-  );
-  const cards = ordered.map((p, i) => planCard(p, selected, i === 0)).join('');
-  const benefits = T.benefits
-    .map((b) => `<li class="benefit"><span class="benefit__tick">${iconCheck()}</span>` +
-                `<span>${esc(b)}</span></li>`)
-    .join('');
-
-  return (
-    `<div class="shell shell--sub">` +
-
-    `<div class="edit-head">` +
-    `<a class="icon-btn" href="/app" aria-label="${esc(T.title)}">${iconBack()}</a>` +
-    `<h1 class="edit-head__title">${esc(T.title)}</h1>` +
-    `<span class="edit-head__count"></span>` +
-    `</div>` +
-
-    // The settings panel reads these two rather than re-deriving the
-    // state: one place decides which of the five a seller is in.
-    `<div class="trial" data-plan-state="${esc(plan.key)}"` +
-    ` data-plan-days="${esc(String(plan.days))}">` +
-    `<div class="trial__track"><span class="trial__fill" style="width:${(used * 100).toFixed(0)}%"></span></div>` +
-    `<p class="trial__line">${esc(statusLine(plan, state))}</p>` +
-    `</div>` +
-
-    (error ? `<p class="alert alert--error">${esc(error)}</p>` : '') +
-
-    // A transfer already waiting: the way back to its instructions has
-    // to be the first thing on the screen, not a second payment.
-    (intent
-      ? `<a class="notice notice--link" href="/app/subscription/pay">` +
-        `<span class="notice__title">${esc(intent.status === 'pending'
-          ? T.payWaitingTitle : T.payTitle)}</span>` +
-        `<span>${esc(T.payReference)}: ${esc(intent.reference ?? '')}</span></a>`
-      : '') +
-
-    `<form method="post" action="/app/subscription" id="plan-form">` +
-    `<input type="hidden" name="plan" id="plan-field" value="${esc(selected)}">` +
-    `<div class="plans">${cards}</div>` +
-
-    // Last, and deliberately not a card: nothing here to choose.
-    `<div class="plan-free">` +
-    `<span class="plan-free__name">${esc(T.freeTitle)}</span>` +
-    `<span class="plan-free__body">${esc(T.freeBody(TRIAL_PRODUCT_LIMIT))}</span>` +
-    `</div>` +
-
-    `<h2 class="sub-heading">${esc(T.whatYouGet)}</h2>` +
-    `<ul class="benefits">${benefits}</ul>` +
-
-    `<div class="save-bar save-bar--dark">` +
-    `<button class="btn btn--dark" type="submit" id="pay-btn">${esc(T.pay)}</button>` +
-    `<p class="pay-note">${esc(T.payVia)}</p>` +
-    `</div>` +
-    `</form>` +
-
-    paymentHistory(payments) +
-
-    `</div>` +
-    bottomNav('account')
-  );
+  const plan = state ? planState(state, Boolean(intent && intent.status === 'pending')) : null;
+  const key = state?.status === 'suspended' ? 'suspended' : plan?.key;
+  const ordered = PLANS.slice().sort((a, b) => Number(b.best) - Number(a.best));
+  const chosen = PLANS.some((p) => p.key === selected) ? selected : ordered[0].key;
+  const features = [
+    ['تا 1000 بەرهەم', iconCheck()], // products_limit_1000, unchanged.
+    ['پرۆفایلی گشتی دوکان', iconStore(20)],
+    ['لینکی دوکان بۆ بیۆی تۆڕە کۆمەڵایەتییەکان', iconLink(20)],
+    ...(SUPPORT_WHATSAPP ? [['پشتیوانی', iconWhatsapp(20)]] : []),
+  ];
+  return `<main class="shell billing billing--plans">` +
+    billingHeader(T.title, '/app#account-settings') +
+    `<div class="billing-state"${key ? ` data-plan-state="${esc(key)}" data-plan-days="${plan?.days ?? 0}"` : ''}>` +
+    `<span class="billing-state__icon">${iconGift(24)}</span><div>` +
+    `<p>${esc(!state ? 'وردەکاری پلان لە ئێستادا بەردەست نییە.' : key === 'suspended' ? 'بەشداریکردنەکەت ناچالاکە' : statusLine(plan, state))}</p>` +
+    (state?.plan === 'trial' ? `<small>تا ${TRIAL_PRODUCT_LIMIT} بەرهەم لە مانگی بەخۆڕاییدا</small>` : '') + `</div></div>` +
+    (error ? `<p class="alert alert--error" role="alert">${esc(error)}</p>` : '') +
+    `<form method="get" action="/app/subscription" id="plan-form" data-native-plans>` +
+    `<input type="hidden" name="step" value="checkout">` +
+    `<fieldset class="billing-options"><legend class="visually-hidden">پلانێک هەڵبژێرە</legend>` +
+    ordered.map((p) => planCard(p, chosen)).join('') + `</fieldset>` +
+    `<section class="billing-features" aria-labelledby="billing-features-title"><h2 id="billing-features-title">چی لە پلانەکە دەستدەکەوێت؟</h2><ul>` +
+    features.map(([text, icon]) => `<li><span class="billing-feature-icon">${icon}</span><span>${text}</span></li>`).join('') +
+    `</ul></section><button class="billing-primary" type="submit" id="pay-btn">بەردەوام بە پارەدان</button>` +
+    trust() + `<p class="billing-availability">${availability}</p></form>` +
+    // Historical records stay available; no SW code or manual-payment entry CTA.
+    `<details class="billing-history"><summary>${esc(T.historyTitle)}</summary>${paymentHistory(payments)}</details>` +
+    `</main>` + bottomNav('account', { accountLabel: 'هەژمار' });
 }
 
-function planCard(plan, selected, lead = false) {
-  const active = plan.key === selected;
-  return (
-    `<button class="plan${plan.best ? ' plan--best' : ''}${lead ? ' plan--lead' : ''}" type="button"` +
-    ` data-plan="${esc(plan.key)}" aria-pressed="${active}">` +
-    (plan.best ? `<span class="plan__badge">${esc(T.best)}</span>` : '') +
-    `<span class="plan__name">${esc(plan.name)}</span>` +
-    `<span class="plan__price">` +
-    `<span class="plan__amount">${esc(price(plan.amount))}</span>` +
-    `<span class="plan__currency">${esc(UI.currency)}</span></span>` +
-    `<span class="plan__monthly">${esc(T.perMonth(price(plan.monthly)))}</span>` +
-    (plan.best ? `<span class="plan__savings">${esc(T.savings)}</span>` : '') +
-    `</button>`
-  );
+function planCard(plan, selected) {
+  return `<label class="billing-choice billing-plan" data-plan="${esc(plan.key)}">` +
+    `<input type="radio" name="plan" value="${esc(plan.key)}"${plan.key === selected ? ' checked' : ''} required>` +
+    `<span class="billing-choice__surface"><span class="billing-plan__top">` +
+    `<span class="billing-plan__name">${planName(plan)}</span>${bestBadge(plan)}</span>` +
+    `<span class="billing-plan__bottom"><span>${amount(plan)}<span class="billing-monthly">${monthly(plan)}</span></span>` +
+    `<span class="billing-radio" aria-hidden="true"></span></span></span></label>`;
+}
+
+/** A read-only method chooser. No provider session, reference or payment is made. */
+export function paymentMethodPage({ plan, method = 'fib', unavailable = false }) {
+  const methods = [
+    { key: 'fib', name: 'FIB', mark: 'FIB', helper: 'پارەدان لەڕێی ئەپی FIB' },
+    { key: 'superqi', name: 'SuperQi', mark: 'Qi', helper: 'پارەدان لەڕێی ئەپی SuperQi' },
+  ];
+  const selected = methods.find((m) => m.key === method) || methods[0];
+  return `<main class="shell billing billing--method">` +
+    billingHeader('پارەدان', '/app/subscription?plan=' + plan.key) +
+    `<section class="billing-summary" aria-label="پلانی هەڵبژێردراو"><div><p>پلانی هەڵبژێردراو</p>` +
+    `<h2>${planName(plan)}</h2></div>${bestBadge(plan)}<div>${amount(plan)}` +
+    `<p class="billing-monthly">${monthly(plan)}</p></div></section>` +
+    `<form method="get" action="/app/subscription" id="payment-method-form">` +
+    `<input type="hidden" name="step" value="method"><input type="hidden" name="plan" value="${esc(plan.key)}">` +
+    `<fieldset class="billing-options billing-methods"><legend>ڕێگای پارەدان هەڵبژێرە</legend>` +
+    methods.map((m) => `<label class="billing-choice billing-method"><input type="radio" name="method" value="${m.key}"${selected.key === m.key ? ' checked' : ''} required>` +
+      `<span class="billing-choice__surface"><span class="billing-method__brand billing-method__brand--${m.key}" aria-hidden="true">${m.mark}</span>` +
+      `<span class="billing-method__body"><strong dir="ltr">${m.name}</strong><span>${m.helper}</span></span>` +
+      `<span class="billing-radio" aria-hidden="true"></span></span></label>`).join('') + `</fieldset>` +
+    `<p class="billing-availability">${availability}</p>` +
+    `<div class="billing-result" id="payment-unavailable" role="status" tabindex="-1"${unavailable ? '' : ' hidden'}>` +
+    `پارەدان لە ئێستادا بەردەست نییە. تکایە دواتر هەوڵ بدەوە. هیچ پارەدانێک ئەنجام نەدرا.</div>` +
+    `<button class="billing-primary" type="submit" name="continue" value="1" id="method-continue">بەردەوام بە <bdi>${selected.name}</bdi></button>` +
+    trust() + `</form></main>` + bottomNav('account', { accountLabel: 'هەژمار' });
 }
 
 /* ============================================================

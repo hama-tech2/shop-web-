@@ -10,7 +10,7 @@ import { iconHeart, iconHome, iconPlus, iconTrash, iconUser } from './icons.js';
  * Bottom nav, shared by the feed, /saved and the seller's area.
  * `active` is 'feed', 'saved' or 'account'.
  */
-export function bottomNav(active) {
+export function bottomNav(active, { accountLabel = UI.tabAccount } = {}) {
   const tab = (href, key, icon, label) =>
     `<a class="nav__tab" href="${esc(href)}"` +
     `${active === key ? ' aria-current="page"' : ''}>${icon}` +
@@ -20,7 +20,7 @@ export function bottomNav(active) {
     `<nav class="nav" aria-label="ناڤیگەیشن"><div class="nav__inner">` +
     tab('/', 'feed', iconHome(), UI.tabFeed) +
     tab('/saved', 'saved', iconHeart(22), SAVED.tab) +
-    tab('/app', 'account', iconUser(), UI.tabAccount) +
+    tab('/app', 'account', iconUser(), accountLabel) +
     `</div></nav>`
   );
 }
@@ -91,7 +91,7 @@ export function planBannerHtml(banner) {
 }
 
 /** Owner controls stay inside the existing authenticated seller area. */
-export function appShell({ shop, origin, banner = null }) {
+export function appShell({ shop, origin, banner = null, subscription = null }) {
   const controls =
     `<nav class="owner-controls" aria-label="بەڕێوەبردنی دوکان">` +
     `<a class="owner-control owner-control--primary" href="/app/profile">دەستکاری پرۆفایل</a>` +
@@ -106,9 +106,9 @@ export function appShell({ shop, origin, banner = null }) {
     ` data-cat-ui="${esc(CATEGORY_UI)}" aria-label="${esc(PRODUCT.listTitle)}">` +
     `<div class="notice"><a class="owner-preview-link" href="${esc('/@' + shop.slug)}">${esc(PROFILE.viewShop)} ‹</a></div>` +
     `</section></div>` +
-    settingsPanel({ shop, banner }) +
+    settingsPanel({ shop, banner, subscription }) +
     `<template id="owner-delete-control"><button class="card__heart owner-delete" type="button" aria-label="سڕینەوەی بەرهەم">${iconTrash(18)}</button></template>` +
-    bottomNav('account') +
+    bottomNav('account', { accountLabel: 'هەژمار' }) +
     `<script src="/js/shop.js" defer></script>` +
     `<script src="/js/settings.js" defer></script>` +
     `<script src="/js/owner-profile.js" defer></script>`

@@ -1,13 +1,14 @@
 /**
- * Shop Web — the manual payment flow, end to end.
+ * Shop Web — the retained manual payment fallback, end to end.
  *
  * Three things are being pinned.
  *
- *  1. The seller journey: pick a plan, get a reference code and the
+ *  1. The legacy fallback: directly POST a plan, get a reference code and the
  *     owner's FIB number, say you sent it, and wait. The screen must
  *     never claim the payment succeeded — only the owner finding the
  *     money does that — and it must never ask for a PIN, a password, a
- *     card number or a receipt.
+ *     card number or a receipt. The primary plan UI now uses the safe
+ *     Wayl method chooser, covered by subscription-ui-test.mjs.
  *
  *  2. The state transitions: open -> pending is the seller's only move,
  *     and it moves nothing else. Confirming is the owner's, and
@@ -173,8 +174,8 @@ check('choosing the same plan again returns to the instructions',
       r.location, '/app/subscription/pay');
 
 html = await page('/app/subscription');
-check('the plan screen links back to the waiting payment',
-      html.includes('/app/subscription/pay'), true);
+check('the primary plan screen does not link into manual payment',
+      html.includes('/app/subscription/pay'), false);
 
 r = await post('/app/subscription/sent', { intent: 'not-a-uuid' });
 check('a bad intent id is refused', r.location, '/app/subscription/pay?e=errSent');
@@ -376,12 +377,10 @@ await setProducts(0);
 html = await page('/app/subscription');
 const yearAt = html.indexOf('data-plan="year_1"');
 const sixAt = html.indexOf('data-plan="months_6"');
-const freeAt = html.indexOf('plan-free');
 
 check('the year card comes before the six-month one', yearAt < sixAt, true);
-check('the year is the one marked out', /plan--lead[\s\S]{0,200}data-plan="year_1"/.test(html)
-      || /data-plan="year_1"[^>]*/.test(html.slice(html.indexOf('plan--lead'))), true);
-check('the free month comes last of the three', freeAt > sixAt, true);
+check('the year is selected by default', /name="plan" value="year_1" checked/.test(html), true);
+check('there are exactly two commercial choices', (html.match(/type="radio" name="plan"/g) || []).length, 2);
 check('free is not a selectable card',
       /class="plan[^"]*"[^>]*data-plan="trial"/.test(html), false);
 check('but it is still named', html.includes('مانگی بەخۆڕایی'), true);

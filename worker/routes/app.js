@@ -37,7 +37,7 @@ async function planBanner(env, token, shopId) {
   ]);
 
   const state = stateRes.ok ? stateRes.data?.[0] ?? null : null;
-  if (!state) return null;
+  if (!state) return { banner: null, subscription: null };
 
   const dismissed = {};
   for (const row of (closedRes.ok ? closedRes.data ?? [] : [])) {
@@ -45,7 +45,8 @@ async function planBanner(env, token, shopId) {
   }
 
   const pending = intentRes.ok ? Boolean(intentRes.data?.length) : false;
-  return bannerFor(planState(state, pending), PLAN_BANNER, dismissed);
+  const plan = planState(state, pending);
+  return { banner: bannerFor(plan, PLAN_BANNER, dismissed), subscription: { state, plan } };
 }
 
 /**
@@ -96,7 +97,7 @@ export async function appGet(request, env, url) {
   const shop = await getOwnShop(env, token, user.id);
   if (!shop) return redirect('/onboarding', headers);
 
-  const banner = await planBanner(env, token, shop.id);
+  const { banner, subscription } = await planBanner(env, token, shop.id);
 
   headers.set('content-type', 'text/html; charset=utf-8');
   headers.set('cache-control', 'no-store');
@@ -105,7 +106,7 @@ export async function appGet(request, env, url) {
     layout({
       title: `${APP_UI.title} — ${APP_NAME}`,
       description: APP_NAME,
-      body: appShell({ shop, origin: url.origin, banner }),
+      body: appShell({ shop, origin: url.origin, banner, subscription }),
       scripts: ['/js/app.js'],
     }),
     { headers },
