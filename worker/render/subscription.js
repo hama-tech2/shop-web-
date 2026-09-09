@@ -64,7 +64,14 @@ const trust = () => `<p class="billing-trust">${iconShield(18)}<span>پارەد�
   `<p class="billing-safety">${esc(APP_NAME)} هیچ <bdi>PIN</bdi>، <bdi>OTP</bdi> یان ژمارەی کارت وەرناگرێت</p>`;
 const availability = 'پارەدانی ئۆنلاین هێشتا چالاک نەکراوە. هیچ پارەیەک لێت وەرناگیرێت.';
 
-export function subscriptionPage({ state, selected, intent, payments = [], error }) {
+/**
+ * `paymentsEnabled` is the server's word, never the browser's. When it
+ * is off the form stays exactly where it was — a GET that lands back
+ * on this page and says online payment is not switched on. When it is
+ * on, the same button posts to the checkout route, and the seller's
+ * next screen is Wayl's.
+ */
+export function subscriptionPage({ state, selected, intent, payments = [], error, paymentsEnabled = false }) {
   const plan = state ? planState(state, Boolean(intent && intent.status === 'pending')) : null;
   const key = state?.status === 'suspended' ? 'suspended' : plan?.key;
   const ordered = PLANS.slice().sort((a, b) => Number(b.best) - Number(a.best));
@@ -82,14 +89,16 @@ export function subscriptionPage({ state, selected, intent, payments = [], error
     `<p>${esc(!state ? 'وردەکاری پلان لە ئێستادا بەردەست نییە.' : key === 'suspended' ? 'بەشداریکردنەکەت ناچالاکە' : statusLine(plan, state))}</p>` +
     (state?.plan === 'trial' ? `<small>تا ${TRIAL_PRODUCT_LIMIT} بەرهەم لە مانگی بەخۆڕاییدا</small>` : '') + `</div></div>` +
     (error ? `<p class="alert alert--error" role="alert">${esc(error)}</p>` : '') +
-    `<form method="get" action="/app/subscription" id="plan-form" data-native-plans>` +
-    `<input type="hidden" name="step" value="checkout">` +
+    `<form method="${paymentsEnabled ? 'post' : 'get'}" ` +
+    `action="${paymentsEnabled ? '/app/subscription/checkout' : '/app/subscription'}" ` +
+    `id="plan-form" data-native-plans>` +
+    (paymentsEnabled ? '' : `<input type="hidden" name="step" value="checkout">`) +
     `<fieldset class="billing-options"><legend class="visually-hidden">پلانێک هەڵبژێرە</legend>` +
     ordered.map((p) => planCard(p, chosen)).join('') + `</fieldset>` +
     `<section class="billing-features" aria-labelledby="billing-features-title"><h2 id="billing-features-title">چی لە پلانەکە دەستدەکەوێت؟</h2><ul>` +
     features.map(([text, icon]) => `<li><span class="billing-feature-icon">${icon}</span><span>${text}</span></li>`).join('') +
     `</ul></section><button class="billing-primary" type="submit" id="pay-btn">بەردەوام بە پارەدان</button>` +
-    trust() + `<p class="billing-availability">${availability}</p></form>` +
+    trust() + (paymentsEnabled ? '' : `<p class="billing-availability">${availability}</p>`) + `</form>` +
     // Historical records stay available; no SW code or manual-payment entry CTA.
     `<details class="billing-history"><summary>${esc(T.historyTitle)}</summary>${paymentHistory(payments)}</details>` +
     `</main>` + bottomNav('account', { accountLabel: 'هەژمار' });

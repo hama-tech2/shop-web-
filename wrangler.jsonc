@@ -38,9 +38,22 @@
   // browser because RLS is what actually protects the data.
   // The service_role key is a SECRET — `wrangler secret put` only,
   // and it must never appear in front-end code or in this file.
+  //
+  // PAYMENTS_ENABLED is the switch on Wayl hosted checkout. It stays
+  // "false" until a real checkout has been made and read on a phone;
+  // with it off, the Pay button lands back on the plans screen and no
+  // charge can be created. Only the exact string "true" turns it on.
+  //
+  // WAYL_API_TOKEN is a SECRET — `wrangler secret put WAYL_API_TOKEN`.
+  // WAYL_RETURN_URL is required once payments are on: the public https
+  // URL of /app/subscription/result. Wayl's webhook URL is built from
+  // its origin. It is deliberately never taken from the request, whose
+  // Host header the caller controls. Missing it means no checkout.
   "vars": {
     "SUPABASE_URL": "https://kvwgiobnpwrjwyevadvc.supabase.co",
     "SUPABASE_PUBLISHABLE_KEY": "sb_publishable_j6YHgYneV4Bfox79hrxH7g_0r28MsBg",
-    "R2_BUCKET": "shop-web-images"
+    "R2_BUCKET": "shop-web-images",
+    "PAYMENTS_ENABLED": "false",
+    "WAYL_ENV": "test"
   }
 }

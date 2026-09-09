@@ -416,7 +416,16 @@ export const SUBSCRIPTION = {
   historyConfirmed: 'پشتڕاستکراوە',
   historyPending: 'چاوەڕوانی پشتڕاستکردنەوە',
 
+  // ---- Wayl hosted checkout ----
+  // Nothing here ever claims a payment succeeded. Only the server
+  // asking Wayl and getting an answer does that.
+  resultSlow: 'هێشتا پشکنین بەردەوامە. ئەمە هەندێک جار چەند خولەکێک دەخایەنێت. ' +
+    'دەتوانیت ئەم لاپەڕەیە دابخەیت — پارەدانەکەت هەڵناوەشێتەوە.',
+
   errPlan: 'پلانەکە نەناسرایەوە.',
+  errUnavailable: 'پارەدانی ئۆنلاین هێشتا چالاک نەکراوە. هیچ پارەیەک لێت وەرناگیرێت.',
+  errCheckout: 'دەستپێکردنی پارەدان سەرکەوتوو نەبوو. تکایە دووبارە هەوڵ بدەوە.',
+  errBusy: 'داواکاری زۆر. تکایە چەند خولەکێک چاوەڕێ بکە و دووبارە هەوڵ بدەوە.',
   errIntent: 'داواکارییەکە دروست نەکرا. تکایە دووبارە هەوڵ بدەوە.',
   errSent: 'تۆمارکردنی ناردنەکە سەرکەوتوو نەبوو. تکایە دووبارە هەوڵ بدەوە.',
 };
@@ -506,6 +515,44 @@ export const PLANS = [
   { key: 'year_1',   name: '١ ساڵ', amount: 90000, monthly: 7500, best: true  },
   { key: 'months_6', name: '٦ مانگ', amount: 55000, monthly: 9200, best: false },
 ];
+
+/**
+ * Wayl — the payment provider for subscriptions.
+ *
+ * The seller is sent to Wayl's own hosted checkout and picks FIB or
+ * SuperQi there. Bazaro renders no payment method, no QR code, no card
+ * form and no timer, and holds no credential: WAYL_API_TOKEN is a
+ * Worker secret and never reaches the browser.
+ *
+ * The key lists exist because Wayl's exact field names are not
+ * something to guess at. Each is read in order and the first present
+ * one wins, so the first real payment can shorten these lists to what
+ * Wayl actually sends rather than change any logic.
+ */
+export const WAYL = {
+  apiBase: 'https://api.thewayl.com',
+  currency: 'IQD',
+
+  /**
+   * PROVISIONAL, and the reason the manual test on a real phone comes
+   * before this flow is switched on. Anything not on one of these
+   * lists is treated as still in progress — never as paid, never as
+   * failed. See worker/wayl.js mapStatus.
+   */
+  paidStatuses: ['paid', 'success', 'successful', 'completed', 'complete'],
+  failedStatuses: ['failed', 'failure', 'declined', 'rejected', 'error', 'expired'],
+  cancelledStatuses: ['cancelled', 'canceled'],
+
+  statusKeys: ['paymentStatus', 'status', 'state', 'linkStatus'],
+  referenceKeys: ['referenceId', 'reference_id', 'reference'],
+  eventKeys: ['eventId', 'event_id', 'id'],
+  linkIdKeys: ['id', 'linkId', 'link_id'],
+  codeKeys: ['code', 'linkCode', 'link_code'],
+  urlKeys: ['url', 'checkoutUrl', 'checkout_url'],
+  methodKeys: ['paymentMethod', 'payment_method', 'method', 'provider'],
+  totalKeys: ['total', 'amount', 'totalAmount'],
+  currencyKeys: ['currency'],
+};
 
 /** The number a seller reaches us on from the subscription page. */
 export const SUPPORT_WHATSAPP = '+9647515298365';

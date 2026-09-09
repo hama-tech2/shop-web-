@@ -25,7 +25,7 @@ check('method omitted without trusted value', !paymentResult({...base,state:'suc
 check('trusted method escaped', paymentResult({...base,state:'success',method:'<FIB>'}).includes('&lt;FIB&gt;'));
 check('checking shows no provider even when supplied', !paymentResult({...base,state:'checking',method:'FIB'}).includes('FIB'));
 check('no production result renderer import', !(await readFile('worker/routes/account.js','utf8')).includes('payment-result'));
-for (const p of ['/__mode/shop','/__rows/1','/__plan/trial','/__sub/20','/__intent/none','/__calls/reset']) await fetch(STUB+p);
+for (const p of ['/__mode/shop','/__rows/1','/__plan/trial','/__sub/20','/__intent/none','/__wayl/reset','/__calls/reset']) await fetch(STUB+p);
 const browser = await chromium.launch({ executablePath:process.env.CHROME || 'C:/Program Files/Google/Chrome/Application/chrome.exe' });
 try {
   const ctx = await browser.newContext();
@@ -82,7 +82,14 @@ try {
   check('visible keyboard focus', await page.locator('.payment-result__header a').evaluate(el => el === document.activeElement && getComputedStyle(el).outlineStyle === 'solid'));
   await page.goto(APP+'/_fixture/result/failed');
   await page.locator('.payment-result__primary').click();
-  check('retry cannot create checkout or chooser', await page.locator('#plan-form').count() === 1 && await page.locator('.alert[role="alert"]').isVisible() && await page.locator('#payment-method-form').count() === 0);
+  // What the plans screen does with ?step=checkout depends on PAYMENTS_ENABLED, so
+  // the test reads the mode off the screen rather than assuming one. What must hold
+  // either way: a retry lands on the plans screen, never on a result or the chooser,
+  // and a query parameter never starts a payment.
+  const paymentsOn = await page.locator('#plan-form[action="/app/subscription/checkout"]').count() === 1;
+  check('retry lands on the plans screen only', await page.locator('#plan-form').count() === 1 && await page.locator('.payment-result').count() === 0 && await page.locator('#payment-method-form').count() === 0);
+  check('a query parameter creates no Wayl checkout', (await (await fetch(STUB+'/__wayl')).json()).created.length === 0);
+  check(paymentsOn ? 'with checkout on, the plan form is a real post' : 'with checkout off, the screen says so', paymentsOn ? await page.locator('#plan-form').getAttribute('method') === 'post' : await page.locator('.alert[role="alert"]').isVisible());
   const writes = await (await fetch(STUB+'/__writes')).json();
   check('no writes beyond subscription read RPC', writes.every(w => w.table === 'rpc/subscription_state'));
   check('no script errors', errors.length === 0);
