@@ -396,6 +396,12 @@ body:has(.account-settings:target) .page--owner { display: none; }
 .settings-plan h2 { font-size: 22px; line-height: 1.4; color: var(--accent); }
 .settings-badge { padding: 3px 9px; border-radius: 8px; color: var(--accent); background: #DDEFE2; font-size: 13px; font-weight: 500; }
 .settings-plan__date { margin: 10px 0 14px; font-size: 13px; color: var(--settings-muted); }
+/* The one place the end of a plan is announced. Three temperatures, no
+   popup, and the same line whichever screen the seller came from. */
+.settings-plan__warn { margin: 10px 0 0; padding: 10px 12px; border-radius: 12px; font-size: 14px; line-height: 1.8; border: 1px solid #e7e5df; background: #f7f6f2; color: #68665d; }
+.settings-plan__warn[data-level="soon"] { background: #fdf6e6; border-color: #f0e2bd; color: #7a5c12; }
+.settings-plan__warn[data-level="urgent"] { background: #fdefe6; border-color: #f2d5c0; color: #8a4415; }
+.settings-plan__warn[data-level="blocked"] { background: #fbe9e9; border-color: #f0c9c9; color: #8c2f2f; }
 .settings-plan__foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; border-top: 1px solid #DEE9DF; padding-top: 12px; }
 .settings-plan__limit { font-size: 14px; }
 .settings-plan__action { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 8px 16px; background: var(--accent); color: white; border-radius: 10px; font-size: 15px; font-weight: 500; }
@@ -633,6 +639,18 @@ body:has(.account-settings:target) .nav__tab[aria-current="page"] svg { fill: #E
 .billing-summary h2 { font-size: 26px; line-height: 1.5; font-weight: 600; }
 .billing-summary > div:last-child { grid-column: 1 / -1; }
 .billing-summary .billing-monthly { margin: 4px 0 0; }
+
+/* The access screen in front of the first product. It reuses the plan
+   cards exactly as they are; each one is a submit button rather than a
+   radio, because here choosing is the whole action. */
+.billing--gate .billing-lead { margin: 0 0 16px; color: #68665d; font-size: 15px; line-height: 1.9; }
+.gate-option { margin: 0; }
+.gate-plan { width: 100%; padding: 0; border: 0; background: none; font: inherit; color: inherit; text-align: start; }
+.gate-plan .billing-choice__surface { min-height: 88px; }
+.gate-plan:focus-visible .billing-choice__surface { outline: 3px solid var(--accent); outline-offset: 3px; }
+.gate-plan:hover .billing-choice__surface { border-color: var(--accent); }
+.gate-trial .billing-choice__surface { border-color: var(--accent); background: #f0f7f3; }
+.billing--gate .billing-safety { margin-top: 10px; }
 .billing-methods legend { font-size: 18px; font-weight: 600; line-height: 1.7; padding: 0 0 14px; }
 .billing-method .billing-choice__surface { display: flex; align-items: center; gap: 12px; min-height: 88px; padding: 14px; }
 .billing-method__brand { display: grid; place-items: center; flex: none; width: 42px; height: 42px; border-radius: 50%; font: 700 15px/1 system-ui, sans-serif; direction: ltr; }

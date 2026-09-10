@@ -16,7 +16,7 @@
  */
 
 import { readFileSync, readdirSync } from 'node:fs';
-import { PLANS, TRIAL_PRODUCT_LIMIT } from '../worker/config.js';
+import { PLANS, TRIAL_DAYS, TRIAL_PRODUCT_LIMIT } from '../worker/config.js';
 
 const DIR = new URL('../supabase/migrations/', import.meta.url);
 
@@ -80,6 +80,26 @@ check('app.trial_product_limit is defined in a migration',
       trialLimitFromSql() !== null, true);
 check('the trial limit the app shows is the one the database enforces',
       TRIAL_PRODUCT_LIMIT, trialLimitFromSql());
+
+/* ---------- how long the trial is ---------- */
+
+/**
+ * Written twice for the same reason as the limit: the database sets the
+ * date, config.js is the number on the button the seller taps. A seller
+ * promised 30 days and given 14 is the failure this prevents.
+ */
+function trialDaysFromSql() {
+  const bodies = [...sql.matchAll(
+    /create\s+or\s+replace\s+function\s+app\.trial_days\b[\s\S]*?\$\$([\s\S]*?)\$\$/g,
+  )];
+  if (!bodies.length) return null;
+  const m = bodies[bodies.length - 1][1].match(/select\s+(\d+)/i);
+  return m ? Number(m[1]) : null;
+}
+
+check('app.trial_days is defined in a migration', trialDaysFromSql() !== null, true);
+check('the free month the app offers is the one the database grants',
+      TRIAL_DAYS, trialDaysFromSql());
 
 /* ---------- the image limit, for the same reason ---------- */
 

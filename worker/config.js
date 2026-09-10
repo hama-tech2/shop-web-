@@ -387,6 +387,33 @@ export const SUBSCRIPTION = {
   pay: 'پارەدان',
   payVia: 'پارەدان لە ڕێگەی FIB',
 
+  // ---- the access screen, shown when a seller with no plan tries to
+  // post their first product. Looking at it starts nothing. ----
+  gateTitle: 'بۆ زیادکردنی بەرهەم پلانێک هەڵبژێرە',
+  gateBody: 'دەتوانیت بە مانگی بەخۆڕایی دەست پێ بکەیت، یان یەکسەر پلانێک بکڕیت.',
+  gateTrialTitle: (n) => `${n} ڕۆژ بەخۆڕایی`,
+  gateTrialBody: (n) => `تا ${n} بەرهەم لە ماوەی تاقیکردنەوەدا. هیچ پارەیەک وەرناگیرێت.`,
+  gateTrialAction: 'دەستپێکردنی ماوەی بەخۆڕایی',
+  gateTrialOnce: 'ماوەی بەخۆڕایی تەنها یەک جار بەردەستە بۆ هەر هەژمارێک.',
+  gateTrialUsed: 'ماوەی بەخۆڕاییت بەکارهێنراوە. بۆ بەردەوامبوون پلانێک هەڵبژێرە.',
+  gatePlans: 'پلانەکان',
+  gateBack: 'گەڕانەوە',
+
+  // ---- what the Account card says as the end approaches ----
+  warnSoon: (n) => `${n} ڕۆژ لە پلانەکەت ماوە.`,
+  warnUrgent: (n) => `تەنها ${n} ڕۆژ ماوە.`,
+  warnLast: 'سبەی پلانەکەت تەواو دەبێت.',
+  warnExpired: 'پلانەکەت تەواو بووە. ناتوانیت بەرهەمی نوێ زیاد بکەیت.',
+  warnNone: 'هێشتا پلانێکت نییە.',
+  warnAction: 'نوێکردنەوە / بینینی پلانەکان',
+  // Renewal is a payment the seller makes, every time. Nothing here
+  // renews by itself and nothing may say that it does.
+  renewManual: 'نوێکردنەوە دەستییە: کاتێک پلانەکە تەواو دەبێت خۆت پارەکە دەدەیتەوە.',
+
+  errTrial: 'دەستپێکردنی ماوەی بەخۆڕایی سەرکەوتوو نەبوو. تکایە دووبارە هەوڵ بدەوە.',
+  errTrialUsed: 'ماوەی بەخۆڕایی پێشتر بەکارهێنراوە.',
+  errTrialActive: 'پلانێکی چالاکت هەیە.',
+
   // ---- the instructions screen ----
   payTitle: 'ڕێنمایی پارەدان',
   payPlan: 'پلان',
@@ -470,6 +497,17 @@ export const FIB_NUMBER = '07515298365';
  * if the two drift apart.
  */
 export const TRIAL_PRODUCT_LIMIT = 5;
+
+/**
+ * How long the free trial runs, in days.
+ *
+ * A trial is chosen, not given: a new shop has no plan at all, and this
+ * clock starts when the seller taps the button on the access screen and
+ * the server writes it down. app.trial_days() in the database is the
+ * same number and is what actually sets the date;
+ * scripts/plan-limits-test.mjs fails if the two drift apart.
+ */
+export const TRIAL_DAYS = 30;
 
 /**
  * Renewal banners on the seller's own screens.
@@ -677,10 +715,16 @@ export const REPORT_REASONS = {
 
 /** Plan keys as they appear in the database. */
 export const PLAN_LABEL = {
+  none: 'بێ پلان',
   trial: 'بەخۆڕایی',
+  // Never sold. The owner grants it by hand from /admin.
+  month_1: '١ مانگ',
   months_6: '٦ مانگ',
   year_1: '١ ساڵ',
 };
+
+/** Plans an admin may grant. month_1 is grant-only and has no price. */
+export const GRANT_PLANS = ['month_1', 'months_6', 'year_1'];
 
 
 /** /search — the shared search screen. */

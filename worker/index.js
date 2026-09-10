@@ -169,6 +169,14 @@ export default {
           ? account.subscriptionPost(request, env)
           : account.subscriptionGet(request, env, url);
       }
+      // The access screen, and the one place a free trial can begin.
+      // Looking at the screen starts nothing; the POST does, once ever.
+      if (path === '/app/subscription/start') {
+        return account.accessGateGet(request, env, url);
+      }
+      if (path === '/app/subscription/trial' && method === 'POST') {
+        return account.subscriptionTrialPost(request, env);
+      }
       // Wayl hosted checkout. The seller leaves for Wayl at /checkout,
       // comes back to /result, and /status is what that page polls.
       // None of the three ever reads a payment state from the browser.

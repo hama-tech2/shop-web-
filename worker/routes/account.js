@@ -13,12 +13,12 @@ import {
 import { layout } from '../render/layout.js';
 import { profilePage } from '../render/profile.js';
 import { categoriesPage } from '../render/categories.js';
-import { payPage, subscriptionPage } from '../render/subscription.js';
+import { accessGatePage, payPage, subscriptionPage } from '../render/subscription.js';
 import { notifyPending } from '../telegram.js';
-import { asUser } from '../supabase.js';
+import { asUser, subscriptionState } from '../supabase.js';
 import { paymentsEnabled } from '../wayl.js';
 import { getOwnShop, resolveSession, sameOrigin, setSessionCookies } from '../auth.js';
-import { redirect } from './auth.js';
+import { redirect, safeNext } from './auth.js';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -532,12 +532,7 @@ export async function categoryApiDelete(request, env, id) {
    thing this side of the app knows is that they say they sent it.
    ============================================================ */
 
-async function loadState(env, token, shopId) {
-  const res = await asUser(env, token, 'rpc/subscription_state', {
-    method: 'POST', body: { p_shop: shopId },
-  });
-  return res.ok ? res.data?.[0] ?? null : null;
-}
+const loadState = (env, token, shopId) => subscriptionState(env, token, shopId);
 
 /**
  * The intent this seller is in the middle of, if any.
@@ -606,6 +601,63 @@ export async function subscriptionGet(request, env, url) {
     }),
     g.headers,
   );
+}
+
+/**
+ * The access screen: what stands in front of a first product when no
+ * plan has been chosen.
+ *
+ * A GET only. Rendering it starts nothing — that is the whole point of
+ * a screen a seller can back out of.
+ */
+export async function accessGateGet(request, env, url) {
+  const g = await guard(request, env, '/app/subscription/start');
+  if (g.redirect) return g.redirect;
+
+  const state = await loadState(env, g.token, g.shop.id);
+  // Already entitled: there is nothing to choose here.
+  if (state?.can_publish) return redirect('/app/new', g.headers);
+
+  const errorKey = url.searchParams.get('e');
+  return subPage(
+    accessGatePage({
+      trialAvailable: Boolean(state?.trial_available),
+      error: errorKey && S[errorKey] ? S[errorKey] : null,
+    }),
+    g.headers,
+  );
+}
+
+/**
+ * Starting the free trial.
+ *
+ * The seller's own decision, taken by a form post from the access
+ * screen. Everything that decides whether they may is in the database:
+ * start_trial checks that the shop is theirs, that no plan is running,
+ * and that this account has never taken a trial before — a row keyed on
+ * their user id, which outlives the shop, the session and the browser.
+ */
+export async function subscriptionTrialPost(request, env) {
+  if (!sameOrigin(request)) return new Response('bad origin', { status: 403 });
+  const g = await guard(request, env, '/app/subscription/start');
+  if (g.redirect) return g.redirect;
+
+  const { next } = await form(request);
+  const res = await asUser(env, g.token, 'rpc/start_trial', {
+    method: 'POST', body: { p_shop: g.shop.id },
+  });
+
+  if (!res.ok) {
+    // SW004 the trial is spent, SW006 a plan is already running.
+    // Neither is a failure worth a stack trace; both are a sentence.
+    const code = res.data?.code ?? null;
+    const key = code === 'SW004' ? 'errTrialUsed'
+      : code === 'SW006' ? 'errTrialActive'
+      : 'errTrial';
+    return redirect(`/app/subscription/start?e=${key}`, g.headers);
+  }
+
+  return redirect(safeNext(next, '/app/new'), g.headers);
 }
 
 export async function subscriptionPost(request, env) {

@@ -1,6 +1,6 @@
 import {
   APP_NAME, FIB_NUMBER, PLANS, SUBSCRIPTION as T, SUPPORT_WHATSAPP,
-  TRIAL_PRODUCT_LIMIT, UI,
+  TRIAL_DAYS, TRIAL_PRODUCT_LIMIT, UI,
 } from '../config.js';
 import { esc, price } from './html.js';
 import { bottomNav } from './appshell.js';
@@ -21,6 +21,7 @@ const ltr = (value) => `<span dir="ltr">${esc(value)}</span>`;
 /** One line naming where the seller stands. */
 function statusLine(plan, state) {
   switch (plan.key) {
+    case 'none': return T.warnNone;
     case 'pending': return T.statePending;
     case 'grace': return T.stateGrace(plan.days);
     case 'expired': return T.stateExpired;
@@ -111,6 +112,58 @@ function planCard(plan, selected) {
     `<span class="billing-plan__name">${planName(plan)}</span>${bestBadge(plan)}</span>` +
     `<span class="billing-plan__bottom"><span>${amount(plan)}<span class="billing-monthly">${monthly(plan)}</span></span>` +
     `<span class="billing-radio" aria-hidden="true"></span></span></span></label>`;
+}
+
+/* ============================================================
+   the access screen
+   ============================================================ */
+
+/**
+ * What a seller sees the first time they try to post a product without
+ * a plan.
+ *
+ * Three ways forward and no way past: the free month, six months, or a
+ * year. Reading this screen starts nothing — the trial begins on a POST
+ * the seller makes, and the two paid options go where every payment
+ * goes, to Wayl.
+ *
+ * `trialAvailable` is the server's word, from subscription_state. A
+ * seller who has had their month is told so plainly rather than being
+ * shown a button that would be refused.
+ */
+export function accessGatePage({ trialAvailable = false, error = null, back = '/app/products' }) {
+  const ordered = PLANS.slice().sort((a, b) => Number(b.best) - Number(a.best));
+
+  const paid = (p) =>
+    `<form method="post" action="/app/subscription/checkout" class="gate-option">` +
+    `<input type="hidden" name="plan" value="${esc(p.key)}">` +
+    `<button class="billing-choice billing-plan gate-plan" type="submit" data-plan="${esc(p.key)}">` +
+    `<span class="billing-choice__surface"><span class="billing-plan__top">` +
+    `<span class="billing-plan__name">${planName(p)}</span>${bestBadge(p)}</span>` +
+    `<span class="billing-plan__bottom"><span>${amount(p)}` +
+    `<span class="billing-monthly">${monthly(p)}</span></span></span></span></button></form>`;
+
+  const trial = trialAvailable
+    ? `<form method="post" action="/app/subscription/trial" class="gate-option">` +
+      `<button class="billing-choice billing-plan gate-plan gate-trial" type="submit" id="start-trial">` +
+      `<span class="billing-choice__surface"><span class="billing-plan__top">` +
+      `<span class="billing-plan__name">${esc(T.gateTrialTitle(TRIAL_DAYS))}</span>` +
+      `<span class="billing-best">${esc(T.freeTitle)}</span></span>` +
+      `<span class="billing-plan__bottom"><span class="billing-monthly">` +
+      `${esc(T.gateTrialBody(TRIAL_PRODUCT_LIMIT))}</span></span></span></button></form>` +
+      `<p class="billing-safety">${esc(T.gateTrialOnce)}</p>`
+    : `<p class="alert alert--wait" role="status">${esc(T.gateTrialUsed)}</p>`;
+
+  return `<main class="shell billing billing--gate">` +
+    billingHeader(T.gateTitle, back) +
+    (error ? `<p class="alert alert--error" role="alert">${esc(error)}</p>` : '') +
+    `<p class="billing-lead">${esc(T.gateBody)}</p>` +
+    `<section class="billing-options" aria-label="${esc(T.gatePlans)}">` +
+    trial + ordered.map(paid).join('') + `</section>` +
+    trust() +
+    `<p class="billing-safety">${esc(T.renewManual)}</p>` +
+    `<a class="btn btn--ghost" href="/app/subscription">${esc(T.gatePlans)}</a>` +
+    `</main>` + bottomNav('account', { accountLabel: 'هەژمار' });
 }
 
 /** A read-only method chooser. No provider session, reference or payment is made. */

@@ -1,14 +1,44 @@
-import { CITY_LABEL, SUPPORT_WHATSAPP, TRIAL_PRODUCT_LIMIT } from '../config.js';
+import { CITY_LABEL, SUBSCRIPTION as S, SUPPORT_WHATSAPP, TRIAL_PRODUCT_LIMIT } from '../config.js';
 import { esc } from './html.js';
 import { iconBack, iconCalendar, iconDocument, iconExternal, iconLogout,
   iconPhone, iconPin, iconShield, iconStore, iconWhatsapp } from './icons.js';
 import { planBannerHtml } from './appshell.js';
 
 const statusLabels = {
+  none: 'بێ پلان',
   trial: 'تاقیکردنەوە', active: 'چالاک', pending: 'چاوەڕوانی پشتڕاستکردنەوە',
   grace: 'لە کاتی زیادەدایە', expired: 'بەسەرچووە', suspended: 'ناچالاک',
 };
-const planLabels = { trial: '1 مانگی بەخۆڕایی', months_6: '6 مانگ', year_1: 'ساڵانە' };
+const planLabels = {
+  none: 'هێشتا پلانێک نییە', trial: 'ماوەی بەخۆڕایی',
+  month_1: '1 مانگ', months_6: '6 مانگ', year_1: 'ساڵانە',
+};
+
+/**
+ * How close the end is, said once, on the card the seller already
+ * looks at.
+ *
+ * Deliberately not a popup and not repeated: a line inside the plan
+ * card, and the access screen in front of a new product. A seller who
+ * has three days left should be told so where they can act on it, not
+ * interrupted wherever they happen to be.
+ *
+ * grace counts as over. What is already posted stays visible during
+ * grace, but nothing new can be, and that is what this warns about.
+ */
+function planWarning(plan) {
+  if (!plan) return null;
+  if (plan.key === 'none') return { level: 'blocked', text: S.warnNone };
+  if (plan.key === 'expired' || plan.key === 'grace') {
+    return { level: 'blocked', text: S.warnExpired };
+  }
+  if (plan.key !== 'trial' && plan.key !== 'active' && plan.key !== 'pending') return null;
+  const days = Number(plan.days) || 0;
+  if (days <= 1) return { level: 'urgent', text: S.warnLast };
+  if (days <= 3) return { level: 'urgent', text: S.warnUrgent(days) };
+  if (days <= 7) return { level: 'soon', text: S.warnSoon(days) };
+  return null;
+}
 const arrow = `<span class="settings-arrow">${iconBack(18)}</span>`;
 const latin = (text) => String(text).replace(/[٠-٩۰-۹]/g, (digit) =>
   String('٠١٢٣٤٥٦٧٨٩'.indexOf(digit) >= 0 ? '٠١٢٣٤٥٦٧٨٩'.indexOf(digit) : '۰۱۲۳۴۵۶۷۸۹'.indexOf(digit)));
@@ -24,17 +54,24 @@ function subscriptionCard(subscription) {
   // products_limit_1000 still applies to paid shops. The trial cap is additional.
   const limit = state?.plan === 'trial' ? TRIAL_PRODUCT_LIMIT
     : ['months_6', 'year_1'].includes(state?.plan) ? 1000 : null;
+  const warning = planWarning(plan);
   return `<section class="settings-plan" aria-labelledby="settings-plan-title"${key ? ` data-status="${esc(key)}"` : ''}>` +
     `<div class="settings-plan__top"><span class="settings-plan__icon">${iconCalendar(24)}</span>` +
     `<div class="settings-plan__identity"><p class="settings-plan__eyebrow">پلانی ئێستا</p>` +
     `<h2 id="settings-plan-title">${esc(planLabels[state?.plan] || 'بەشداریکردن')}</h2></div>` +
     (label ? `<span class="settings-badge" id="settings-plan-status">${esc(label)}</span>` : '') + `</div>` +
     `<p class="settings-plan__date" id="settings-plan-detail">` +
-    (date ? `کۆتایی پلان: <time datetime="${esc(date)}" dir="ltr">${date.replaceAll('-', '/')}</time>`
+    (key === 'none' ? esc(S.warnNone)
+      : date ? `کۆتایی پلان: <time datetime="${esc(date)}" dir="ltr">${date.replaceAll('-', '/')}</time>`
       : 'وردەکاری پلان لە ئێستادا بەردەست نییە.') + `</p>` +
+    (warning
+      ? `<p class="settings-plan__warn" id="settings-plan-warning" data-level="${esc(warning.level)}" role="status">` +
+        `${esc(warning.text)}</p>`
+      : '') +
     `<div class="settings-plan__foot">` +
     (limit !== null ? `<span class="settings-plan__limit">تا <bdi>${limit}</bdi> بەرهەم</span>` : '') +
-    `<a class="settings-plan__action" href="/app/subscription" id="settings-subscription">بینینی پلان ${arrow}</a>` +
+    `<a class="settings-plan__action" href="/app/subscription" id="settings-subscription">` +
+    `${esc(warning ? S.warnAction : 'بینینی پلان')} ${arrow}</a>` +
     `</div></section>`;
 }
 
