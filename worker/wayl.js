@@ -105,7 +105,10 @@ export function createLink(env, {
       total,
       currency: WAYL.currency,
       customParameter,
-      lineItem: [{ name: lineItemName, quantity: 1, price: total }],
+      // The shape Wayl actually requires, learned from it refusing
+      // anything else: label, amount, and a type of "increase" or
+      // "decrease". One line, the whole plan, so it adds up to total.
+      lineItem: [{ label: lineItemName, amount: total, type: 'increase' }],
       webhookUrl,
       webhookSecret,
       redirectionUrl,

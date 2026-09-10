@@ -84,6 +84,8 @@ async function webhook(intentId, body, { secret, signature, header = 'x-wayl-sig
    ============================================================ */
 
 for (const [raw, want] of [
+  // Measured on a real test link: a freshly created one says "Created".
+  ['Created', 'pending'],
   ['paid', 'paid'], ['PAID', 'paid'], ['completed', 'paid'],
   ['cancelled', 'cancelled'], ['failed', 'failed'],
   // The whole point: a word Wayl has not shown us yet is not a verdict.
@@ -183,6 +185,12 @@ check('the seller is sent to Wayl', [started.status, started.location],
   [303, `https://checkout.thewayl.test/pay/${link?.referenceId}`]);
 check('exactly one link was created', state.created.length, 1);
 check('the amount is the plan price', link?.total, 90000);
+// Wayl refuses any other shape, and did: {name, quantity, price} came
+// back 422 naming label, amount and type.
+check('the line item is the shape Wayl requires',
+  link?.lineItem, [{ label: link?.lineItem?.[0]?.label, amount: 90000, type: 'increase' }]);
+check('the line item is labelled with the plan and the shop',
+  typeof link?.lineItem?.[0]?.label === 'string' && link.lineItem[0].label.length > 0);
 check('IQD', link?.currency, 'IQD');
 check('the test environment', link?.env, 'test');
 check('a fresh reference', /^BZ-[0-9A-Z]+-[0-9A-F]+$/.test(link?.referenceId || ''));
@@ -245,6 +253,23 @@ check('the result page offers no method, no manual flow, no FIB number',
   !resultChecking.includes('billing-methods') && !resultChecking.includes('/app/subscription/pay')
   && !resultChecking.includes(FIB_NUMBER) && !resultChecking.includes('/js/subscription.js'));
 
+// Wayl replaces our query with its own and adds a trailing slash.
+const waylReturn = await page(`/app/subscription/result/?referenceId=${REF}&orderid=lnk_1`);
+check('the seller comes back on Wayl\'s own query and is found',
+  waylReturn.includes('data-result-state="checking"') && waylReturn.includes(`data-result-ref="${REF}"`));
+check('a created link is checking, not paid and not failed',
+  (await statusOf(REF)).body.state, 'checking');
+check('coming back granted nothing', (await waylState()).activations, 0);
+
+// orderid is Wayl's link id. It decides nothing, so a wrong one changes
+// nothing, and a reference that is not this shop's is still not found.
+const junkOrder = await page(`/app/subscription/result/?referenceId=${REF}&orderid=not-our-link`);
+check('orderid is ignored', junkOrder.includes('data-result-state="checking"'));
+const foreignReturn = await fetch(`${APP}/app/subscription/result/?referenceId=BZ-NOT-MINE-0001&orderid=lnk_1`,
+  { headers: { cookie: COOKIE }, redirect: 'manual' });
+check('another shop\'s reference is sent back to the plans',
+  [foreignReturn.status, foreignReturn.headers.get('location')], [303, '/app/subscription']);
+
 const lying = await page(`/app/subscription/result?ref=${REF}&status=success&paid=true&verified=1`);
 check('a redirect parameter cannot make it success',
   lying.includes('data-result-state="checking"') && !lying.includes('چالاک تا'));
@@ -255,6 +280,11 @@ const noRef = await fetch(`${APP}/app/subscription/result`, {
 check('no reference, no result page',
   [noRef.status, noRef.headers.get('location'), (await noRef.text()).includes('payment-result')],
   [303, '/app/subscription', false]);
+
+const byWaylName = await fetch(`${APP}/app/subscription/status?referenceId=${encodeURIComponent(REF)}`,
+  { headers: { cookie: COOKIE, accept: 'application/json' }, redirect: 'manual' });
+check('the status endpoint reads Wayl\'s parameter name as well',
+  (await byWaylName.json()).reference, REF);
 
 const foreign = await statusOf('BZ-SOMEONE-ELSE');
 check('another payment’s reference is not found', foreign.status, 404);

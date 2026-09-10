@@ -81,7 +81,7 @@ let waylExpiry = null;
 
 function waylReset() {
   waylIntent = null; waylSecret = null; waylCreated = []; waylEvents.clear();
-  waylReports = 'pending'; waylMethod = 'FIB'; waylTotal = null; waylCurrency = 'IQD';
+  waylReports = 'Created'; waylMethod = 'FIB'; waylTotal = null; waylCurrency = 'IQD';
   waylLinkFails = false; waylBusy = false; waylActivations = 0; waylExpiry = null;
 }
 
@@ -156,11 +156,23 @@ http.createServer(async (req, res) => {
     }
     waylCreated.push(lastBody);
     if (waylLinkFails) return send({ message: 'nope' }, 422);
+    // The real API refuses any other lineItem shape, and did: label is
+    // a string, amount a number, type "increase" or "decrease".
+    const line = Array.isArray(lastBody.lineItem) ? lastBody.lineItem[0] : null;
+    if (typeof line?.label !== 'string' || typeof line?.amount !== 'number'
+        || !['increase', 'decrease'].includes(line?.type)) {
+      return send({ success: false, message: 'Whoops, missing fields' }, 422);
+    }
+    // The real envelope: { data, message, success }, with total as a
+    // string and status "Created" at this point.
     return send({ data: {
-      id: 'lnk_1', code: 'CODE1',
+      env: lastBody.env, customParameter: lastBody.customParameter,
+      referenceId: lastBody.referenceId, id: 'lnk_1', code: 'CODE1',
+      total: String(lastBody.total), currency: lastBody.currency,
+      paymentMethod: null, status: 'Created', completedAt: null,
       url: 'https://checkout.thewayl.test/pay/' + lastBody.referenceId,
-      referenceId: lastBody.referenceId,
-    } });
+      redirectionUrl: lastBody.redirectionUrl, linkExpiresIn: '1h',
+    }, message: 'Done', success: true });
   }
   const waylLink = p.match(/^\/api\/v1\/links\/(.+)$/);
   if (waylLink && req.method === 'GET') {

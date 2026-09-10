@@ -538,6 +538,13 @@ export const WAYL = {
    * before this flow is switched on. Anything not on one of these
    * lists is treated as still in progress — never as paid, never as
    * failed. See worker/wayl.js mapStatus.
+   *
+   * One real value has been seen so far: a freshly created test link
+   * reports status "Created" with paymentMethod null. That is on none
+   * of these lists, and reads as still in progress, which is right.
+   * What a completed and a refused payment report is still unknown and
+   * must not be guessed: a wrong entry here is either a plan granted
+   * for nothing or a seller told their money is gone.
    */
   paidStatuses: ['paid', 'success', 'successful', 'completed', 'complete'],
   failedStatuses: ['failed', 'failure', 'declined', 'rejected', 'error', 'expired'],
