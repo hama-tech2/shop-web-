@@ -572,21 +572,38 @@ export const WAYL = {
   currency: 'IQD',
 
   /**
-   * PROVISIONAL, and the reason the manual test on a real phone comes
-   * before this flow is switched on. Anything not on one of these
-   * lists is treated as still in progress — never as paid, never as
-   * failed. See worker/wayl.js mapStatus.
+   * Confirmed against Wayl's documentation and a real test link:
    *
-   * One real value has been seen so far: a freshly created test link
-   * reports status "Created" with paymentMethod null. That is on none
-   * of these lists, and reads as still in progress, which is right.
-   * What a completed and a refused payment report is still unknown and
-   * must not be guessed: a wrong entry here is either a plan granted
-   * for nothing or a seller told their money is gone.
+   *   status         "Created" until the payment is attempted
+   *   paymentMethod  null until Wayl has one to report
+   *   unknown status treated as still in progress, never as a verdict
+   *
+   * The other three lists are still PROVISIONAL. What a completed
+   * payment and a refused one actually report has not been seen yet,
+   * and must not be guessed: a wrong entry here is either a plan
+   * granted for nothing, or a seller told their money is gone. Only a
+   * finished test payment settles them. See worker/wayl.js mapStatus.
    */
+  pendingStatuses: ['created'],
   paidStatuses: ['paid', 'success', 'successful', 'completed', 'complete'],
   failedStatuses: ['failed', 'failure', 'declined', 'rejected', 'error', 'expired'],
   cancelledStatuses: ['cancelled', 'canceled'],
+
+  /**
+   * The webhook signature, per Wayl's documentation: the header
+   * x-wayl-signature-256 carries an HMAC-SHA256 of the raw body, keyed
+   * with the webhookSecret sent when the link was made, hex encoded.
+   */
+  signatureHeader: 'x-wayl-signature-256',
+
+  /**
+   * A checkout link lives an hour ("linkExpiresIn": "1h"). A seller who
+   * taps Pay again inside this window is sent back to the link they
+   * already have rather than being given a second one; the window is
+   * deliberately well inside the hour, so a reused link is never one
+   * that is about to lapse under them.
+   */
+  reuseMinutes: 25,
 
   statusKeys: ['paymentStatus', 'status', 'state', 'linkStatus'],
   referenceKeys: ['referenceId', 'reference_id', 'reference'],

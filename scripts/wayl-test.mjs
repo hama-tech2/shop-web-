@@ -84,12 +84,13 @@ async function webhook(intentId, body, { secret, signature, header = 'x-wayl-sig
    ============================================================ */
 
 for (const [raw, want] of [
-  // Measured on a real test link: a freshly created one says "Created".
-  ['Created', 'pending'],
+  // Documented and seen on a real link: a new one says "Created".
+  ['Created', 'pending'], ['created', 'pending'],
   ['paid', 'paid'], ['PAID', 'paid'], ['completed', 'paid'],
   ['cancelled', 'cancelled'], ['failed', 'failed'],
   // The whole point: a word Wayl has not shown us yet is not a verdict.
   ['awaiting_something', 'pending'], ['', 'pending'], [null, 'pending'], [undefined, 'pending'],
+  ['Refunded', 'pending'], ['3DS_REQUIRED', 'pending'], ['{}', 'pending'],
 ]) {
   check(`status "${raw}" maps to ${want}`, mapStatus(raw), want);
 }
@@ -115,9 +116,13 @@ const SECRET = 'a'.repeat(64);
 const BODY = '{"referenceId":"BZ-TEST","status":"paid"}';
 const hexMac = createHmac('sha256', SECRET).update(BODY).digest('hex');
 const b64Mac = createHmac('sha256', SECRET).update(BODY).digest('base64');
+// Wayl documents x-wayl-signature-256 as HMAC-SHA256, hex.
 check('hex signature accepted', await signatureValid(SECRET, BODY, hexMac));
+check('the same hex in capitals accepted', await signatureValid(SECRET, BODY, hexMac.toUpperCase()));
 check('sha256= prefix accepted', await signatureValid(SECRET, BODY, `sha256=${hexMac}`));
-check('base64 signature accepted', await signatureValid(SECRET, BODY, b64Mac));
+check('base64 is not the documented encoding', await signatureValid(SECRET, BODY, b64Mac), false);
+check('a hex string of the wrong length is not a signature',
+  await signatureValid(SECRET, BODY, hexMac.slice(0, 63)), false);
 check('another secret rejected', await signatureValid('b'.repeat(64), BODY, hexMac), false);
 check('a changed body rejected', await signatureValid(SECRET, `${BODY} `, hexMac), false);
 check('no signature rejected', await signatureValid(SECRET, BODY, ''), false);
@@ -257,8 +262,9 @@ check('the result page offers no method, no manual flow, no FIB number',
 const waylReturn = await page(`/app/subscription/result/?referenceId=${REF}&orderid=lnk_1`);
 check('the seller comes back on Wayl\'s own query and is found',
   waylReturn.includes('data-result-state="checking"') && waylReturn.includes(`data-result-ref="${REF}"`));
-check('a created link is checking, not paid and not failed',
-  (await statusOf(REF)).body.state, 'checking');
+const created = await statusOf(REF);
+check('a created link is checking, not paid and not failed', created.body.state, 'checking');
+check('and reports no payment method yet', created.body.paymentMethod, null);
 check('coming back granted nothing', (await waylState()).activations, 0);
 
 // orderid is Wayl's link id. It decides nothing, so a wrong one changes

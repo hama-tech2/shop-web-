@@ -16,7 +16,7 @@
  */
 
 import { readFileSync, readdirSync } from 'node:fs';
-import { PLANS, TRIAL_DAYS, TRIAL_PRODUCT_LIMIT } from '../worker/config.js';
+import { PLANS, TRIAL_DAYS, TRIAL_PRODUCT_LIMIT, WAYL } from '../worker/config.js';
 
 const DIR = new URL('../supabase/migrations/', import.meta.url);
 
@@ -100,6 +100,31 @@ function trialDaysFromSql() {
 check('app.trial_days is defined in a migration', trialDaysFromSql() !== null, true);
 check('the free month the app offers is the one the database grants',
       TRIAL_DAYS, trialDaysFromSql());
+
+/* ---------- how long a checkout can be reused ---------- */
+
+/**
+ * wayl_start_intent hands back a checkout a seller already has rather
+ * than making a second one, for as long as this window. Wayl's links
+ * live an hour, so the window has to stay well inside that or a reused
+ * link could lapse under the seller's thumb.
+ */
+function reuseMinutesFromSql() {
+  const bodies = [...sql.matchAll(
+    /create\s+or\s+replace\s+function\s+public\.wayl_start_intent\b[\s\S]*?\$\$([\s\S]*?)\$\$/g,
+  )];
+  if (!bodies.length) return null;
+  // v_live is the checkout the seller already has. The other interval
+  // in this function is the per-shop rate limit, which is not this.
+  const m = bodies[bodies.length - 1][1].match(/v_live\.created_at\s*>\s*now\(\)\s*-\s*interval\s*'(\d+)\s*minutes'/);
+  return m ? Number(m[1]) : null;
+}
+
+check('wayl_start_intent has a reuse window', reuseMinutesFromSql() !== null, true);
+check('the reuse window the app documents is the one the database applies',
+      WAYL.reuseMinutes, reuseMinutesFromSql());
+check('and it is well inside the hour a Wayl link lives',
+      WAYL.reuseMinutes < 60, true);
 
 /* ---------- the image limit, for the same reason ---------- */
 

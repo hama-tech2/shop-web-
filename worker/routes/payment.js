@@ -19,7 +19,7 @@
  * do not render a payment result, and a test pins that.
  */
 
-import { PLANS } from '../config.js';
+import { PLANS, WAYL } from '../config.js';
 import { paymentResultPage } from '../render/payment-result.js';
 import { asUser } from '../supabase.js';
 import { getOwnShop, resolveSession, sameOrigin, setSessionCookies } from '../auth.js';
@@ -471,7 +471,7 @@ export async function webhookPost(request, env, intentId) {
 
     // The exact bytes, before anything reads them as a document.
     const raw = await request.text();
-    const signature = request.headers.get('x-wayl-signature-256');
+    const signature = request.headers.get(WAYL.signatureHeader);
     if (!(await signatureValid(secret, raw, signature))) return miss(request, env);
 
     let body = null;
