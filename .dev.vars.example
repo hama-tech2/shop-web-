@@ -11,3 +11,21 @@ SUPABASE_SERVICE_ROLE_KEY=
 R2_ACCOUNT_ID=
 R2_ACCESS_KEY_ID=
 R2_SECRET_ACCESS_KEY=
+
+# Wayl — the payment provider for subscriptions. SERVER SIDE ONLY.
+# The token must never appear in /public or in wrangler.jsonc:
+#   wrangler secret put WAYL_API_TOKEN
+WAYL_API_TOKEN=
+
+# "test" or "live". Anything else is read as "test".
+WAYL_ENV=test
+
+# The switch. Only the exact string "true" allows a charge to be made.
+PAYMENTS_ENABLED=false
+
+# REQUIRED once payments are on. The public https URL of
+# /app/subscription/result. The webhook URL Wayl is given is built from
+# its origin. It is never derived from the incoming request: a Host
+# header is caller-controlled, and it must not decide where a paying
+# seller is sent back to. Without it, no checkout is created.
+WAYL_RETURN_URL=

@@ -57,6 +57,34 @@ const SERVICE_KEY = 'stub-service-key';
 const calls = [];
 const writes = [];
 
+/* ------------------------------------------------------------------
+   Wayl: the hosted checkout, and the database rows behind it.
+
+   The fake Wayl API lives here too, so no test can reach the real one
+   and no test run can create a real charge. What the API reports is
+   driven by /__wayl/* so a test can say "Wayl now says paid" without
+   any timing.
+   ------------------------------------------------------------------ */
+const WAYL_INTENT_ID = 'eeeeeeee-2222-4222-8222-222222222222';
+let waylIntent = null;              // the payment_intents row, Wayl columns and all
+let waylSecret = null;              // payment_intent_secrets
+let waylCreated = [];               // every create-link body the Worker sent
+const waylEvents = new Set();       // wayl_webhook_events.event_id, which is unique
+let waylReports = 'pending';        // what GET /api/v1/links/{ref} says
+let waylMethod = 'FIB';
+let waylTotal = null;               // override, to force an amount mismatch
+let waylCurrency = 'IQD';
+let waylLinkFails = false;
+let waylBusy = false;               // the per-shop rate limit, tripped on demand
+let waylActivations = 0;            // how many times a plan was actually granted
+let waylExpiry = null;
+
+function waylReset() {
+  waylIntent = null; waylSecret = null; waylCreated = []; waylEvents.clear();
+  waylReports = 'pending'; waylMethod = 'FIB'; waylTotal = null; waylCurrency = 'IQD';
+  waylLinkFails = false; waylBusy = false; waylActivations = 0; waylExpiry = null;
+}
+
 let lastBody = {};
 const body = (req) => new Promise((r) => {
   let b = ''; req.on('data', (c) => { b += c; }); req.on('end', () => r(b));
@@ -104,6 +132,50 @@ http.createServer(async (req, res) => {
       created_at: new Date().toISOString(),
     };
     return send(intent ?? {});
+  }
+
+  // ---- Wayl controls -------------------------------------------------
+  if (p === '/__wayl/reset') { waylReset(); return send({ reset: true }); }
+  if (p.startsWith('/__wayl/reports/')) { waylReports = decodeURIComponent(p.split('/')[3]); return send({ waylReports }); }
+  if (p.startsWith('/__wayl/method/')) { waylMethod = decodeURIComponent(p.split('/')[3]); return send({ waylMethod }); }
+  if (p.startsWith('/__wayl/total/')) { waylTotal = Number(p.split('/')[3]); return send({ waylTotal }); }
+  if (p.startsWith('/__wayl/currency/')) { waylCurrency = p.split('/')[3]; return send({ waylCurrency }); }
+  if (p.startsWith('/__wayl/linkfails/')) { waylLinkFails = p.split('/')[3] === '1'; return send({ waylLinkFails }); }
+  if (p.startsWith('/__wayl/busy/')) { waylBusy = p.split('/')[3] === '1'; return send({ waylBusy }); }
+  if (p === '/__wayl') {
+    return send({ intent: waylIntent, secret: waylSecret, created: waylCreated,
+                  events: [...waylEvents], activations: waylActivations });
+  }
+
+  // ---- the fake Wayl API ---------------------------------------------
+  // Only ever reached because WAYL_API_BASE points here. A test that
+  // somehow reached api.thewayl.com would fail on the token instead.
+  if (p === '/api/v1/links' && req.method === 'POST') {
+    if (req.headers['x-wayl-authentication'] !== 'stub-wayl-token') {
+      return send({ message: 'unauthenticated' }, 401);
+    }
+    waylCreated.push(lastBody);
+    if (waylLinkFails) return send({ message: 'nope' }, 422);
+    return send({ data: {
+      id: 'lnk_1', code: 'CODE1',
+      url: 'https://checkout.thewayl.test/pay/' + lastBody.referenceId,
+      referenceId: lastBody.referenceId,
+    } });
+  }
+  const waylLink = p.match(/^\/api\/v1\/links\/(.+)$/);
+  if (waylLink && req.method === 'GET') {
+    if (req.headers['x-wayl-authentication'] !== 'stub-wayl-token') {
+      return send({ message: 'unauthenticated' }, 401);
+    }
+    const reference = decodeURIComponent(waylLink[1]);
+    if (!waylIntent || waylIntent.reference_id !== reference) return send({ message: 'not found' }, 404);
+    return send({ data: {
+      referenceId: reference,
+      status: waylReports,
+      paymentMethod: waylMethod,
+      total: waylTotal === null ? Number(waylIntent.amount) : waylTotal,
+      currency: waylCurrency,
+    } });
   }
 
   // Standing in for api.telegram.org. Nothing in the tests may reach
@@ -169,7 +241,24 @@ http.createServer(async (req, res) => {
     status: subPlan === 'trial' ? 'trialing' : 'active', grace_days: 3,
     expires_at: new Date(Date.now() + subDays * 86400000).toISOString() }]);
 
+  if (table === 'payment_intent_secrets') {
+    const wanted = (url.searchParams.get('intent_id') || '').slice(3);
+    return send(waylSecret && waylIntent && waylIntent.id === wanted
+      ? [{ webhook_secret: waylSecret }] : []);
+  }
+
   if (table === 'payment_intents') {
+    // The Wayl reads: by reference for the seller, by id for the webhook.
+    if (!write && (url.searchParams.has('reference_id') || url.searchParams.has('id'))) {
+      const byRef = (url.searchParams.get('reference_id') || '').slice(3);
+      const byId = (url.searchParams.get('id') || '').slice(3);
+      const shop = (url.searchParams.get('shop_id') || '').slice(3);
+      if (!waylIntent) return send([]);
+      if (byRef && waylIntent.reference_id !== decodeURIComponent(byRef)) return send([]);
+      if (byId && waylIntent.id !== byId) return send([]);
+      if (shop && waylIntent.shop_id !== shop) return send([]);
+      return send([waylIntent]);
+    }
     if (!write) {
       const wanted = url.searchParams.get('status') || '';
       if (!intent) return send([]);
@@ -289,6 +378,65 @@ http.createServer(async (req, res) => {
   // Null on a paid plan means unlimited, which is what the app checks.
   if (table === 'rpc/trial_slots_left') {
     return send(subPlan === 'trial' ? Math.max(0, 5 - productCount) : null);
+  }
+  // app.owns_shop, the price trigger, the rate limit and the one-live
+  // intent rule, as far as the Worker can tell them apart.
+  if (table === 'rpc/wayl_start_intent') {
+    if (lastBody.p_shop !== SHOP.id) return send({ code: '42501' }, 403);
+    // app.wayl_start_intent's per-shop rate limit, on demand.
+    if (waylBusy) return send({ code: 'SW002' }, 400);
+    if (!['months_6', 'year_1'].includes(lastBody.p_plan)) return send({ code: '22023' }, 400);
+    if (intent && intent.status === 'pending' && intent.plan === lastBody.p_plan) {
+      return send({ code: 'SW003' }, 400);
+    }
+    if (waylIntent && waylIntent.status === 'open' && waylIntent.checkout_url
+        && waylIntent.plan === lastBody.p_plan) {
+      return send([{ ...waylIntent, reused: true }]);
+    }
+    waylIntent = {
+      id: WAYL_INTENT_ID, shop_id: SHOP.id, user_id: USER.id, plan: lastBody.p_plan,
+      // The price is the database's, never the caller's.
+      amount: lastBody.p_plan === 'year_1' ? 90000 : 55000, currency: 'IQD',
+      status: 'open', reference_id: lastBody.p_reference_id, reference: 'SW-4822',
+      wayl_link_id: null, wayl_code: null, checkout_url: null, env: lastBody.p_env,
+      payment_method: null, paid_at: null, activated_at: null,
+      created_at: new Date().toISOString(),
+    };
+    waylSecret = lastBody.p_secret;
+    return send([{ ...waylIntent, reused: false }]);
+  }
+  if (table === 'rpc/wayl_attach_link') {
+    if (!waylIntent || waylIntent.id !== lastBody.p_intent) return send({ code: 'P0002' }, 400);
+    if (waylIntent.status !== 'open') return send({ code: '22023' }, 400);
+    waylIntent = { ...waylIntent, wayl_link_id: lastBody.p_link_id,
+                   wayl_code: lastBody.p_code, checkout_url: lastBody.p_url };
+    return send(waylIntent);
+  }
+  if (table === 'rpc/wayl_apply_payment') {
+    // Only the service key ever reaches this, and every refusal below
+    // is one the real function makes too.
+    if (!(req.headers.authorization || '').includes(SERVICE_KEY)) return send({ code: '42501' }, 403);
+    if (!waylIntent || waylIntent.id !== lastBody.p_intent) return send({ code: 'P0002' }, 400);
+    if (waylIntent.reference_id !== lastBody.p_reference_id) return send({ code: '22023' }, 400);
+    const price = waylIntent.plan === 'year_1' ? 90000 : 55000;
+    if (Number(lastBody.p_amount) !== price) return send({ code: '22023' }, 400);
+    if (waylIntent.activated_at) {
+      return send([{ activated: false, already_active: true, expires_at: waylExpiry }]);
+    }
+    waylActivations += 1;
+    waylExpiry = new Date(Date.now() + (waylIntent.plan === 'year_1' ? 365 : 182) * 86400000).toISOString();
+    subPlan = waylIntent.plan;
+    subDays = waylIntent.plan === 'year_1' ? 365 : 182;
+    waylIntent = { ...waylIntent, status: 'paid', paid_at: new Date().toISOString(),
+                   activated_at: new Date().toISOString(),
+                   payment_method: lastBody.p_method ?? waylIntent.payment_method };
+    return send([{ activated: true, already_active: false, expires_at: waylExpiry }]);
+  }
+  if (table === 'rpc/wayl_record_event') {
+    if (!(req.headers.authorization || '').includes(SERVICE_KEY)) return send({ code: '42501' }, 403);
+    if (waylEvents.has(lastBody.p_event_id)) return send(false);
+    waylEvents.add(lastBody.p_event_id);
+    return send(true);
   }
   if (table === 'rpc/mark_intent_sent') {
     if (!intent || intent.status !== 'open') return send({ code: '22023' }, 400);

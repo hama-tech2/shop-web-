@@ -672,6 +672,9 @@ body:has(.account-settings:target) .nav__tab[aria-current="page"] svg { fill: #E
 .payment-result h2 { font: 700 24px/1.65 var(--font-body); margin: 0; overflow-wrap: anywhere; }
 .payment-result__subtitle { margin: 8px 0 0; font-size: 17px; color: #68665d; line-height: 1.8; }
 .payment-result__helper { margin: 20px 0 0; color: #68665d; font-size: 14px; line-height: 1.9; }
+/* Shown once a payment has been checking for a while. Calm on purpose:
+   slow is not failed, and it must not read like an error. */
+.payment-result__slow { margin: 12px 0 0; color: #68665d; font-size: 14px; line-height: 1.9; background: #f6faf7; border: 1px solid #e7e5df; border-radius: 12px; padding: 12px 14px; }
 .payment-result__details { background: var(--surface); border: 1px solid #e7e5df; border-radius: 16px; margin: 24px 0; padding: 4px 16px; text-align: start; }
 .payment-result__row { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 14px 0; min-height: 56px; }
 .payment-result__row + .payment-result__row { border-top: 1px solid #f0eee8; }

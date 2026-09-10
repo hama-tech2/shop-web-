@@ -22,6 +22,7 @@ import { searchGet } from './routes/search.js';
 import * as favorites from './routes/favorites.js';
 import { scheduled } from './cron.js';
 import { webhookPost } from './routes/telegram.js';
+import * as payment from './routes/payment.js';
 
 const IMG_CACHE = 'public, max-age=31536000, immutable';
 const HTML_CACHE = 'public, max-age=0, s-maxage=60, stale-while-revalidate=300';
@@ -41,6 +42,12 @@ export default {
       // request that fails either gets the ordinary 404.
       const hook = path.match(/^\/api\/telegram\/([A-Za-z0-9_-]{16,128})$/);
       if (hook && method === 'POST') return webhookPost(request, env, hook[1]);
+
+      // Wayl's webhook. The intent id is in the path because the
+      // signing secret is per payment: it has to be found before the
+      // body is read, let alone parsed. Everything unproven 404s.
+      const waylHook = path.match(/^\/webhooks\/wayl\/([0-9a-f-]{36})$/i);
+      if (waylHook && method === 'POST') return payment.webhookPost(request, env, waylHook[1]);
       if (path === '/api/feed') return feedFragment(env, url);
       if (path === '/api/slug-check') return onboarding.slugCheck(env, url);
       if (path === '/api/favorites/cards') return favorites.cardsGet(env, url);
@@ -162,8 +169,17 @@ export default {
           ? account.subscriptionPost(request, env)
           : account.subscriptionGet(request, env, url);
       }
-      // The manual payment flow: file an intent, read the instructions,
-      // say you sent it. Nothing here confirms a payment.
+      // Wayl hosted checkout. The seller leaves for Wayl at /checkout,
+      // comes back to /result, and /status is what that page polls.
+      // None of the three ever reads a payment state from the browser.
+      if (path === '/app/subscription/checkout' && method === 'POST') {
+        return payment.checkoutPost(request, env);
+      }
+      if (path === '/app/subscription/status') return payment.statusGet(request, env, url);
+      if (path === '/app/subscription/result') return payment.resultGet(request, env, url);
+
+      // The retained manual fallback: file an intent, read the
+      // instructions, say you sent it. Nothing here confirms a payment.
       if (path === '/app/subscription/pay') {
         return account.subscriptionPayGet(request, env, url);
       }
