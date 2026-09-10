@@ -92,16 +92,18 @@ check('a confirmed payment is listed', html.includes('پشتڕاستکراوە')
 check('no 2-month bonus is promised', /٢ مانگی زیادە/.test(html), false);
 
 await resetCalls();
+// Filing a manual intent is closed: migration 0030 took the seller's
+// insert policy away, so every intent now comes from
+// public.wayl_start_intent. This route no longer attempts the write.
 let r = await post('/app/subscription', { plan: 'months_6' });
-check('choosing a plan files an intent', r.status, 303);
-check('and goes straight to the instructions', r.location, '/app/subscription/pay');
-
-const insert = (await getWrites()).find((w) => w.table === 'payment_intents' && w.method === 'POST');
-check('the intent names the plan', insert?.body.plan, 'months_6');
-check('and the shop', Boolean(insert?.body.shop_id), true);
+check('the old manual entry files nothing', r.status, 303);
+check('and says online payment is not switched on',
+      r.location, '/app/subscription?e=errUnavailable');
+check('no intent was written',
+      (await getWrites()).some((w) => w.table === 'payment_intents' && w.method === 'POST'), false);
 
 r = await post('/app/subscription', { plan: 'not-a-plan' });
-check('an unknown plan is refused', r.location, '/app/subscription?e=errPlan');
+check('an unknown plan is still refused first', r.location, '/app/subscription?e=errPlan');
 
 /* ============================================================
    2. the instructions
@@ -168,9 +170,9 @@ check('the screen now says waiting, not paid',
 check('the "I sent it" button is gone', html.includes('پارەکەم نارد'), false);
 check('still no success state', html.includes('alert--ok'), false);
 
-// A second plan cannot be filed on top of a live intent.
+// A transfer already waiting still has its instructions to go back to.
 r = await post('/app/subscription', { plan: 'months_6' });
-check('choosing the same plan again returns to the instructions',
+check('a live intent still leads to its own instructions',
       r.location, '/app/subscription/pay');
 
 html = await page('/app/subscription');

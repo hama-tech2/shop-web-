@@ -293,8 +293,13 @@ http.createServer(async (req, res) => {
       intent = { ...(intent ?? {}), ...lastBody };
       return send([intent]);
     }
-    // The insert is where the database sets the price and the code; the
-    // client never gets to name either.
+    // Since 0030 a seller has no insert policy on this table: every
+    // intent is made by public.wayl_start_intent or by an admin grant.
+    // PostgREST answers an RLS refusal, and so does this.
+    if (req.method === 'POST' && !isAdmin) {
+      return send({ code: '42501', message: 'new row violates row-level security policy' }, 403);
+    }
+    // An admin grant still files one, the way admin_grant_plan does.
     intent = {
       id: INTENT_ID, shop_id: SHOP.id, plan: lastBody.plan,
       amount: lastBody.plan === 'year_1' ? 90000 : 55000,
