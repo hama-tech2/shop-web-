@@ -172,7 +172,7 @@ for (const [days, level, phrase] of [
   const found = html.match(/id="settings-plan-warning" data-level="([a-z]+)"[^>]*>([^<]*)</);
   check(`${days} days left: ${level ?? 'no warning'}`, found?.[1] ?? null, level);
   if (phrase) check(`${days} days left says so`, found?.[2]?.includes(phrase));
-  if (level) check(`${days} days left offers renewal`, html.includes('نوێکردنەوە / بینینی پلانەکان'));
+  if (level) check(`${days} days left offers renewal`, html.includes('نوێکردنەوەی پلان'));
 }
 
 // Nothing about any of this renews by itself, and nothing says it does.
@@ -235,7 +235,7 @@ if (process.env.CHROME) {
         await view.locator('.gate-plan').evaluateAll(
           (els) => els.length === 3 && els.every((el) => el.getBoundingClientRect().height >= 44)));
       check(`${width}: the free month is first`,
-        await view.locator('.gate-plan').first().evaluate((el) => el.id) === 'start-trial');
+        await view.locator('.gate-plan').first().getAttribute('data-plan') === 'trial');
     }
 
     // The warning line, at the width most sellers are on.
