@@ -174,8 +174,12 @@ export default {
       if (path === '/app/subscription/start') {
         return account.accessGateGet(request, env, url);
       }
-      if (path === '/app/subscription/trial' && method === 'POST') {
-        return account.subscriptionTrialPost(request, env);
+      // Carrying on with the Free plan. There is nothing to start, so
+      // this only checks the seller still has a slot and sends them to
+      // the form. /trial is the name the plan gate still posts to.
+      if ((path === '/app/subscription/free' || path === '/app/subscription/trial')
+          && method === 'POST') {
+        return account.subscriptionFreePost(request, env);
       }
       // Wayl hosted checkout. The seller leaves for Wayl at /checkout,
       // comes back to /result, and /status is what that page polls.
@@ -205,7 +209,7 @@ export default {
       if (path === '/app/new') {
         return method === 'POST'
           ? products.newPost(request, env)
-          : products.newGet(request, env);
+          : products.newGet(request, env, url);
       }
       if (path === '/app/products') return products.listGet(request, env, url);
 

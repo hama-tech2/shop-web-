@@ -7,7 +7,7 @@
  */
 
 import {
-  APP_NAME, CATEGORIES_UI as C, MAX_CATEGORIES, PLANS,
+  APP_NAME, CATEGORIES_UI as C, FREE_PRODUCT_LIMIT, MAX_CATEGORIES, PLANS,
   PROFILE as P, PROFILE_VARIANTS as V, SUBSCRIPTION as S,
 } from '../config.js';
 import { layout } from '../render/layout.js';
@@ -604,60 +604,64 @@ export async function subscriptionGet(request, env, url) {
 }
 
 /**
- * The access screen: what stands in front of a first product when no
- * plan has been chosen.
+ * The plan gate: what a Free seller meets on the way to a new product.
  *
- * A GET only. Rendering it starts nothing — that is the whole point of
- * a screen a seller can back out of.
+ * Free is permanent, so this is not a screen anybody has to get past
+ * once. It is the choice itself, offered every time: carry on for
+ * nothing within the Free allowance, or buy a plan. A paid seller has
+ * already chosen and goes straight to the form.
+ *
+ * A GET only. Rendering it changes nothing.
  */
 export async function accessGateGet(request, env, url) {
   const g = await guard(request, env, '/app/subscription/start');
   if (g.redirect) return g.redirect;
 
   const state = await loadState(env, g.token, g.shop.id);
-  // Already entitled: there is nothing to choose here.
-  if (state?.can_publish) return redirect('/app/new', g.headers);
+  // Paid: there is nothing to choose here.
+  if (state?.tier === 'paid') return redirect('/app/new', g.headers);
 
   const errorKey = url.searchParams.get('e');
+  const full = !state?.can_publish;
   return subPage(
     accessGatePage({
-      trialAvailable: Boolean(state?.trial_available),
-      error: errorKey && S[errorKey] ? S[errorKey] : null,
+      // Free is still on offer while a slot is left. When it is not,
+      // the screen keeps the paid plans and says why.
+      trialAvailable: !full,
+      error: errorKey && S[errorKey] ? S[errorKey]
+        : full ? S.freeFull(FREE_PRODUCT_LIMIT) : null,
     }),
     g.headers,
   );
 }
 
 /**
- * Starting the free trial.
+ * Carrying on with the Free plan.
  *
- * The seller's own decision, taken by a form post from the access
- * screen. Everything that decides whether they may is in the database:
- * start_trial checks that the shop is theirs, that no plan is running,
- * and that this account has never taken a trial before — a row keyed on
- * their user id, which outlives the shop, the session and the browser.
+ * There is nothing to start and nothing to write: Free is where every
+ * shop already is. All this does is read the server's answer to "do you
+ * still have a slot" and send the seller onward, or back to the gate
+ * with the reason.
+ *
+ * The `plan=free` it forwards skips the gate on the next screen and
+ * grants nothing. The count in the route, and the trigger under it,
+ * are what decide whether a product may be created.
  */
-export async function subscriptionTrialPost(request, env) {
+export async function subscriptionFreePost(request, env) {
   if (!sameOrigin(request)) return new Response('bad origin', { status: 403 });
   const g = await guard(request, env, '/app/subscription/start');
   if (g.redirect) return g.redirect;
 
   const { next } = await form(request);
-  const res = await asUser(env, g.token, 'rpc/start_trial', {
-    method: 'POST', body: { p_shop: g.shop.id },
-  });
+  const state = await loadState(env, g.token, g.shop.id);
 
-  if (!res.ok) {
-    // SW004 the trial is spent, SW006 a plan is already running.
-    // Neither is a failure worth a stack trace; both are a sentence.
-    const code = res.data?.code ?? null;
-    const key = code === 'SW004' ? 'errTrialUsed'
-      : code === 'SW006' ? 'errTrialActive'
-      : 'errTrial';
-    return redirect(`/app/subscription/start?e=${key}`, g.headers);
+  if (state?.tier === 'paid') return redirect(safeNext(next, '/app/new'), g.headers);
+  if (!state?.can_publish) {
+    return redirect('/app/subscription/start?e=errFreeFull', g.headers);
   }
 
-  return redirect(safeNext(next, '/app/new'), g.headers);
+  const onward = safeNext(next, '/app/new');
+  return redirect(onward === '/app/new' ? '/app/new?plan=free' : onward, g.headers);
 }
 
 export async function subscriptionPost(request, env) {

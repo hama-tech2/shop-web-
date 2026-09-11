@@ -25,6 +25,7 @@ const check = (name, got, want) =>
   results.push({ name, got, want, pass: got === want });
 
 const setMode = (m) => fetch(`${STUB}/__mode/${m}`).then((r) => r.json());
+const control = (path) => fetch(`${STUB}${path}`).then((r) => r.json());
 
 const img = (n) => ({
   card: `products/${SHOP}/${DRAFT}/${n}-card.webp`,
@@ -63,6 +64,11 @@ const SAYS = {
 const MINIMUM = { images: gallery(1), title: 'کراسی کوردی', price: '25000' };
 
 await setMode('shop');
+// The gallery belongs to a paid shop: Free is one image per product,
+// which scripts/free-plan-test.mjs is what covers. Everything here is
+// about the form, not the plan.
+await control('/__plan/year_1');
+await control('/__sub/20');
 
 /* ---------- the locked minimum: image + name + price only ---------- */
 

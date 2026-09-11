@@ -16,7 +16,7 @@
  */
 
 import { readFileSync, readdirSync } from 'node:fs';
-import { PLANS, TRIAL_DAYS, TRIAL_PRODUCT_LIMIT, WAYL } from '../worker/config.js';
+import { FREE_IMAGE_LIMIT, FREE_PRODUCT_LIMIT, PLANS, WAYL } from '../worker/config.js';
 
 const DIR = new URL('../supabase/migrations/', import.meta.url);
 
@@ -65,41 +65,46 @@ for (const key of Object.keys(configPrices)) {
         configPrices[key], dbPrices?.[key]);
 }
 
-/* ---------- the trial product limit ---------- */
-
-function trialLimitFromSql() {
-  const bodies = [...sql.matchAll(
-    /create\s+or\s+replace\s+function\s+app\.trial_product_limit\b[\s\S]*?\$\$([\s\S]*?)\$\$/g,
-  )];
-  if (!bodies.length) return null;
-  const m = bodies[bodies.length - 1][1].match(/select\s+(\d+)/i);
-  return m ? Number(m[1]) : null;
-}
-
-check('app.trial_product_limit is defined in a migration',
-      trialLimitFromSql() !== null, true);
-check('the trial limit the app shows is the one the database enforces',
-      TRIAL_PRODUCT_LIMIT, trialLimitFromSql());
-
-/* ---------- how long the trial is ---------- */
+/* ---------- what the Free plan allows ---------- */
 
 /**
- * Written twice for the same reason as the limit: the database sets the
- * date, config.js is the number on the button the seller taps. A seller
- * promised 30 days and given 14 is the failure this prevents.
+ * Both numbers are written twice: once in the database, where they
+ * refuse the write, and once in config.js, where they are shown to a
+ * seller. A seller told five and refused at four is the failure this
+ * prevents.
  */
-function trialDaysFromSql() {
-  const bodies = [...sql.matchAll(
-    /create\s+or\s+replace\s+function\s+app\.trial_days\b[\s\S]*?\$\$([\s\S]*?)\$\$/g,
-  )];
+function scalarFunctionFromSql(schema, name) {
+  const bodies = [...sql.matchAll(new RegExp(
+    `create\\s+or\\s+replace\\s+function\\s+${schema}\\.${name}\\b[\\s\\S]*?\\$\\$([\\s\\S]*?)\\$\\$`, 'g'))];
   if (!bodies.length) return null;
   const m = bodies[bodies.length - 1][1].match(/select\s+(\d+)/i);
   return m ? Number(m[1]) : null;
 }
 
-check('app.trial_days is defined in a migration', trialDaysFromSql() !== null, true);
-check('the free month the app offers is the one the database grants',
-      TRIAL_DAYS, trialDaysFromSql());
+check('app.free_product_limit is defined in a migration',
+      scalarFunctionFromSql('app', 'free_product_limit') !== null, true);
+check('the product limit the app shows is the one the database enforces',
+      FREE_PRODUCT_LIMIT, scalarFunctionFromSql('app', 'free_product_limit'));
+
+check('app.free_image_limit is defined in a migration',
+      scalarFunctionFromSql('app', 'free_image_limit') !== null, true);
+check('the image limit the app shows is the one the database enforces',
+      FREE_IMAGE_LIMIT, scalarFunctionFromSql('app', 'free_image_limit'));
+
+/* ---------- and the trial is gone from both ---------- */
+
+/**
+ * The trial is retired, and a migration must be what retires it: a
+ * function left behind in the database still has its grants, and
+ * start_trial could still be called by anything holding a token.
+ */
+const dropsAt = sql.lastIndexOf('drop function if exists app.trial_days');
+check('a migration drops app.trial_days', dropsAt >= 0, true);
+check('and nothing defines it again afterwards',
+      /create\s+or\s+replace\s+function\s+app\.trial_days\b/.test(sql.slice(dropsAt)),
+      false);
+check('public.start_trial is dropped too',
+      /drop function if exists public\.start_trial/.test(sql), true);
 
 /* ---------- how long a checkout can be reused ---------- */
 

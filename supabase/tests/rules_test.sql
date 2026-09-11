@@ -45,30 +45,30 @@ begin
   values (u, 'rules-shop', 'Rules', '+9647500000003')
   returning id into s;
 
-  -- ---------- a new shop gets no trial at all ----------
-  -- Superseded rule: a shop used to be given a month for existing. The
-  -- trial is now chosen, by the seller, in front of their first
-  -- product. scripts/trial-db-test.sql covers the choosing.
-  check_name := 'new shop starts with no plan, trial unspent';
-  result := format('plan=%s, status=%s, may publish=%s',
+  -- ---------- a new shop is on the permanent Free plan ----------
+  -- Superseded twice: a shop used to be given a month for existing, then
+  -- a month it had to choose. Free is now permanent and counted rather
+  -- than timed. scripts/free-plan-db-test.sql covers the counting.
+  check_name := 'new shop starts on Free, public, able to publish';
+  result := format('plan=%s, status=%s, may publish=%s, slots=%s',
                    (select plan from public.subscriptions where shop_id = s),
                    (select status from public.subscriptions where shop_id = s),
-                   app.can_publish(s));
-  ok := (select plan = 'none' and status = 'none' from public.subscriptions where shop_id = s)
-        and not app.can_publish(s);
+                   app.can_publish(s),
+                   (select slots_left from public.subscription_state(s)));
+  ok := (select plan = 'free' and status = 'free' from public.subscriptions where shop_id = s)
+        and app.can_publish(s);
   return next;
 
-  -- ---------- and taking it gives 30 days ----------
+  -- ---------- and a paid plan is what lifts the limit ----------
   perform set_config('request.jwt.claims',
-    json_build_object('sub', u, 'role', 'authenticated')::text, false);
-  perform public.start_trial(s);
+    json_build_object('sub', adm, 'role', 'authenticated')::text, false);
+  perform public.admin_apply_payment(s, 'year_1', 90000, 'wayl', 'REF-RULES', null);
   perform set_config('request.jwt.claims', '', false);
-  select expires_at into v_exp from public.subscriptions where shop_id = s;
-  check_name := 'starting the trial gives 30 days';
-  result := format('plan=%s, expires in %s days',
-                   (select plan from public.subscriptions where shop_id = s),
-                   round(extract(epoch from v_exp - now()) / 86400));
-  ok := (v_exp between now() + interval '29 days' and now() + interval '31 days');
+  check_name := 'paying moves the shop to the paid tier';
+  result := format('tier=%s, slots=%s',
+                   app.plan_tier(s),
+                   coalesce((select slots_left::text from public.subscription_state(s)), 'unlimited'));
+  ok := app.plan_tier(s) = 'paid';
   return next;
 
   -- ---------- paying during the trial => +2 months ----------

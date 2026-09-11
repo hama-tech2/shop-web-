@@ -387,8 +387,20 @@ export const SUBSCRIPTION = {
   pay: 'پارەدان',
   payVia: 'پارەدان لە ڕێگەی FIB',
 
-  // ---- the access screen, shown when a seller with no plan tries to
-  // post their first product. Looking at it starts nothing. ----
+  // ---- the Free plan, said where a seller meets one of its two
+  // limits: five products, one image each. Nothing here starts or ends
+  // anything — Free is where every shop already is. ----
+  freeName: 'پلانی بەخۆڕایی',
+  freeAllowance: (n, i) => `تا ${n} بەرهەم، هەر بەرهەمێک ${i} وێنە.`,
+  freeSlotsLeft: (n) => `${n} شوێنی بەتاڵت ماوە.`,
+  freeFull: (n) => `${n} بەرهەمت هەیە، ئەوەی پلانی بەخۆڕایی ڕێگەی پێدەدات. ` +
+    'بەرهەمێک بسڕەوە، یان پلانێک بکڕە.',
+  freeImageOnly: (i) => `لە پلانی بەخۆڕاییدا هەر بەرهەمێک ${i} وێنەی هەیە.`,
+  errFreeFull: 'پلانی بەخۆڕایی پڕە. بەرهەمێک بسڕەوە یان پلانێک بکڕە.',
+  errSuspended: 'دوکانەکەت ناچالاکە. پەیوەندیمان پێوە بکە.',
+
+  // ---- the plan gate, met on the way in to Add Product. Looking at it
+  // starts nothing and writes nothing. ----
   gateTitle: 'بۆ زیادکردنی بەرهەم پلانێک هەڵبژێرە',
   gateBody: 'دەتوانیت بە مانگی بەخۆڕایی دەست پێ بکەیت، یان یەکسەر پلانێک بکڕیت.',
   gateTrialTitle: (n) => `${n} ڕۆژ بەخۆڕایی`,
@@ -496,17 +508,30 @@ export const FIB_NUMBER = '07515298365';
  * what actually refuses the insert; scripts/plan-limits-test.mjs fails
  * if the two drift apart.
  */
-export const TRIAL_PRODUCT_LIMIT = 5;
+/**
+ * The permanent Free plan.
+ *
+ * Not a countdown. Every shop is on Free from the moment it exists: the
+ * storefront is public, the link works, and the seller may keep this
+ * many products, with this many images each. Delete one and the slot
+ * comes back. Paying lifts both.
+ *
+ * app.free_product_limit() and app.free_image_limit() in the database
+ * hold the same two numbers and are what actually refuse the write;
+ * scripts/plan-limits-test.mjs fails if they drift apart.
+ */
+export const FREE_PRODUCT_LIMIT = 5;
+export const FREE_IMAGE_LIMIT = 1;
 
 /**
- * How long the free trial runs, in days.
+ * Kept only because the subscription screens still import them, and
+ * those screens are being rewritten elsewhere. Nothing in the backend
+ * reads either one: there is no trial to count days of, and the product
+ * cap is FREE_PRODUCT_LIMIT above. Both go when the copy does.
  *
- * A trial is chosen, not given: a new shop has no plan at all, and this
- * clock starts when the seller taps the button on the access screen and
- * the server writes it down. app.trial_days() in the database is the
- * same number and is what actually sets the date;
- * scripts/plan-limits-test.mjs fails if the two drift apart.
+ * @deprecated
  */
+export const TRIAL_PRODUCT_LIMIT = FREE_PRODUCT_LIMIT;
 export const TRIAL_DAYS = 30;
 
 /**

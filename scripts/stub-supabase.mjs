@@ -45,8 +45,8 @@ let isAdmin = false;              // does the session own an admins row
 let adminActive = true;
 const manualGrants = new Map();
 let subDays = 20;                 // days until the subscription expires
-let subPlan = 'trial';            // none | trial | month_1 | months_6 | year_1
-let trialTaken = false;           // public.trial_grants: one per account, ever
+let subPlan = 'free';             // free | month_1 | months_6 | year_1
+let suspended = false;            // the admin's stop button
 let productCount = 0;             // how many products the shop has
 let dismissed = {};               // banner kind -> ISO timestamp
 const telegram = [];              // every call the Worker made to the bot API
@@ -119,8 +119,8 @@ http.createServer(async (req, res) => {
   if (p.startsWith('/__admin-active/')) { adminActive = p.split('/')[2] === '1'; return send({ adminActive }); }
   if (p.startsWith('/__sub/')) { subDays = Number(p.split('/')[2]); return send({ subDays }); }
   if (p.startsWith('/__plan/')) { subPlan = p.split('/')[2]; return send({ subPlan }); }
-  // Whether this account has already spent its one free trial.
-  if (p.startsWith('/__trial/')) { trialTaken = p.split('/')[2] === '1'; return send({ trialTaken }); }
+  // The admin's stop button, which outranks any plan.
+  if (p.startsWith('/__suspended/')) { suspended = p.split('/')[2] === '1'; return send({ suspended }); }
   if (p.startsWith('/__products/')) { productCount = Number(p.split('/')[2]); return send({ productCount }); }
   if (p.startsWith('/__dismissed/')) {
     const [, , kind, when] = p.split('/');
@@ -352,13 +352,15 @@ http.createServer(async (req, res) => {
     // full. Modelling it here is the point: the Worker checks first, but
     // the database is what actually refuses, and the route has to answer
     // that refusal with the message that links to the plans.
-    // app.enforce_trial_product_limit raises SW005 for a shop with no
-    // live plan, before it counts anything.
-    if (write && req.method === 'POST' && (subPlan === 'none' || subDays <= 0)) {
-      return send({ code: 'SW005', message: 'shop has no active plan' }, 400);
+    // app.enforce_free_product_limit: suspension first, then the count,
+    // and nothing to count on a paid plan.
+    if (write && req.method === 'POST' && suspended) {
+      return send({ code: 'SW005', message: 'shop is suspended' }, 400);
     }
-    if (write && req.method === 'POST' && subPlan === 'trial' && productCount >= 5) {
-      return send({ code: 'SW001', message: 'trial product limit of 5 reached' }, 400);
+    if (write && req.method === 'POST'
+        && !(['month_1', 'months_6', 'year_1'].includes(subPlan) && subDays > 0)
+        && productCount >= 5) {
+      return send({ code: 'SW001', message: 'free plan allows 5 products' }, 400);
     }
     // app.check_category_same_shop raises 23514 for a category_id that
     // does not exist or belongs to another shop. Modelling it here is
@@ -389,36 +391,37 @@ http.createServer(async (req, res) => {
     }]);
   }
   if (table === 'rpc/subscription_state') {
+    // The row as it is stored. A paid plan whose date has passed still
+    // says year_1/active until expire_lapsed_subscriptions() sweeps it,
+    // which is what lets the account card draw grace and then expired.
+    // /__plan/free is the swept state.
+    const sold = ['month_1', 'months_6', 'year_1'].includes(subPlan);
     const expires = new Date(Date.now() + subDays * 86400000).toISOString();
     // Grace is 3 days, matching subscriptions.grace_days.
     const graceEnds = new Date(Date.now() + (subDays + 3) * 86400000).toISOString();
-    const none = subPlan === 'none';
+    // app.plan_tier: only a sold plan whose date has not passed.
+    const paid = sold && subDays > 0;
     return send([{
       plan: subPlan,
-      status: none ? 'none' : subPlan === 'trial' ? 'trialing' : 'active',
+      status: suspended ? 'suspended' : sold ? 'active' : 'free',
       started_at: new Date(Date.now() - 10 * 86400000).toISOString(),
-      expires_at: none ? new Date().toISOString() : expires,
-      grace_ends_at: none ? new Date().toISOString() : graceEnds,
-      days_left: none ? 0 : Math.max(0, Math.ceil(subDays)), total_days: 30,
-      in_grace: !none && subDays <= 0 && subDays > -3,
-      publicly_visible: !none && subDays > -3,
-      // app.can_publish: a running trial or a paid plan, not past its
-      // date. Grace is not enough to post something new.
-      can_publish: !none && subDays > 0,
-      trial_available: !trialTaken,
+      expires_at: sold ? expires : new Date().toISOString(),
+      grace_ends_at: sold ? graceEnds : new Date().toISOString(),
+      days_left: sold ? Math.max(0, Math.ceil(subDays)) : 0,
+      total_days: 30,
+      in_grace: sold && subDays <= 0 && subDays > -3,
+      // A Free shop is a public shop; that is the whole point of it.
+      publicly_visible: !suspended && (!sold || subDays > -3),
+      // app.can_publish: not suspended, and either paid or holding a slot.
+      can_publish: !suspended && (paid || productCount < 5),
+      tier: paid ? 'paid' : 'free',
+      slots_left: paid ? null : Math.max(0, 5 - productCount),
     }]);
   }
-  // public.start_trial: once per account, and never over a live plan.
-  if (table === 'rpc/start_trial') {
-    if (trialTaken) return send({ code: 'SW004' }, 400);
-    if (subPlan !== 'none' && subDays > 0) return send({ code: 'SW006' }, 400);
-    trialTaken = true; subPlan = 'trial'; subDays = 30;
-    return send({ shop_id: SHOP.id, plan: 'trial', status: 'trialing',
-                  expires_at: new Date(Date.now() + 30 * 86400000).toISOString() });
-  }
   // Null on a paid plan means unlimited, which is what the app checks.
-  if (table === 'rpc/trial_slots_left') {
-    return send(subPlan === 'trial' ? Math.max(0, 5 - productCount) : null);
+  if (table === 'rpc/product_slots_left') {
+    const paidNow = ['month_1', 'months_6', 'year_1'].includes(subPlan) && subDays > 0;
+    return send(paidNow ? null : Math.max(0, 5 - productCount));
   }
   if (table === 'rpc/admin_grant_plan' && !GRANT_PLANS.includes(lastBody.p_plan)) {
     return send({ code: '22023' }, 400);

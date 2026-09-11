@@ -221,7 +221,15 @@ begin
     v_ok := false;
     v_result := v_result || ' — EXPIRY DID NOT MOVE';
   end if;
-  if not exists (select 1 from public.payments where reference = v_intent::text) then
+  -- The payment carries the intent's own reference when it has one, and
+  -- falls back to the intent id only when it does not.
+  if not exists (
+    select 1 from public.payments p
+     where p.shop_id = s_shop
+       and p.reference = coalesce(
+             (select i.reference from public.payment_intents i where i.id = v_intent),
+             v_intent::text)
+  ) then
     v_ok := false;
     v_result := v_result || ' — NO PAYMENT ROW';
   end if;
