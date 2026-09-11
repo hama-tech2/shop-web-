@@ -72,7 +72,20 @@ begin
   end if;
   raise notice 'PASS a live checkout is reused, not paid for twice';
 
-  -- 5. a seller cannot activate their own payment
+  -- 5. a seller cannot file an intent by hand at all
+  --
+  -- Every intent comes from wayl_start_intent, which is where the rate
+  -- limit, the reference and the webhook secret are decided. A direct
+  -- insert would go around all three.
+  begin
+    insert into public.payment_intents(shop_id, plan, amount, reference_id)
+      values (v_shop, 'year_1', 0, 'BZ-HANDMADE-0001');
+    raise exception 'FAIL a seller inserted a payment intent directly';
+  exception when insufficient_privilege then
+    raise notice 'PASS a seller cannot insert a payment intent';
+  end;
+
+  -- 6. and cannot activate their own payment
   begin
     perform public.wayl_apply_payment(v_intent, v_ref, 90000, 'FIB', 'seller');
     raise exception 'FAIL a seller activated their own payment';
@@ -85,7 +98,7 @@ begin
   perform set_config('request.jwt.claims', '{"role":"service_role"}', true);
   set local role service_role;
 
-  -- 6. the amount is the plan price or nothing
+  -- 7. the amount is the plan price or nothing
   begin
     perform public.wayl_apply_payment(v_intent, v_ref, 1000, 'FIB', 'wayl');
     raise exception 'FAIL a smaller amount activated a plan';
@@ -93,7 +106,7 @@ begin
     raise notice 'PASS an amount that is not the plan price is refused';
   end;
 
-  -- 7. and the reference is this payment's or nothing
+  -- 8. and the reference is this payment's or nothing
   begin
     perform public.wayl_apply_payment(v_intent, 'BZ-SOMEONE-ELSE', 90000, 'FIB', 'wayl');
     raise exception 'FAIL another reference activated this plan';
@@ -104,7 +117,7 @@ begin
   select count(*) into v_count from public.payments where shop_id = v_shop;
   if v_count <> 0 then raise exception 'FAIL % payments recorded by refusals', v_count; end if;
 
-  -- 8. the activation itself, and the one date rule
+  -- 9. the activation itself, and the one date rule
   v_now := now();
   select * into v_row from public.wayl_apply_payment(v_intent, v_ref, 90000, 'FIB', 'wayl');
   if not v_row.activated then raise exception 'FAIL the payment did not activate'; end if;
@@ -124,7 +137,7 @@ begin
   if v_method <> 'FIB' then raise exception 'FAIL the stored method is %', v_method; end if;
   raise notice 'PASS the payment, and the method Wayl supplied, are recorded';
 
-  -- 9. the same payment again: a webhook retry, or a browser still polling
+  -- 10. the same payment again: a webhook retry, or a browser still polling
   select * into v_row from public.wayl_apply_payment(v_intent, v_ref, 90000, 'FIB', 'wayl');
   if v_row.activated or not v_row.already_active then
     raise exception 'FAIL a repeat activated a second time';
@@ -135,7 +148,7 @@ begin
   if v_before <> v_after then raise exception 'FAIL the expiry moved twice'; end if;
   raise notice 'PASS a repeated activation grants nothing';
 
-  -- 10. a replayed webhook event is taken exactly once
+  -- 11. a replayed webhook event is taken exactly once
   if not public.wayl_record_event(v_intent, 'evt_' || v_intent, null, 'paid') then
     raise exception 'FAIL a new event was not recorded';
   end if;
@@ -144,13 +157,15 @@ begin
   end if;
   raise notice 'PASS a replayed event id is refused';
 
-  -- 11. a transfer the owner has not found yet is never overtaken
+  -- 12. a transfer the owner has not found yet is never overtaken
   set local role none;
   perform set_config('request.jwt.claims',
     json_build_object('sub', v_seller, 'role', 'authenticated')::text, true);
   set local role authenticated;
-  insert into public.payment_intents(shop_id, plan, amount) values (v_shop, 'months_6', 0)
-    returning id into v_intent;
+  -- Built the only way a seller can build one now: through the
+  -- function, then through their own one-way "I sent it" door.
+  select id into v_intent
+    from public.wayl_start_intent(v_shop, 'months_6', v_ref || 'M', 'test', v_secret);
   perform public.mark_intent_sent(v_intent);
   begin
     perform public.wayl_start_intent(v_shop, 'months_6', v_ref || 'D', 'test', v_secret);
@@ -159,7 +174,7 @@ begin
     raise notice 'PASS a manual transfer awaiting the owner is not overtaken';
   end;
 
-  -- 12. and one shop cannot make checkouts in a loop
+  -- 13. and one shop cannot make checkouts in a loop
   begin
     for i in 1..8 loop
       perform public.wayl_start_intent(v_shop, 'year_1', v_ref || '-R' || i, 'test', v_secret);

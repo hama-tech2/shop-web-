@@ -669,28 +669,24 @@ export async function subscriptionPost(request, env) {
   const plan = PLANS.find((p) => p.key === wanted);
   if (!plan) return redirect('/app/subscription?e=errPlan', g.headers);
 
-  // Already mid-payment for this plan: send them back to the code they
-  // were given rather than filing a second intent the owner would have
-  // to reconcile. The partial unique index would refuse it anyway.
+  // A transfer the seller has already told us about. Their instructions
+  // are still there to read, and this is still where that link goes.
   const live = await loadLiveIntent(env, g.token, g.shop.id);
   if (live && live.plan === plan.key) {
     return redirect('/app/subscription/pay', g.headers);
   }
 
-  // The amount is not sent from here: a BEFORE INSERT trigger sets it
-  // from app.plan_price, so a crafted post cannot name its own price.
-  // The value stored is the price at the time of the intent, which is
-  // what an early seller keeps if prices change later.
-  const res = await asUser(env, g.token, 'payment_intents', {
-    method: 'POST',
-    prefer: 'return=representation',
-    body: { shop_id: g.shop.id, plan: plan.key, amount: plan.amount },
-  });
-
-  if (!res.ok || !res.data?.[0]) {
-    return redirect('/app/subscription?e=errIntent', g.headers);
-  }
-  return redirect('/app/subscription/pay', g.headers);
+  // Filing a new manual intent is closed. Sellers can no longer insert
+  // payment_intents at all — migration 0030 took the policy away — so
+  // every intent now comes from public.wayl_start_intent, which is the
+  // only place the rate limit, the reference and the per-payment
+  // webhook secret are decided.
+  //
+  // This is not an error to retry: attempting the write would only earn
+  // an RLS refusal. The screen says online payment is not switched on,
+  // which is the true sentence while PAYMENTS_ENABLED is off, and the
+  // plans form posts to /app/subscription/checkout once it is.
+  return redirect('/app/subscription?e=errUnavailable', g.headers);
 }
 
 /** Where to transfer, how much, and with which code. */
