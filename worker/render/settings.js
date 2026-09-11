@@ -4,12 +4,13 @@ import { iconBack, iconDocument, iconExternal, iconLogout,
   iconPhone, iconPin, iconShield, iconStore, iconWhatsapp } from './icons.js';
 
 const statusLabels = {
+  free: 'بەخۆڕایی',
   none: 'بێ پلان',
-  trial: 'تاقیکردنەوە', active: 'چالاک', pending: 'چاوەڕوانی پشتڕاستکردنەوە',
+  active: 'چالاک', pending: 'چاوەڕوانی پشتڕاستکردنەوە',
   grace: 'لە کاتی زیادەدایە', expired: 'بەسەرچووە', suspended: 'ناچالاک',
 };
 const planLabels = {
-  none: 'بێ پلان', trial: 'تاقیکردنەوەی بەخۆڕایی',
+  none: 'بێ پلان', free: 'پلانی بەخۆڕایی',
   month_1: '1 مانگ', months_6: '6 مانگ', year_1: '1 ساڵ',
 };
 
@@ -44,27 +45,28 @@ const latin = (text) => String(text).replace(/[٠-٩۰-۹]/g, (digit) =>
 
 function subscriptionCard(subscription) {
   const state = subscription?.state;
-  const plan = subscription?.plan;
+  const plan = subscription?.plan && Number.isInteger(state?.days_left)
+    ? { ...subscription.plan, days: state.days_left } : subscription?.plan;
   // Use the existing server-derived state. Missing data is not expiry.
-  const key = state?.status === 'suspended' ? 'suspended' : state ? plan?.key : null;
+  const key = state?.status === 'suspended' ? 'suspended' : state?.tier === 'free' ? 'free' : state ? plan?.key : null;
   const label = statusLabels[key];
-  const date = key !== 'none' && state?.expires_at && !Number.isNaN(Date.parse(state.expires_at))
+  const date = !['none', 'free'].includes(key) && state?.expires_at && !Number.isNaN(Date.parse(state.expires_at))
     ? new Date(state.expires_at).toISOString().slice(0, 10) : '';
-  const warning = key === 'suspended' ? null : planWarning(plan);
-  const hasTime = ['trial', 'active', 'pending'].includes(key);
+  const warning = ['suspended', 'free'].includes(key) ? null : planWarning(plan);
+  const hasTime = ['active', 'pending'].includes(key);
   const renew = key !== 'none' && Boolean(warning);
   return `<section class="settings-plan" aria-labelledby="settings-plan-title"${key ? ` data-status="${esc(key)}"` : ''}>` +
     `<div class="settings-plan__top">` +
     `<div class="settings-plan__identity"><p class="settings-plan__eyebrow">پلانی ئێستا</p>` +
-    `<h2 id="settings-plan-title">${esc(planLabels[state?.plan] || 'بەشداریکردن')}</h2></div>` +
-    (label && !['trial', 'none'].includes(key) ? `<span class="settings-badge" id="settings-plan-status">${esc(label)}</span>` : '') + `</div>` +
+    `<h2 id="settings-plan-title">${esc(key === 'free' ? planLabels.free : planLabels[state?.plan] || 'بەشداریکردن')}</h2></div>` +
+    (label && !['free', 'none'].includes(key) ? `<span class="settings-badge" id="settings-plan-status">${esc(label)}</span>` : '') + `</div>` +
     (warning
       ? `<p class="settings-plan__remaining" id="settings-plan-warning" data-level="${esc(warning.level)}" role="status">` +
         `${esc(warning.text)}</p>`
       : hasTime ? `<p class="settings-plan__remaining">${plan.days} ڕۆژ ماوە</p>` : '') +
     `<p class="settings-plan__date" id="settings-plan-detail">` +
     (date ? `کۆتایی: <time datetime="${esc(date)}" dir="ltr">${date.replaceAll('-', '/')}</time>`
-      : !key ? 'وردەکاری پلان لە ئێستادا بەردەست نییە.' : '') + `</p>` +
+      : key === 'free' ? 'بەخۆڕایی، بێ سنووری کات' : !key ? 'وردەکاری پلان لە ئێستادا بەردەست نییە.' : '') + `</p>` +
     `<a class="settings-plan__action" href="/app/subscription" id="settings-subscription">` +
     `${renew ? 'نوێکردنەوەی پلان' : 'بینینی پلانەکان'} ${arrow}</a></section>`;
 }
@@ -94,6 +96,7 @@ export function settingsPanel({ shop, subscription = null }) {
     subscriptionCard(subscription) +
     `<h2 class="settings-heading">هەژمار و دوکان</h2><div class="settings-group">` +
     row('دەستکاری پرۆفایلی دوکان', iconStore(), '/app/profile') +
+    row('بەڕێوەبردنی بەرهەمەکان', iconStore(), '/app/products') +
     row('بینینی پرۆفایلی گشتی', iconExternal(), '/@' + shop.slug) + `</div>` +
     `<h2 class="settings-heading">پشتیوانی و یاسایی</h2><div class="settings-group">` +
     row('یارمەتی و پشتیوانی', iconWhatsapp(22), supportHref, true) +

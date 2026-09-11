@@ -350,6 +350,7 @@ export async function newGet(request, env, url) {
     return page(
       accessGatePage({
         trialAvailable: canPublish,
+        slotsLeft,
         error: canPublish ? null : S.freeFull(FREE_PRODUCT_LIMIT),
       }),
       S.gateTitle, g.headers,
@@ -494,10 +495,11 @@ export async function editGet(request, env, id) {
   if (!product) return redirect('/app/products', g.headers);
 
   const categories = await getCategories(env);
+  const { tier } = await entitlement(env, g.token, g.shop.id);
   return page(
     productForm({ mode: 'edit', draftId: id, categories,
                   shopCategories: await ownCategories(env, g.token, g.shop.id),
-                  values: toValues(product, categories) }),
+                  values: toValues(product, categories), imageLimit: tier === 'paid' ? MAX_IMAGES : FREE_IMAGE_LIMIT }),
     T.editTitle, g.headers,
   );
 }
@@ -510,12 +512,14 @@ export async function editPost(request, env, id) {
 
   const parsed = await readForm(request, env, g.token, g.shop.id, id);
   const categories = await getCategories(env);
+  const { tier } = await entitlement(env, g.token, g.shop.id);
+  const imageLimit = tier === 'paid' ? MAX_IMAGES : FREE_IMAGE_LIMIT;
 
   if (parsed.error) {
     return page(
       productForm({ mode: 'edit', draftId: id, categories,
                     shopCategories: await ownCategories(env, g.token, g.shop.id),
-                    values: parsed.values, error: parsed.error }),
+                    values: parsed.values, error: parsed.error, imageLimit }),
       T.editTitle, g.headers,
     );
   }
@@ -543,7 +547,7 @@ export async function editPost(request, env, id) {
     return page(
       productForm({ mode: 'edit', draftId: id, categories,
                     shopCategories: await ownCategories(env, g.token, g.shop.id),
-                    values: parsed.values, error }),
+                    values: parsed.values, error, imageLimit }),
       T.editTitle, g.headers,
     );
   }

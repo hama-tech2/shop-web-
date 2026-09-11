@@ -33,7 +33,7 @@
   }
   function sync() {
     imagesField.value = JSON.stringify(items.filter(function (item) { return item.card; }).map(function (item) { return { card: item.card, full: item.full }; }));
-    document.getElementById('photo-count').textContent = items.length + ' / ' + max;
+    document.getElementById('photo-count').textContent = items.length > max ? items.length + ' وێنەی پارێزراو' : items.length + ' / ' + max;
     thumbs.querySelectorAll('.publish-photo, .thumb:not(.thumb--add)').forEach(function (el) { el.remove(); });
     items.forEach(function (item, i) {
       var wrap = document.createElement('div'); wrap.className = 'publish-photo'; wrap.dataset.id = item.id; wrap.draggable = !item.loading;
@@ -211,7 +211,7 @@
     if (!items.length) { say('لانیکەم یەک وێنە زیاد بکە.'); add.focus(); return; }
     if (!form.reportValidity()) return;
     var pending = items.filter(function (item) { return !item.card || item.cardBlob; });
-    if (storedSlots + pending.length > max) { say('سنووری ناردنی وێنە پڕە. ڕێکخستنی وێنە پاشەکەوتکراوەکان پێویستی بە شوێنی بەتاڵ هەیە.'); return; }
+    if (pending.length && storedSlots + pending.length > max) { say('سنووری ناردنی وێنە پڕە. ڕێکخستنی وێنە پاشەکەوتکراوەکان پێویستی بە شوێنی بەتاڵ هەیە.'); return; }
     busy = true; form.inert = true; save.disabled = true; save.textContent = save.dataset.saving;
     try {
       for (var i = 0; i < pending.length; i++) await upload(pending[i], i + 1, pending.length);

@@ -628,6 +628,7 @@ export async function accessGateGet(request, env, url) {
       // Free is still on offer while a slot is left. When it is not,
       // the screen keeps the paid plans and says why.
       trialAvailable: !full,
+      slotsLeft: state?.slots_left,
       error: errorKey && S[errorKey] ? S[errorKey]
         : full ? S.freeFull(FREE_PRODUCT_LIMIT) : null,
     }),

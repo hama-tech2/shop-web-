@@ -93,6 +93,7 @@
 .shop-row__city { display: flex; align-items: center; gap: 4px; color: var(--muted); font-size: 12px; }
 .shop-row__go { color: var(--accent); font-size: 12px; font-weight: 700; }
 .pdp-order { margin-top: 14px; }
+.pdp-secondary { display: flex; align-items: center; justify-content: flex-end; margin: 4px 0 -8px; }
 .pdp-order .btn { min-height: 44px; padding: 10px 12px; border-radius: 12px; background: var(--accent); color: white; font-size: 14px; }
 .pdp-order .btn svg { width: 20px; height: 20px; }
 .more { margin-top: 28px; }

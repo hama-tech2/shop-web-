@@ -1,6 +1,6 @@
 import { CITY_LABEL, SHOP as T, UI } from '../config.js';
 import { esc, price } from './html.js';
-import { cardHtml } from './feed.js';
+import { cardHtml, mapsUrl } from './feed.js';
 import { iconBack, iconHeart, iconPin, iconShare, iconWhatsapp } from './icons.js';
 
 const imgUrl = (key) => `/img/${key.split('/').map(encodeURIComponent).join('/')}`;
@@ -18,6 +18,7 @@ export function productPage({ product, more, origin }) {
   const shop = product.shop;
   const shopUrl = `/@${encodeURIComponent(shop.slug)}`;
   const pageUrl = `${origin}${shopUrl}/p/${product.id}`;
+  const location = mapsUrl(shop.maps_url);
   const city = CITY_LABEL[shop.city] ?? shop.city ?? '';
 
   const slides = product.images.length
@@ -63,10 +64,6 @@ export function productPage({ product, more, origin }) {
     `<div class="pdp-tools">` +
     `<button class="round-btn" type="button" id="pdp-heart" data-fav="${esc(product.id)}"` +
     ` aria-pressed="false" aria-label="${esc(T.save)}">${iconHeart(22)}</button>` +
-    `<button class="round-btn" type="button" id="share-btn"` +
-    ` data-url="${esc(pageUrl)}" data-title="${esc(product.title)}"` +
-    ` data-copied="${esc(T.linkCopied)}" aria-label="${esc(T.share)}">${iconShare(22)}</button>` +
-    `<span class="share-status visually-hidden" role="status" aria-live="polite"></span>` +
     `</div></div>` +
 
     `<div class="pdp-gallery"><div class="carousel" id="pdp-carousel" tabindex="0" role="region"` +
@@ -87,6 +84,10 @@ export function productPage({ product, more, origin }) {
     (city ? `<span class="shop-row__city">${iconPin(12)}${esc(city)}</span>` : '') +
     `</span>` +
     `<span class="shop-row__go">${esc(T.viewShop)}</span></a>` +
+
+    `<div class="pdp-secondary" role="group" aria-label="کردارەکانی بەرهەم">` +
+    `<button class="card__action card__action--share" type="button" data-card-share="${esc(pageUrl)}" aria-label="${esc(T.share)}"><span>${iconShare(18)}</span></button>` +
+    (location ? `<a class="card__action card__action--location" href="${esc(location)}" target="_blank" rel="noopener noreferrer" aria-label="شوێنی دوکان"><span>${iconPin(18)}</span></a>` : '') + `</div>` +
 
     `<div class="pdp-order">` +
     `<a class="btn btn--whatsapp" href="${esc(wa(shop.whatsapp, T.orderText(product.title, pageUrl)))}"` +

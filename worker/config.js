@@ -204,12 +204,12 @@ export const PRODUCT = {
 
   // The trial limit. A refusal on its own leaves the seller stuck, so
   // the message says what to do next and the screen carries the link.
-  trialLimitTitle: 'سنووری مانگی بەخۆڕایی',
+  trialLimitTitle: 'پلانی بەخۆڕایی پڕە',
   trialLimitBody: (max) =>
-    `لە مانگی بەخۆڕاییدا تا ${max} بەرهەم دەتوانیت بڵاو بکەیتەوە. ` +
-    'بۆ بەرهەمی زیاتر پلانێک هەڵبژێرە — بەرهەمە ئێستاکانت وەک خۆیان دەمێننەوە.',
+    `لە پلانی بەخۆڕاییدا تا ${max} بەرهەم لە هەژمارەکەتدا دەتوانیت هەبێت. ` +
+    'بۆ زیادکردنی بەرهەمێکی نوێ، یەکێک بسڕەوە یان پلانێک بکڕە. بەرهەمە ئێستاکانت پارێزراون.',
   trialLimitAction: 'بینینی پلانەکان',
-  trialLeft: (n, max) => `${n} لە ${max} شوێنی ماوە لە مانگی بەخۆڕایی`,
+  trialLeft: (n, max) => `${n} لە ${max} شوێنی پلانی بەخۆڕاییت ماوە. بێ سنووری کات.`,
 
   emptyTitle: 'هێشتا هیچ بەرهەمێکت نییە',
   emptyBody: 'یەکەم بەرهەمت زیاد بکە و لینکەکەت بڵاوبکەرەوە.',
@@ -367,12 +367,12 @@ export const SUBSCRIPTION = {
 
   // The five states a seller can be in. Only trial, pending and active
   // are stored; grace and expired are read off the expiry date.
-  stateTrial: (n) => `مانگی بەخۆڕایی — ${n} ڕۆژ ماوە`,
-  stateTrialLast: 'ڕۆژی کۆتایی مانگی بەخۆڕاییە',
+  stateTrial: () => 'پلانی بەخۆڕایی، بێ سنووری کات',
+  stateTrialLast: 'پلانی بەخۆڕایی، بێ سنووری کات',
   statePending: 'چاوەڕوانی پشتڕاستکردنەوە',
   stateActive: (d) => `چالاکە تا ${d}`,
   stateGrace: (n) => `بەسەرچووە — ${n} ڕۆژ ماوە پێش شاردنەوەی بەرهەمەکان`,
-  stateExpired: 'بەرهەمەکانت شاراونەتەوە. بۆ گەڕاندنەوەیان پارە بدە.',
+  stateExpired: 'پلانی پارەدراوت تەواو بووە. بەرهەمەکانت پارێزراون؛ لە بەڕێوەبردنی بەرهەمەکان دۆخیان بگۆڕە.',
 
   best: 'باشترین نرخ',
   perMonth: (n) => `${n} مانگانە`,
@@ -380,8 +380,8 @@ export const SUBSCRIPTION = {
 
   // The free month, named at the bottom of the plans, small. It is
   // what a seller is already on, not something to sell them.
-  freeTitle: 'مانگی بەخۆڕایی',
-  freeBody: (n) => `تا ${n} بەرهەم، بۆ یەک مانگ.`,
+  freeTitle: 'پلانی بەخۆڕایی',
+  freeBody: (n) => `تا ${n} بەرهەم، بێ سنووری کات.`,
 
   whatYouGet: 'چی وەردەگریت',
   benefits: [
@@ -400,7 +400,7 @@ export const SUBSCRIPTION = {
   freeName: 'پلانی بەخۆڕایی',
   freeAllowance: (n, i) => `تا ${n} بەرهەم، هەر بەرهەمێک ${i} وێنە.`,
   freeSlotsLeft: (n) => `${n} شوێنی بەتاڵت ماوە.`,
-  freeFull: (n) => `${n} بەرهەمت هەیە، ئەوەی پلانی بەخۆڕایی ڕێگەی پێدەدات. ` +
+  freeFull: (n) => `سنووری ${n} بەرهەمی پلانی بەخۆڕایی پڕە. ` +
     'بەرهەمێک بسڕەوە، یان پلانێک بکڕە.',
   freeImageOnly: (i) => `لە پلانی بەخۆڕاییدا هەر بەرهەمێک ${i} وێنەی هەیە.`,
   errFreeFull: 'پلانی بەخۆڕایی پڕە. بەرهەمێک بسڕەوە یان پلانێک بکڕە.',
@@ -409,12 +409,12 @@ export const SUBSCRIPTION = {
   // ---- the plan gate, met on the way in to Add Product. Looking at it
   // starts nothing and writes nothing. ----
   gateTitle: 'بۆ زیادکردنی بەرهەم پلانێک هەڵبژێرە',
-  gateBody: 'دەتوانیت بە مانگی بەخۆڕایی دەست پێ بکەیت، یان یەکسەر پلانێک بکڕیت.',
-  gateTrialTitle: (n) => `${n} ڕۆژ بەخۆڕایی`,
-  gateTrialBody: (n) => `تا ${n} بەرهەم لە ماوەی تاقیکردنەوەدا. هیچ پارەیەک وەرناگیرێت.`,
-  gateTrialAction: 'دەستپێکردنی ماوەی بەخۆڕایی',
-  gateTrialOnce: 'ماوەی بەخۆڕایی تەنها یەک جار بەردەستە بۆ هەر هەژمارێک.',
-  gateTrialUsed: 'ماوەی بەخۆڕاییت بەکارهێنراوە. بۆ بەردەوامبوون پلانێک هەڵبژێرە.',
+  gateBody: 'بەخۆڕایی بەردەوام بە، یان پلانێکی پارەدراو هەڵبژێرە.',
+  gateTrialTitle: () => 'پلانی بەخۆڕایی',
+  gateTrialBody: (n) => `تا ${n} بەرهەم، بێ سنووری کات. هیچ پارەیەک وەرناگیرێت.`,
+  gateTrialAction: 'بەردەوامبوون بەخۆڕایی',
+  gateTrialOnce: 'پلانی بەخۆڕایی بێ سنووری کاتە.',
+  gateTrialUsed: 'پلانی بەخۆڕایی پڕە. بەرهەمێک بسڕەوە یان پلانێک بکڕە.',
   gatePlans: 'پلانەکان',
   gateBack: 'گەڕانەوە',
 
@@ -422,15 +422,15 @@ export const SUBSCRIPTION = {
   warnSoon: (n) => `${n} ڕۆژ لە پلانەکەت ماوە.`,
   warnUrgent: (n) => `تەنها ${n} ڕۆژ ماوە.`,
   warnLast: 'سبەی پلانەکەت تەواو دەبێت.',
-  warnExpired: 'پلانەکەت تەواو بووە. ناتوانیت بەرهەمی نوێ زیاد بکەیت.',
+  warnExpired: 'پلانی پارەدراوت تەواو بووە. سنوورەکانی پلانی بەخۆڕایی بەکاردێن.',
   warnNone: 'هێشتا پلانێکت نییە.',
   warnAction: 'نوێکردنەوە / بینینی پلانەکان',
   // Renewal is a payment the seller makes, every time. Nothing here
   // renews by itself and nothing may say that it does.
   renewManual: 'نوێکردنەوە دەستییە: کاتێک پلانەکە تەواو دەبێت خۆت پارەکە دەدەیتەوە.',
 
-  errTrial: 'دەستپێکردنی ماوەی بەخۆڕایی سەرکەوتوو نەبوو. تکایە دووبارە هەوڵ بدەوە.',
-  errTrialUsed: 'ماوەی بەخۆڕایی پێشتر بەکارهێنراوە.',
+  errTrial: 'بەردەوامبوون سەرکەوتوو نەبوو. تکایە دووبارە هەوڵ بدەوە.',
+  errTrialUsed: 'بۆ بەردەوامبوون، پلانی بەخۆڕایی یان پلانێکی پارەدراو هەڵبژێرە.',
   errTrialActive: 'پلانێکی چالاکت هەیە.',
 
   // ---- the instructions screen ----
@@ -558,7 +558,7 @@ export const PLAN_BANNER = {
   soon: (n) => `${n} ڕۆژ لە پلانەکەت ماوە`,
   soonOne: 'سبەی پلانەکەت تەواو دەبێت',
   grace: (n) => `پلانەکەت تەواو بووە. ${n} ڕۆژ ماوە پێش ئەوەی بەرهەمەکانت بشاردرێنەوە.`,
-  hidden: 'بەرهەمەکانت شاراونەتەوە. پارە بدە بۆ ئەوەی یەکسەر بگەڕێنەوە.',
+  hidden: 'پلانی پارەدراوت تەواو بووە. بەرهەمە شاراوەکان پارێزراون؛ خۆت هەڵبژێرە کام بەرهەم ئاشکرا بێت.',
   pending: 'ناردنەکەت لە چاوەڕوانی پشتڕاستکردنەوەدایە.',
   action: 'پارەدان',
   dismiss: 'داخستن',
@@ -673,7 +673,7 @@ export const ADMIN = {
 
   statShops: 'کۆی دوکانەکان',
   statActive: 'چالاک',
-  statTrial: 'لە مانگی بەخۆڕایی',
+  statTrial: 'پلانی کۆنی بەخۆڕایی',
   statExpired: 'بەسەرچوو',
   statSuspended: 'ڕاگیراو',
   statProducts: 'کۆی بەرهەمەکان',

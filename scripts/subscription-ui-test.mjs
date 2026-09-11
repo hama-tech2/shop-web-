@@ -18,7 +18,7 @@ await mkdir(screenshots, { recursive: true });
 let count = 0;
 const check = (name, ok) => { assert.ok(ok, name); count++; console.log('PASS ' + name); };
 const stub = (path) => fetch(STUB + path);
-for (const path of ['/__mode/shop', '/__rows/1', '/__admin/0', '/__plan/trial', '/__sub/20', '/__intent/none', '/__calls/reset']) await stub(path);
+for (const path of ['/__mode/shop', '/__rows/1', '/__admin/0', '/__plan/year_1', '/__sub/20', '/__intent/none', '/__calls/reset']) await stub(path);
 const browser = await chromium.launch({ executablePath: process.env.CHROME || 'C:/Program Files/Google/Chrome/Application/chrome.exe' });
 try {
   const ctx = await browser.newContext();
@@ -44,8 +44,8 @@ try {
     await page.evaluate(() => document.fonts.ready);
     check('default yearly ' + width, await page.locator('input[value="year_1"]').isChecked());
     check('exactly two plans ' + width, await page.locator('input[name="plan"]').count() === 2);
-    check('trial is real RPC state ' + width, await page.locator('.billing-state').getAttribute('data-plan-state') === 'trial');
-    check('trial days are real ' + width, await page.locator('.billing-state').getAttribute('data-plan-days') === '20');
+    check('paid is real RPC state ' + width, await page.locator('.billing-state').getAttribute('data-plan-state') === 'active');
+    check('paid days are real ' + width, await page.locator('.billing-state').getAttribute('data-plan-days') === '20');
     check('prices and monthly equivalents ' + width, (await page.locator('[data-plan="year_1"]').innerText()).includes('90,000') && (await page.locator('[data-plan="year_1"]').innerText()).includes('7,500') && (await page.locator('[data-plan="months_6"]').innerText()).includes('55,000') && (await page.locator('[data-plan="months_6"]').innerText()).includes('9,200'));
     check('renewal has no duplicate feature block ' + width, await page.locator('.billing-features').count() === 0);
     check('early renewal preserves remaining time ' + width, await page.locator('.billing-renewal-note').isVisible());
@@ -101,7 +101,7 @@ try {
   check('year summary and badge', (await page.locator('.billing-summary').innerText()).includes('90,000') && await page.locator('.billing-summary .billing-best').count() === 1);
   await page.locator('input[value="fib"]').focus(); await page.keyboard.press('ArrowDown');
   check('keyboard method and CTA', await page.locator('input[value="superqi"]').isChecked() && await page.locator('#method-continue bdi').textContent() === 'SuperQi');
-  for (const [plan, days, expected] of [['year_1',90,'active'], ['year_1',-1,'grace'], ['year_1',-10,'expired']]) {
+  for (const [plan, days, expected] of [['year_1',90,'active'], ['year_1',-1,'free'], ['year_1',-10,'free']]) {
     await stub('/__plan/' + plan); await stub('/__sub/' + days);
     await page.goto(APP + '/app/subscription');
     check('real subscription ' + expected, await page.locator('.billing-state').getAttribute('data-plan-state') === expected);

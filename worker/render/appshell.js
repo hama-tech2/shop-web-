@@ -100,7 +100,7 @@ export function appShell({ shop, origin, banner = null, subscription = null }) {
 
   return (
     `<div class="page page--shop page--owner">` +
-    planBannerHtml(banner) +
+    planBannerHtml(subscription?.state?.tier === 'free' ? null : banner) +
     shopHeader({ shop, origin, controls }) +
     `<section id="owner-products" class="shop-products" data-shop-url="${esc('/@' + shop.slug)}"` +
     ` data-cat-ui="${esc(CATEGORY_UI)}" aria-label="${esc(PRODUCT.listTitle)}">` +

@@ -185,7 +185,7 @@ export async function getProduct(env, id) {
   const rows = await get(env, 'products', {
     select:
       'id,title,price,description,status,shop_id,platform_category_id,' +
-      'shops!inner(id,name,slug,logo_key,whatsapp,city),' +
+      'shops!inner(id,name,slug,logo_key,whatsapp,city,maps_url),' +
       'product_images(r2_key,r2_key_full,position)',
     id: `eq.${id}`,
     status: 'eq.active',

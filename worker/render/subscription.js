@@ -1,6 +1,6 @@
 import {
   APP_NAME, FIB_NUMBER, PLANS, SUBSCRIPTION as T, SUPPORT_WHATSAPP,
-  TRIAL_DAYS, TRIAL_PRODUCT_LIMIT, UI,
+  FREE_PRODUCT_LIMIT, FREE_IMAGE_LIMIT, UI,
 } from '../config.js';
 import { esc, price } from './html.js';
 import { bottomNav } from './appshell.js';
@@ -21,11 +21,11 @@ const ltr = (value) => `<span dir="ltr">${esc(value)}</span>`;
 /** One line naming where the seller stands. */
 function statusLine(plan, state) {
   switch (plan.key) {
+    case 'free': return 'بەخۆڕایی، بێ سنووری کات';
     case 'none': return T.warnNone;
     case 'pending': return T.statePending;
     case 'grace': return T.stateGrace(plan.days);
     case 'expired': return T.stateExpired;
-    case 'trial': return plan.days <= 1 ? T.stateTrialLast : T.stateTrial(plan.days);
     default: return T.stateActive(formatDate(state?.expires_at));
   }
 }
@@ -80,19 +80,20 @@ const storefrontHeader = (title, subtitle, back) =>
  */
 export function subscriptionPage({ state, selected, intent, payments = [], error, paymentsEnabled = false }) {
   const plan = state ? planState(state, Boolean(intent && intent.status === 'pending')) : null;
-  const key = state?.status === 'suspended' ? 'suspended' : plan?.key;
+  if (plan && Number.isInteger(state.days_left) && state.tier === 'paid') plan.days = state.days_left;
+  const key = state?.status === 'suspended' ? 'suspended' : state?.tier === 'free' ? 'free' : plan?.key;
   const chosen = PLANS.some((p) => p.key === selected) ? selected : defaultPlan();
-  const hasTime = ['trial', 'active'].includes(key) && plan.days > 0;
-  const currentName = state?.plan === 'trial' ? '30 ڕۆژ بەخۆڕایی'
+  const hasTime = key === 'active' && plan.days > 0;
+  const currentName = key === 'free' ? T.freeName
     : PLANS.find((p) => p.key === state?.plan);
   const currentLabel = typeof currentName === 'string' ? currentName : currentName ? planName(currentName) : '';
   return `<main class="shell billing billing--plans">` +
     storefrontHeader('نوێکردنەوەی پلان', 'پلانێک هەڵبژێرە بۆ بەردەوامبوون', '/app#account-settings') +
-    `<div class="billing-state"${key ? ` data-plan-state="${esc(key)}" data-plan-days="${plan?.days ?? 0}"` : ''}>` +
+    `<div class="billing-state"${key ? ` data-plan-state="${esc(key)}"${key === 'free' ? '' : ` data-plan-days="${plan?.days ?? 0}"`}` : ''}>` +
     `<p class="billing-state__label">پلانی ئێستا</p>` +
     (currentLabel ? `<h2>${esc(currentLabel)}</h2>` : '') +
     `<p>${esc(!state ? 'وردەکاری پلان لە ئێستادا بەردەست نییە.' : key === 'suspended' ? 'بەشداریکردنەکەت ناچالاکە'
-      : hasTime ? `${plan.days} ڕۆژ ماوە` : statusLine(plan, state))}</p>` +
+      : key === 'free' ? 'بەخۆڕایی، بێ سنووری کات' : hasTime ? `${plan.days} ڕۆژ ماوە` : statusLine(plan, state))}</p>` +
     (hasTime ? `<p class="billing-renewal-note">ماوەی پلانی نوێ دوای کۆتایی ماوەی ئێستات دەست پێ دەکات.</p>` : '') + `</div>` +
     (error ? `<p class="alert alert--error" role="alert">${esc(error)}</p>` : '') +
     `<form method="${paymentsEnabled ? 'post' : 'get'}" ` +
@@ -122,43 +123,35 @@ function planCard(plan, selected, gate = false) {
    ============================================================ */
 
 /**
- * What a seller sees the first time they try to post a product without
- * a plan.
- *
- * Three ways forward and no way past: the free month, six months, or a
- * year. Reading this screen starts nothing — the trial begins on a POST
- * the seller makes, and the two paid options go where every payment
- * goes, to Wayl.
- *
- * `trialAvailable` is the server's word, from subscription_state. A
- * seller who has had their month is told so plainly rather than being
- * shown a button that would be refused.
+ * Every Free entry to Add Product. Availability/slots come from the server;
+ * choosing Free continues without starting a subscription or writing data.
+ * Keep the legacy argument name while the routes share this renderer.
  */
-export function accessGatePage({ trialAvailable = false, error = null, back = '/app/products' }) {
-  const chosen = trialAvailable ? 'trial' : defaultPlan();
-  const trial = trialAvailable
-    ? `<label class="billing-choice billing-plan gate-plan gate-trial" data-plan="trial">` +
-      `<input type="radio" name="gate-plan" value="trial" checked required>` +
+export function accessGatePage({ trialAvailable: freeAvailable = false, slotsLeft = null, error = null, back = '/app/products' }) {
+  const chosen = freeAvailable ? 'free' : defaultPlan();
+  const free =
+      `<label class="billing-choice billing-plan gate-plan gate-free" data-plan="free">` +
+      `<input type="radio" name="gate-plan" value="free"${freeAvailable ? ' checked' : ' disabled'} required>` +
       `<span class="billing-choice__surface"><span class="billing-plan__top">` +
-      `<span class="billing-plan__name">${TRIAL_DAYS} ڕۆژ بەخۆڕایی</span></span>` +
+      `<span class="billing-plan__name">${esc(T.freeName)}</span></span>` +
       `<span class="billing-plan__bottom"><span>${amount({ amount: 0 })}<span class="billing-monthly">بێ پارەدان دەست پێ بکە</span></span>` +
       `<span class="billing-radio" aria-hidden="true"></span></span>` +
-      `<span class="gate-trial__explanation">لە ماوەی تاقیکردنەوەدا دەتوانیت تا ${TRIAL_PRODUCT_LIMIT} بەرهەم بڵاو بکەیت. تەنها یەک جار بۆ هەر هەژمارێک.</span>` +
-      `</span></label>` : '';
+      `<span class="gate-free__explanation">بێ سنووری کات. ${esc(T.freeAllowance(FREE_PRODUCT_LIMIT, FREE_IMAGE_LIMIT))}` +
+      (freeAvailable && Number.isInteger(slotsLeft) ? ` ${esc(T.freeSlotsLeft(slotsLeft))}` : '') + `</span>` +
+      `</span></label>`;
   const features = [['بڵاوکردنەوەی بەرهەم', iconCheck(20)], ['پرۆفایلی گشتی دوکان', iconStore(20)], ['بەستەری دوکان بۆ هاوبەشکردن', iconLink(20)]];
   return `<main class="shell billing billing--gate">` +
     storefrontHeader('بەرهەمەکانت بڵاو بکەرەوە', 'یەکێک لەم هەڵبژاردانە هەڵبژێرە بۆ دەستپێکردن', back) +
     (error ? `<p class="alert alert--error" role="alert">${esc(error)}</p>` : '') +
-    (trialAvailable ? '' : `<p class="alert alert--wait" role="status">${esc(T.gateTrialUsed)}</p>`) +
     `<fieldset class="billing-options" id="gate-options"><legend class="visually-hidden">پلانێک هەڵبژێرە</legend>` +
-    trial + paidOptions().map((p) => planCard(p, chosen, true)).join('') + `</fieldset>` +
+    free + paidOptions().map((p) => planCard(p, chosen, true)).join('') + `</fieldset>` +
+    (!freeAvailable ? `<p class="billing-availability"><a href="/app/products">بەڕێوەبردن و سڕینەوەی بەرهەمەکان</a></p>` : '') +
     `<section class="billing-features" aria-labelledby="billing-features-title"><h2 id="billing-features-title">لە هەموو پلانەکاندا</h2><ul>` +
     features.map(([label, icon]) => `<li><span class="billing-feature-icon">${icon}</span><span>${label}</span></li>`).join('') + `</ul></section>` +
-    // Native radios reveal exactly one existing POST form. Selection never writes,
-    // and paid choices cannot accidentally start the trial when JS is unavailable.
+    // Native radios reveal one existing POST form. Selection never writes.
     `<div class="gate-actions">` +
-    (trialAvailable ? `<form method="post" action="/app/subscription/trial" data-choice="trial">` +
-      `<button class="billing-primary" type="submit" id="start-trial">دەستپێکردنی ${TRIAL_DAYS} ڕۆژ بەخۆڕایی ${iconBack(20)}</button>` +
+    (freeAvailable ? `<form method="post" action="/app/subscription/free" data-choice="free">` +
+      `<button class="billing-primary" type="submit" id="start-trial">بەردەوامبوون بەخۆڕایی ${iconBack(20)}</button>` +
       `<p class="billing-availability">دواتر دەتوانیت پلانێکی پارەدراو هەڵبژێریت</p></form>` : '') +
     paidOptions().map((p) => `<form method="post" action="/app/subscription/checkout" data-choice="${esc(p.key)}">` +
       `<input type="hidden" name="plan" value="${esc(p.key)}">` +

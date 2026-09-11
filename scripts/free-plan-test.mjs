@@ -153,7 +153,7 @@ const form = await page('/app/new?plan=free');
 check('the form is the screen once Free is chosen',
   form.includes('publish-page') && !form.includes('billing--gate'));
 check('and it says how much room is left',
-  form.includes('publish-trial-left') && form.includes(String(FREE_PRODUCT_LIMIT)));
+  form.includes('publish-free-left') && form.includes(String(FREE_PRODUCT_LIMIT)));
 
 // Coming back without the parameter is the gate again: it is met every
 // time, not once.
@@ -224,7 +224,7 @@ await paid(0);
 const paidForm = await page('/app/new');
 check('a paid seller goes straight to the form, with no gate',
   paidForm.includes('publish-page') && !paidForm.includes('billing--gate'));
-check('and is not told about slots', paidForm.includes('publish-trial-left'), false);
+check('and is not told about slots', paidForm.includes('publish-free-left'), false);
 
 await paid(FREE_PRODUCT_LIMIT + 3);
 check(`${FREE_PRODUCT_LIMIT + 3} products is nothing to a paid seller`,
@@ -322,7 +322,7 @@ for (const [days, level, phrase] of [
   [7, 'soon', 'ڕۆژ لە پلانەکەت ماوە'],
   [3, 'urgent', 'تەنها'],
   [1, 'urgent', 'سبەی'],
-  [-1, 'blocked', 'تەواو بووە'],
+  [-1, null, null], // Backend tier is Free once paid access expires.
 ]) {
   await control('/__plan/year_1');
   await control(`/__sub/${days}`);
@@ -392,7 +392,7 @@ if (process.env.CHROME) {
         await view.locator('.gate-plan').evaluateAll(
           (els) => els.length === 3 && els.every((el) => el.getBoundingClientRect().height >= 44)));
       check(`${width}: carrying on for nothing is the first choice`,
-        await view.locator('.gate-plan').first().getAttribute('data-plan') === 'trial');
+        await view.locator('.gate-plan').first().getAttribute('data-plan') === 'free');
     }
 
     // A full shop, at the width most sellers are on: the free choice is
@@ -400,15 +400,15 @@ if (process.env.CHROME) {
     await view.setViewportSize({ width: 390, height: 844 });
     await control(`/__products/${FREE_PRODUCT_LIMIT}`);
     await view.goto(`${APP}/app/subscription/start`);
-    check('a full shop sees two choices and no free one',
-      await view.locator('.gate-plan').count(), 2);
+    check('a full shop sees two available paid choices',
+      await view.locator('.gate-plan input:enabled').count(), 2);
     check('with a reason it can read',
       await view.locator('.alert').first().evaluate(
         (el) => el.getBoundingClientRect().height > 0
           && parseFloat(getComputedStyle(el).fontSize) >= 13));
 
     // The warning line as a paid plan ends.
-    for (const [days, level] of [[7, 'soon'], [3, 'urgent'], [1, 'urgent'], [-1, 'blocked']]) {
+    for (const [days, level] of [[7, 'soon'], [3, 'urgent'], [1, 'urgent']]) {
       await control('/__plan/year_1');
       await control(`/__sub/${days}`);
       // The plan card lives in the account panel, which is a :target
@@ -423,6 +423,10 @@ if (process.env.CHROME) {
             && parseFloat(getComputedStyle(el).fontSize) >= 13;
         }, level));
     }
+    await control('/__sub/-1');
+    await view.goto(`${APP}/app?w=expired#account-settings`);
+    check('expired paid is Free without countdown', await view.locator('.settings-plan').getAttribute('data-status'), 'free');
+    check('Free has no expiry warning', await view.locator('#settings-plan-warning, .settings-plan time').count(), 0);
     check('no script errors on any of it', errors, []);
     await ctx.close();
   } finally {

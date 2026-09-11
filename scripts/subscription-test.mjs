@@ -212,12 +212,13 @@ check('paid, 20 days left: no banner', await banner(20), null);
 check('paid, 14 days left: amber', await banner(14), 'soon');
 check('paid, 7 days left: amber', await banner(7), 'soon');
 check('paid, 3 days left: urgent', await banner(3), 'urgent');
-check('grace: red', await banner(-1), 'grace');
-check('past grace: red', await banner(-5), 'hidden');
+check('paid expiry uses Free tier without a countdown banner', await banner(-1), null);
+check('past grace stays Free without a countdown banner', await banner(-5), null);
 
 await setSub(-5);
 html = await page('/app');
-check('the hidden banner says paying restores them', html.includes('پارە بدە'), true);
+check('expired account shows permanent Free and a management link', html.includes('data-status="free"') && html.includes('href="/app/products"'), true);
+check('no promise that paying republishes hidden products', html.includes('یەکسەر بگەڕێنەوە'), false);
 check('the red banner has no close button',
       /plan-banner--hidden[\s\S]*?plan-banner__close/.test(html), false);
 
@@ -264,8 +265,8 @@ check('and is back the next day', await banner(3), 'urgent');
 // A dismissal can never hide the red ones.
 await setDismissed('soon', 0);
 await setDismissed('urgent', 0);
-check('a stored dismissal cannot hide grace', await banner(-1), 'grace');
-check('a stored dismissal cannot hide the hidden banner', await banner(-5), 'hidden');
+check('stored dismissal cannot create a countdown for Free', await banner(-1), null);
+check('Free still has no countdown after grace', await banner(-5), null);
 await setDismissed('reset', 0);
 
 r = await post('/app/banner/dismiss', { kind: 'grace' });
@@ -367,7 +368,7 @@ await setProducts(40);
 html = await page('/app/new');
 check('a paid shop with 40 products still gets the form',
       html.includes('id="product-form"'), true);
-check('and is told nothing about slots', html.includes('publish-trial-left'), false);
+check('and is told nothing about slots', html.includes('publish-free-left'), false);
 
 out = await publish();
 check('and can publish', out.status, 303);
