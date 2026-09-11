@@ -51,12 +51,17 @@ async function open(path) {
   return { ctx, page, navigations };
 }
 
+// The plan gate stands in front of Add Product for a Free seller, and
+// this file is about the category picker rather than the plan. Coming
+// through it is what `?plan=free` means; it grants nothing.
+const NEW_PRODUCT = '/app/new?plan=free';
+
 /* ============================================================
    Add Product — a new category without losing the form
    ============================================================ */
 
 {
-  const { ctx, page, navigations } = await open('/app/new');
+  const { ctx, page, navigations } = await open(NEW_PRODUCT);
   const before = navigations.length;
 
   // Fill the form the way a seller would before noticing they need a

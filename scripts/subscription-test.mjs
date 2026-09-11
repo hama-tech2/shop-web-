@@ -26,7 +26,7 @@
  *   node scripts/subscription-test.mjs
  */
 
-import { FIB_NUMBER, PLANS, TRIAL_PRODUCT_LIMIT } from '../worker/config.js';
+import { FIB_NUMBER, FREE_PRODUCT_LIMIT, PLANS } from '../worker/config.js';
 
 const APP = process.argv[2] || 'http://127.0.0.1:8810';
 const STUB = process.argv[3] || 'http://127.0.0.1:8899';
@@ -70,7 +70,7 @@ await fetch(`${STUB}/__rows/1`);
 await setAdmin(false);
 await setSub(20);
 await setIntent('none');
-await setPlan('trial');
+await setPlan('free');
 await setProducts(0);
 await setDismissed('reset', 0);
 
@@ -199,11 +199,19 @@ const banner = async (days, path = '/app') => {
   return m ? m[1] : null;
 };
 
-// A one-month trial: two warnings.
-await setPlan('trial');
-check('trial, 15 days left: no banner', await banner(15), null);
-check('trial, 10 days left: amber', await banner(10), 'soon');
-check('trial, 3 days left: urgent', await banner(3), 'urgent');
+// Free runs out of nothing, so it is never warned about. Whatever the
+// date on the row says, there is no countdown to draw.
+await setPlan('free');
+for (const days of [15, 10, 3, -1, -5]) {
+  check(`free, ${days} days on the row: no banner`, await banner(days), null);
+}
+
+// A paid plan runs for months, so it is warned earlier and more often.
+await setPlan('year_1');
+check('paid, 20 days left: no banner', await banner(20), null);
+check('paid, 14 days left: amber', await banner(14), 'soon');
+check('paid, 7 days left: amber', await banner(7), 'soon');
+check('paid, 3 days left: urgent', await banner(3), 'urgent');
 check('grace: red', await banner(-1), 'grace');
 check('past grace: red', await banner(-5), 'hidden');
 
@@ -217,14 +225,6 @@ await setSub(-1);
 html = await page('/app');
 check('grace has no close button either',
       /plan-banner--grace[\s\S]*?plan-banner__close/.test(html), false);
-
-// A paid plan runs for months, so it is warned earlier and more often.
-await setPlan('year_1');
-check('paid, 20 days left: no banner', await banner(20), null);
-check('paid, 14 days left: amber', await banner(14), 'soon');
-check('paid, 7 days left: amber', await banner(7), 'soon');
-check('paid, 3 days left: urgent', await banner(3), 'urgent');
-await setPlan('trial');
 
 /* ---------- closing one, and it coming back ---------- */
 
@@ -319,26 +319,27 @@ for (const [name, path] of [
 await setSub(20);
 
 /* ============================================================
-   4c. five products on the free trial
+   4c. five products on the Free plan
    ============================================================ */
 
-await setPlan('trial');
+await setPlan('free');
 await setProducts(2);
 
-html = await page('/app/new');
+// A Free seller meets the plan gate on the way in, every time. The
+// parameter is what they come back through once they have chosen to
+// carry on for nothing; it grants nothing on its own.
+html = await page('/app/new?plan=free');
 check('the form says how many slots are left',
-      html.includes(`3 لە ${TRIAL_PRODUCT_LIMIT}`), true);
+      html.includes(`3 لە ${FREE_PRODUCT_LIMIT}`), true);
 check('and the form is there to use', html.includes('id="product-form"'), true);
 
-await setProducts(5);
-html = await page('/app/new');
-check('a full trial gets the limit page, not a form',
+await setProducts(FREE_PRODUCT_LIMIT);
+html = await page('/app/new?plan=free');
+check('a full shop gets the plan screen, not a form',
       html.includes('id="product-form"'), false);
-check('which names the limit', html.includes('سنووری مانگی بەخۆڕایی'), true);
-check('promises the existing products are safe',
-      html.includes('بەرهەمە ئێستاکانت وەک خۆیان دەمێننەوە'), true);
+check('which says the plan is full', html.includes('billing--gate'), true);
 check('and links to the plans, rather than only refusing',
-      html.includes('href="/app/subscription"'), true);
+      html.includes('/app/subscription/checkout'), true);
 
 // Posting anyway is refused the same way.
 const img = (n) => ({
@@ -357,8 +358,8 @@ const publish = () => fetch(`${APP}/app/new`, {
 
 let out = await publish();
 check('publishing over the limit is refused', out.status, 200);
-check('with the same page that links to the plans',
-      out.html.includes('سنووری مانگی بەخۆڕایی'), true);
+check('with the same screen that links to the plans',
+      out.html.includes('billing--gate'), true);
 
 // Paid plans are unlimited, whatever the count.
 await setPlan('year_1');
@@ -371,7 +372,7 @@ check('and is told nothing about slots', html.includes('publish-trial-left'), fa
 out = await publish();
 check('and can publish', out.status, 303);
 
-await setPlan('trial');
+await setPlan('free');
 await setProducts(0);
 
 /* ============================================================
@@ -387,7 +388,10 @@ check('the year is selected by default', /name="plan" value="year_1" checked/.te
 check('there are exactly two commercial choices', (html.match(/type="radio" name="plan"/g) || []).length, 2);
 check('free is not a selectable card',
       /class="plan[^"]*"[^>]*data-plan="trial"/.test(html), false);
-check('but the current trial is still named', html.includes('30 ڕۆژ بەخۆڕایی'), true);
+// Nothing here sells a free month any more: Free is not something a
+// seller buys or starts, it is where they already are.
+check('and no free month is offered on the plans screen',
+      /\d+\s*ڕۆژ بەخۆڕایی/.test(html), false);
 
 /* ============================================================
    5. the admin gate

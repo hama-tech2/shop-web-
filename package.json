@@ -25,7 +25,7 @@
     "test:telegram": "node scripts/telegram-test.mjs",
     "test:admin-grants": "node scripts/admin-grants-test.mjs",
     "test:wayl": "node scripts/wayl-test.mjs",
-    "test:trial": "node scripts/trial-gate-test.mjs"
+    "test:free-plan": "node scripts/free-plan-test.mjs"
   },
   "devDependencies": {
     "wrangler": "^4.42.0",

@@ -8,8 +8,8 @@
  */
 
 import {
-  APP_NAME, MAX_IMAGES, MAX_UPLOAD_BYTES, PRODUCT as T, PRODUCT_FILTERS,
-  SUBSCRIPTION as S,
+  APP_NAME, FREE_IMAGE_LIMIT, FREE_PRODUCT_LIMIT, MAX_IMAGES, MAX_UPLOAD_BYTES,
+  PRODUCT as T, PRODUCT_FILTERS, SUBSCRIPTION as S,
 } from '../config.js';
 import { layout } from '../render/layout.js';
 import { productForm, trialLimitPage } from '../render/product-form.js';
@@ -244,7 +244,7 @@ async function ownCategoryIdFor(env, token, shopId, raw) {
  * limit before any of that work happens.
  */
 async function trialSlotsLeft(env, token, shopId) {
-  const res = await asUser(env, token, 'rpc/trial_slots_left', {
+  const res = await asUser(env, token, 'rpc/product_slots_left', {
     method: 'POST', body: { p_shop: shopId },
   });
   if (!res.ok) return null;
@@ -253,27 +253,38 @@ async function trialSlotsLeft(env, token, shopId) {
 }
 
 /**
- * Whether this shop may post at all, and whether the free month is
- * still there to take.
+ * Which side of the line this shop is on, and how much room it has.
  *
- * A shop with no plan, or one whose plan has run out, gets the access
- * screen instead of a form. The database refuses the insert anyway —
- * app.enforce_trial_product_limit raises SW005 — so this is what turns
- * a bare refusal into three things the seller can actually do.
+ * `tier` is 'paid' or 'free'. `slotsLeft` is how many more products a
+ * Free shop may have and is null on a paid plan, where the only ceiling
+ * is the 1000-per-shop one. Both come from the database, which is also
+ * what refuses the write: app.enforce_free_product_limit raises SW001
+ * when Free is full. This is what turns a bare refusal into a screen
+ * with a way out of it.
  */
 async function entitlement(env, token, shopId) {
   const state = await subscriptionState(env, token, shopId);
   return {
+    tier: state?.tier === 'paid' ? 'paid' : 'free',
     canPublish: Boolean(state?.can_publish),
-    trialAvailable: Boolean(state?.trial_available),
+    slotsLeft: Number.isInteger(state?.slots_left) ? state.slots_left : null,
   };
 }
 
-/** The database's own word for "the free trial is full". */
-const TRIAL_FULL = (res) => res.data?.code === 'SW001';
+/** The database's own word for "the Free plan is full". */
+const FREE_FULL = (res) => res.data?.code === 'SW001';
 
-/** And for "this shop has no plan to post on". */
-const NO_PLAN = (res) => res.data?.code === 'SW005';
+/** And for "this shop is suspended", which outranks any plan. */
+const SUSPENDED = (res) => res.data?.code === 'SW005';
+
+/**
+ * And for "five are already public".
+ *
+ * Only an edit can meet this one: a Free shop that lapsed from a paid
+ * plan keeps everything it had, with five of them up and the rest
+ * hidden, and putting a sixth back is the one thing it may not do.
+ */
+const PUBLIC_FULL = (res) => res.data?.code === 'SW007';
 
 async function readForm(request, env, token, shopId, productId) {
   const f = await form(request);
@@ -323,18 +334,31 @@ async function readForm(request, env, token, shopId, productId) {
    /app/new
    ============================================================ */
 
-export async function newGet(request, env) {
+export async function newGet(request, env, url) {
   const g = await guard(request, env);
   if (g.redirect) return g.redirect;
 
-  // No plan, or one that has ended: choose before posting. The screen
-  // itself starts nothing.
-  const { canPublish, trialAvailable } = await entitlement(env, g.token, g.shop.id);
-  if (!canPublish) return page(accessGatePage({ trialAvailable }), S.gateTitle, g.headers);
+  // A paid seller goes straight to the form. A Free one meets the plan
+  // gate on the way in, every time, and comes back through it with
+  // ?plan=free once they have chosen to carry on for nothing.
+  //
+  // That parameter skips a screen and nothing else. It grants no slot:
+  // the count below and the database behind it are what decide.
+  const { tier, canPublish, slotsLeft } = await entitlement(env, g.token, g.shop.id);
+  const chosenFree = url?.searchParams?.get('plan') === 'free';
+  if (tier !== 'paid' && (!canPublish || !chosenFree)) {
+    return page(
+      accessGatePage({
+        trialAvailable: canPublish,
+        error: canPublish ? null : S.freeFull(FREE_PRODUCT_LIMIT),
+      }),
+      S.gateTitle, g.headers,
+    );
+  }
 
-  // A trial shop that is full gets the reason and a way out of it,
+  // Full, and somehow still here: the reason, and a way out of it,
   // rather than a form whose submit button cannot work.
-  const left = await trialSlotsLeft(env, g.token, g.shop.id);
+  const left = slotsLeft ?? await trialSlotsLeft(env, g.token, g.shop.id);
   if (left === 0) return page(trialLimitPage(), T.trialLimitTitle, g.headers);
 
   return page(
@@ -359,16 +383,34 @@ export async function newPost(request, env) {
   const draftId = String(raw.get('draft_id') || '');
   if (!UUID.test(draftId)) return redirect('/app/new', g.headers);
 
-  // Checked again on the way in. A form kept open across the end of a
-  // trial must not be able to post through it.
-  const { canPublish, trialAvailable } = await entitlement(env, g.token, g.shop.id);
-  if (!canPublish) return page(accessGatePage({ trialAvailable }), S.gateTitle, g.headers);
+  // Checked again on the way in. A form left open while the last slot
+  // went, in another tab or on another phone, must not post through it.
+  const { tier, canPublish, slotsLeft } = await entitlement(env, g.token, g.shop.id);
+  if (!canPublish) {
+    return page(
+      accessGatePage({ trialAvailable: false, error: S.freeFull(FREE_PRODUCT_LIMIT) }),
+      S.gateTitle, g.headers,
+    );
+  }
 
   const parsed = await readForm(request, env, g.token, g.shop.id, draftId);
   const categories = await getCategories(env);
-  const left = await trialSlotsLeft(env, g.token, g.shop.id);
+  const left = slotsLeft ?? await trialSlotsLeft(env, g.token, g.shop.id);
 
   if (left === 0) return page(trialLimitPage(), T.trialLimitTitle, g.headers);
+
+  // One image on Free. The database refuses the second either way; this
+  // is so the seller is told which rule they met, with their form still
+  // filled in, rather than meeting a save error.
+  if (tier !== 'paid' && (parsed.values?.images?.length ?? 0) > FREE_IMAGE_LIMIT) {
+    return page(
+      productForm({ mode: 'new', draftId, categories,
+                    shopCategories: await ownCategories(env, g.token, g.shop.id),
+                    values: parsed.values, error: S.freeImageOnly(FREE_IMAGE_LIMIT),
+                    trialLeft: left }),
+      T.newTitle, g.headers,
+    );
+  }
 
   if (parsed.error) {
     return page(
@@ -386,10 +428,15 @@ export async function newPost(request, env) {
   });
 
   if (!created.ok) {
-    // The database is the one that actually enforces the trial limit,
-    // and it can refuse a request that looked fine a moment earlier —
-    // another tab, or a slot used between the check and the insert.
-    if (TRIAL_FULL(created)) {
+    // The database is the one that actually enforces both limits, and it
+    // can refuse a request that looked fine a moment earlier — another
+    // tab, a slot used between the check and the insert, or a suspension
+    // that landed in between.
+    if (SUSPENDED(created)) {
+      return page(accessGatePage({ trialAvailable: false, error: S.errSuspended }),
+                  S.gateTitle, g.headers);
+    }
+    if (FREE_FULL(created)) {
       return page(trialLimitPage(), T.trialLimitTitle, g.headers);
     }
     return page(
@@ -483,12 +530,20 @@ export async function editPost(request, env, id) {
   // Zero rows is not success. The product was deleted in another tab,
   // or the id belongs to someone else and RLS refused it — either way
   // the images must not be written against it.
+  //
+  // A Free shop that is already showing five is its own case: nothing
+  // is wrong with the edit, there is simply no room to make this one
+  // public. Saying that, with the form still filled in, is the whole
+  // difference between a seller who hides one and carries on and a
+  // seller who thinks their product is gone.
   if (!updated.ok || affected(updated) === 0) {
+    const error = PUBLIC_FULL(updated) ? T.errPublicFull(FREE_PRODUCT_LIMIT)
+      : updated.ok ? T.errGone
+      : T.errSave;
     return page(
       productForm({ mode: 'edit', draftId: id, categories,
                     shopCategories: await ownCategories(env, g.token, g.shop.id),
-                    values: parsed.values,
-                    error: updated.ok ? T.errGone : T.errSave }),
+                    values: parsed.values, error }),
       T.editTitle, g.headers,
     );
   }
