@@ -1,7 +1,7 @@
 /** Approved gate, renewal and Account UI against the real Worker + local stub.
  * node scripts/plan-screens-ui-test.mjs [app URL] [stub URL]
  * Browser-only fixtures are intercepted here, never installed in production.
- * Every checkout/trial form submission below is intercepted: no real charge.
+ * Every checkout/Free form submission below is intercepted: no real charge.
  */
 import assert from 'node:assert/strict';
 import { mkdir } from 'node:fs/promises';
@@ -13,7 +13,7 @@ import { subscriptionPage } from '../worker/render/subscription.js';
 import { bottomNav } from '../worker/render/appshell.js';
 import { layout } from '../worker/render/layout.js';
 import { planState } from '../worker/plan-state.js';
-import { SUPPORT_WHATSAPP, TRIAL_PRODUCT_LIMIT } from '../worker/config.js';
+import { SUPPORT_WHATSAPP, FREE_PRODUCT_LIMIT } from '../worker/config.js';
 
 const APP = process.argv[2] || 'http://127.0.0.1:8810';
 const STUB = process.argv[3] || 'http://127.0.0.1:8899';
@@ -21,7 +21,7 @@ const screenshots = join(tmpdir(), 'bazaro-plan-screens');
 await mkdir(screenshots, { recursive: true });
 const control = async (path) => { const r = await fetch(STUB + path); assert.ok(r.ok); };
 const fresh = async () => {
-  for (const path of ['/__mode/shop','/__rows/1','/__admin/0','/__products/0','/__plan/none','/__sub/0','/__trial/0','/__intent/none','/__calls/reset']) await control(path);
+  for (const path of ['/__mode/shop','/__rows/1','/__admin/0','/__products/0','/__plan/free','/__sub/0','/__intent/none','/__calls/reset']) await control(path);
 };
 let count = 0;
 const check = (label, condition) => { assert.ok(condition, label); count++; };
@@ -30,7 +30,7 @@ const browser = await chromium.launch({ executablePath: process.env.CHROME || 'C
 try {
   await fresh();
   // The gate is deliberately tested without JS: choosing a paid plan must never
-  // fall back to the trial action when scripts fail or have not arrived yet.
+  // fall back to the Free action when scripts fail or have not arrived yet.
   const ctx = await browser.newContext({ javaScriptEnabled: false });
   await ctx.addCookies([{ name:'sb-access', value:'TEST', url:APP }]);
   const page = await ctx.newPage();
@@ -46,14 +46,14 @@ try {
     await page.evaluate(() => document.fonts.ready);
     const submissionsBefore = submissions.length;
     check('gate RTL/overflow ' + width, await page.locator('html').getAttribute('dir') === 'rtl' && !await overflow(page));
-    check('trial is selected but not started ' + width, await page.locator('input[name="gate-plan"][value="trial"]').isChecked());
-    check('cap only in the trial explanation ' + width,
-      (await page.locator('.gate-trial__explanation').innerText()).includes(`تا ${TRIAL_PRODUCT_LIMIT} بەرهەم`) &&
+    check('Free is selected without writing ' + width, await page.locator('input[name="gate-plan"][value="free"]').isChecked());
+    check('cap in the Free explanation ' + width,
+      (await page.locator('.gate-free__explanation').innerText()).includes(`تا ${FREE_PRODUCT_LIMIT} بەرهەم`) &&
       !/تا \d+ بەرهەم/.test(await page.locator('.billing-features').innerText()));
     check('paid options in approved order ' + width,
-      JSON.stringify(await page.locator('.gate-plan').evaluateAll((els) => els.map((el) => el.dataset.plan))) === JSON.stringify(['trial','months_6','year_1']));
+      JSON.stringify(await page.locator('.gate-plan').evaluateAll((els) => els.map((el) => el.dataset.plan))) === JSON.stringify(['free','months_6','year_1']));
     const before = await page.locator('#gate-options').boundingBox();
-    for (const selected of ['months_6','year_1','trial','year_1','months_6','trial']) {
+    for (const selected of ['months_6','year_1','free','year_1','months_6','free']) {
       await page.locator(`[data-plan="${selected}"]`).click();
       check('native gate choice ' + selected + ' ' + width, await page.locator(`input[name="gate-plan"][value="${selected}"]`).isChecked());
       check('one visible continue action ' + selected + ' ' + width, await page.locator('.gate-actions button:visible').count() === 1);
@@ -62,17 +62,17 @@ try {
     }
     check('selection never submits ' + width, submissions.length === submissionsBefore);
     check('gate choices do not shift ' + width, JSON.stringify(await page.locator('#gate-options').boundingBox()) === JSON.stringify(before));
-    for (const selected of ['trial','months_6','year_1']) {
+    for (const selected of ['free','months_6','year_1']) {
       await page.locator(`[data-plan="${selected}"]`).click();
       const button = page.locator('.gate-actions button:visible');
       check('normal sized gate CTA ' + selected + ' ' + width, await button.evaluate((el) => el.offsetHeight >= 44 && el.offsetHeight <= 58));
       await Promise.all([page.waitForResponse((r) => r.request().method() === 'POST'), button.click()]);
       const sent = submissions.at(-1);
       check('explicit correct POST with JS off ' + selected + ' ' + width,
-        sent.path === (selected === 'trial' ? '/app/subscription/trial' : '/app/subscription/checkout') &&
-        (selected === 'trial' || sent.fields.get('plan') === selected));
+        sent.path === (selected === 'free' ? '/app/subscription/free' : '/app/subscription/checkout') &&
+        (selected === 'free' || sent.fields.get('plan') === selected));
     }
-    await page.locator('[data-plan="trial"]').click();
+    await page.locator('[data-plan="free"]').click();
     await page.waitForTimeout(220);
     await page.evaluate(() => scrollTo(0, document.body.scrollHeight));
     check('gate action clears bottom navigation ' + width,
@@ -80,16 +80,16 @@ try {
     await page.screenshot({ path:join(screenshots, `gate-${width}.png`), fullPage:true });
   }
   check('no write reached the backend while selecting', (await (await fetch(STUB + '/__writes')).json()).every((w) => w.table === 'rpc/subscription_state'));
-  await page.locator('input[name="gate-plan"][value="trial"]').focus();
+  await page.locator('input[name="gate-plan"][value="free"]').focus();
   await page.keyboard.press('ArrowDown');
   check('gate keyboard changes selection', await page.locator('input[name="gate-plan"][value="months_6"]').isChecked());
   check('gate focus visible', await page.locator('input[name="gate-plan"][value="months_6"] + span').evaluate((el) => getComputedStyle(el).outlineStyle === 'solid'));
   await page.emulateMedia({ reducedMotion:'reduce' });
   check('gate reduced motion', await page.locator('.billing-choice__surface').first().evaluate((el) => getComputedStyle(el).transitionDuration === '0s'));
-  await control('/__trial/1');
+  await control('/__products/5');
   await page.goto(APP + '/app/subscription/start');
-  check('used trial is not offered again', await page.locator('[data-plan="trial"], #start-trial').count() === 0);
-  check('used-trial gate defaults to a paid plan', await page.locator('input[name="gate-plan"][value="year_1"]').isChecked() && await page.locator('.gate-actions button:visible').count() === 1);
+  check('full Free cannot continue', await page.locator('[data-plan="free"] input').isDisabled() && await page.locator('#start-trial').count() === 0);
+  check('full-Free gate defaults to a paid plan', await page.locator('input[name="gate-plan"][value="year_1"]').isChecked() && await page.locator('.gate-actions button:visible').count() === 1);
   await ctx.close();
 
   const ui = await browser.newContext();
@@ -100,11 +100,11 @@ try {
   const shop = { name:'دوکانی بەرهەمە ناوخۆییەکان و پێداویستییەکانی ماڵ و خێزان', slug:'a-very-long-real-shop-link', whatsapp:'٠٧٥١٢٣٤٥٦٧٨', city:'erbil' };
   const expiry = (days) => new Date(Date.now() + days * 86400000).toISOString();
   const scenarios = [
-    ['trial', { plan:'trial', status:'trial', expires_at:expiry(25) }, 'بینینی پلانەکان'],
+    ['free', { plan:'free', status:'free', tier:'free', expires_at:expiry(25) }, 'بینینی پلانەکان'],
     ['active', { plan:'year_1', status:'active', expires_at:expiry(120) }, 'بینینی پلانەکان'],
     ['ending', { plan:'months_6', status:'active', expires_at:expiry(3) }, 'نوێکردنەوەی پلان'],
-    ['grace', { plan:'year_1', status:'active', expires_at:expiry(-1) }, 'نوێکردنەوەی پلان'],
-    ['expired', { plan:'trial', status:'trial', expires_at:expiry(-10) }, 'نوێکردنەوەی پلان'],
+    ['grace', { plan:'year_1', status:'active', tier:'free', expires_at:expiry(-1) }, 'بینینی پلانەکان'],
+    ['expired', { plan:'year_1', status:'active', tier:'free', expires_at:expiry(-10) }, 'بینینی پلانەکان'],
     ['none', { plan:'none', status:'none' }, 'بینینی پلانەکان'],
     ['missing', null, 'بینینی پلانەکان'],
   ];
@@ -122,9 +122,9 @@ try {
       check('one plan card/CTA ' + key + width, await view.locator('.settings-plan').count() === 1 && await view.locator('#settings-subscription').innerText() === cta);
       check('no cap, payment info or duplicate banner ' + key + width,
         await view.locator('#account-settings .plan-banner, .settings-plan__limit').count() === 0 && !/تا \d+ بەرهەم|Wayl|FIB|PIN|OTP/.test(await view.locator('.settings-plan').innerText()));
-      check('real expiry only ' + key + width, await view.locator('.settings-plan time').count() === (state?.expires_at ? 1 : 0));
-      if (key === 'trial') {
-        check('trial label and remaining days ' + width, (await view.locator('.settings-plan').innerText()).includes('تاقیکردنەوەی بەخۆڕایی') && (await view.locator('.settings-plan').innerText()).includes('25 ڕۆژ ماوە'));
+      check('real expiry only ' + key + width, await view.locator('.settings-plan time').count() === (state?.expires_at && state?.tier !== 'free' ? 1 : 0));
+      if (key === 'free') {
+        check('permanent Free has no date/countdown ' + width, (await view.locator('.settings-plan').innerText()).includes('بێ سنووری کات') && !/ڕۆژ ماوە|کۆتایی/.test(await view.locator('.settings-plan').innerText()));
         check('Latin phone digits ' + width, !/[٠-٩۰-۹]/.test(await view.locator('.settings-identity').innerText()));
         await view.evaluate(() => document.fonts.ready);
         await view.evaluate(() => scrollTo(0, document.body.scrollHeight));
@@ -139,7 +139,7 @@ try {
     check('three existing nav destinations ' + width, JSON.stringify(await view.locator('.nav a').evaluateAll((els) => els.map((el) => el.getAttribute('href')))) === JSON.stringify(['/','/saved','/app']));
     check('missing contact/location leaves no empty rows ' + width, await view.locator('.settings-identity__body p').count() === 0);
   }
-  await control('/__plan/trial'); await control('/__sub/25');
+  await control('/__plan/free'); await control('/__sub/25');
   await view.goto(APP + '/app#account-settings');
   await view.locator('#settings-subscription').click();
   check('Account plans link opens existing plans', new URL(view.url()).pathname === '/app/subscription');

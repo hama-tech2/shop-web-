@@ -1,5 +1,5 @@
 import {
-  CATEGORIES_UI as C, IMAGE_VARIANTS, MAX_IMAGES, PRODUCT as T, TRIAL_PRODUCT_LIMIT,
+  CATEGORIES_UI as C, FREE_IMAGE_LIMIT, FREE_PRODUCT_LIMIT, IMAGE_VARIANTS, MAX_IMAGES, PRODUCT as T,
 } from '../config.js';
 import { esc, price as fmtPrice } from './html.js';
 import { alert, field } from './forms.js';
@@ -7,7 +7,7 @@ import { iconBack, iconPlus } from './icons.js';
 import { productCover } from './product-cover.js';
 
 /**
- * The free trial is full.
+ * The permanent Free allowance is full.
  *
  * Shown instead of the form, because offering a form that cannot be
  * submitted is worse than saying so. It names the limit, says the
@@ -21,42 +21,49 @@ export function trialLimitPage() {
     `<h1>${esc(T.trialLimitTitle)}</h1><span></span></header>` +
     `<div class="notice notice--tall trial-limit">` +
     `<p class="notice__title">${esc(T.trialLimitTitle)}</p>` +
-    `<p>${esc(T.trialLimitBody(TRIAL_PRODUCT_LIMIT))}</p>` +
+    `<p>${esc(T.trialLimitBody(FREE_PRODUCT_LIMIT))}</p>` +
     `<a class="btn btn--primary" href="/app/subscription">${esc(T.trialLimitAction)}</a>` +
     `<a class="btn btn--ghost" href="/app/products">${esc(T.listTitle)}</a>` +
     `</div></div>`
   );
 }
 
-export function productForm({ mode, draftId, categories, shopCategories = [], values, error, trialLeft = null }) {
+export function productForm({ mode, draftId, categories, shopCategories = [], values, error, trialLeft = null, imageLimit: editImageLimit = MAX_IMAGES }) {
   const isEdit = mode === 'edit';
   const images = values.images ?? [];
+  // A numeric slot count is supplied by the server for Free creation only.
+  // Editing retains the existing gallery, including images from a paid plan.
+  const imageLimit = !isEdit && trialLeft !== null ? FREE_IMAGE_LIMIT : editImageLimit;
   return (
     `<div class="shell publish-page">` +
     `<header class="publish-head"><a class="icon-btn" href="/app" aria-label="گەڕانەوە">${iconBack()}</a>` +
     `<h1>${esc(isEdit ? T.editTitle : T.newTitle)}</h1>` +
     `<details class="publish-help"><summary>ڕێنمایی ⓘ</summary>` +
-    `<p>تا ${MAX_IMAGES} وێنە زیاد بکە. وێنەیەک هەڵبژێرە بۆ کاڤەر؛ بە دوگمەکانی ڕیزکردن شوێنی وێنەکان بگۆڕە.</p></details></header>` +
+    `<p>تا ${imageLimit} وێنە زیاد بکە. وێنەیەک هەڵبژێرە بۆ کاڤەر؛ بە دوگمەکانی ڕیزکردن شوێنی وێنەکان بگۆڕە.</p></details></header>` +
     `<p class="publish-sub">زانیارییەکانی بەرهەمەکەت زیاد بکە و بڵاوی بکەرەوە.</p>` +
     alert(error) +
-    // How much of the free trial is left. Null once they are on a paid
-    // plan, where there is no limit to report.
+    (isEdit && images.length > imageLimit ? `<p class="publish-free-left">وێنە پێشووەکانت پارێزراون. لە پلانی بەخۆڕاییدا تەنها ${FREE_IMAGE_LIMIT} وێنە بۆ بەرهەمی نوێ بەردەستە.</p>` : '') +
+    // Remaining account slots come from the existing server read.
     (trialLeft === null
       ? ''
-      : `<p class="publish-trial-left">${esc(T.trialLeft(trialLeft, TRIAL_PRODUCT_LIMIT))}</p>`) +
+      : `<p class="publish-free-left">${esc(T.trialLeft(trialLeft, FREE_PRODUCT_LIMIT))}</p>`) +
     `<form method="post" id="product-form" action="${esc(isEdit ? `/app/products/${draftId}` : '/app/new')}"` +
     ` data-mode="${esc(mode)}" data-restore-category="${!isEdit && !error && !values.category && !images.length}"` +
-    ` data-draft="${esc(draftId)}" data-max="${MAX_IMAGES}"` +
+    ` data-draft="${esc(draftId)}" data-max="${imageLimit}"` +
     ` data-card-w="${IMAGE_VARIANTS.card.width}" data-card-h="${IMAGE_VARIANTS.card.height}" data-card-q="${IMAGE_VARIANTS.card.quality}"` +
     ` data-full-w="${IMAGE_VARIANTS.full.width}" data-full-h="${IMAGE_VARIANTS.full.height}" data-full-q="${IMAGE_VARIANTS.full.quality}"` +
-    ` data-msg-limit="${esc(T.onlyMax)}" data-msg-type="${esc(T.errType)}" data-msg-upload="${esc(T.errUpload)}"` +
+    ` data-msg-limit="تا ${imageLimit} وێنە دەتوانیت زیاد بکەیت." data-msg-type="${esc(T.errType)}" data-msg-upload="${esc(T.errUpload)}"` +
     ` data-msg-cat-name="${esc(C.errName)}" data-msg-cat-create="${esc(C.errCreate)}">` +
     `<input type="hidden" name="draft_id" value="${esc(draftId)}">` +
     `<input type="hidden" name="images" id="images-field" value="${esc(JSON.stringify(images))}">` +
-    `<input type="hidden" name="status" id="status-field" value="${esc(values.status ?? 'active')}">` +
+    (isEdit ? `<div class="field"><label class="field__label" for="status-field">دۆخی بەرهەم</label>` +
+      `<select class="field__input" name="status" id="status-field"><option value="active"${values.status === 'active' ? ' selected' : ''}>ئاشکرا</option>` +
+      `<option value="hidden"${values.status === 'hidden' ? ' selected' : ''}>شاراوە</option></select>` +
+      `<p class="field__hint">بۆ گۆڕینی بەرهەمە ئاشکراکان لە پلانی بەخۆڕاییدا، سەرەتا یەکێک بشارەوە و پاشەکەوتی بکە، پاشان ئەوی تر ئاشکرا بکە.</p></div>`
+      : `<input type="hidden" name="status" id="status-field" value="${esc(values.status ?? 'active')}">`) +
     `<section class="gallery" aria-label="${esc(T.photos)}">` +
-    `<div class="gallery__head"><span class="field__label">وێنەکان <small>(تا ${MAX_IMAGES} وێنە)</small></span>` +
-    `<span class="gallery__count" id="photo-count" aria-live="polite">${esc(T.counter(images.length, MAX_IMAGES))}</span></div>` +
+    `<div class="gallery__head"><span class="field__label">وێنەکان <small>(تا ${imageLimit} وێنە)</small></span>` +
+    `<span class="gallery__count" id="photo-count" aria-live="polite">${esc(images.length > imageLimit ? `${images.length} وێنەی پارێزراو` : T.counter(images.length, imageLimit))}</span></div>` +
     `<div class="thumbs" id="thumbs">${images.map((img, i) => thumbHtml(img, i)).join('')}` +
     `<button class="thumb thumb--add" type="button" id="add-photo" aria-label="${esc(T.addPhoto)}">${iconPlus()}<span>زیادکردن</span></button></div>` +
     `<input type="file" id="photo-input" accept="image/jpeg,image/png,image/webp" multiple hidden>` +

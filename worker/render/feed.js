@@ -16,7 +16,7 @@ function whatsappUrl(raw) {
   return /^[1-9][0-9]{6,14}$/.test(number) ? `https://wa.me/${number}` : null;
 }
 
-function mapsUrl(raw) {
+export function mapsUrl(raw) {
   if (!raw) return null;
   try {
     const url = new URL(raw);

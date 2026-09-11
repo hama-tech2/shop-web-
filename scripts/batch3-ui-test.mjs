@@ -140,6 +140,7 @@ try {
 
   // Real product form, generated phone photos, local crop output and cancellation.
   await fetch(STUB + '/__mode/shop'); await fetch(STUB + '/__rows/1');
+  await fetch(STUB + '/__plan/year_1'); await fetch(STUB + '/__sub/20');
   {
     const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
     await ctx.addCookies([{ name: 'sb-access', value: 'TEST', url: APP }]);
@@ -185,7 +186,7 @@ try {
     check('cover: saved rotated/zoomed image is 4:5', Math.abs(ratio - 1.25) < .01);
     check('cover: saved image actually changes', await select.locator('img').getAttribute('src') !== original);
     await page.goto(APP + '/app/products?e=errGone');
-    check('legacy list: reachable with error, filter chips removed', await page.locator('.alert').count() > 0 && await page.locator('.chips').count() === 0);
+    check('management list: reachable with error and three filters', await page.locator('.alert').count() > 0 && await page.locator('.manager-filters a').count() === 3);
     check('browser: no form/editor errors', errors.length === 0);
     await ctx.close();
   }

@@ -652,9 +652,11 @@ body:has(.account-settings:target) .nav__tab[aria-current="page"] svg { fill: #E
 .billing-summary .billing-monthly { margin: 4px 0 0; }
 
 /* One visible action, chosen by native radios even with JavaScript off. */
-.gate-trial__explanation { display: block; border-top: 1px solid #E0ECE6; margin-top: 12px; padding-top: 12px; color: var(--muted); font-size: 13px; line-height: 1.8; }
+.gate-free__explanation { display: block; border-top: 1px solid #E0ECE6; margin-top: 12px; padding-top: 12px; color: var(--muted); font-size: 13px; line-height: 1.8; }
+.gate-free:has(input:disabled) { cursor: default; }
+.gate-free:has(input:disabled) .billing-choice__surface { background: var(--surface-2); }
 .gate-actions > form { display: none; }
-#gate-options:has(input[value="trial"]:checked) ~ .gate-actions [data-choice="trial"],
+#gate-options:has(input[value="free"]:checked) ~ .gate-actions [data-choice="free"],
 #gate-options:has(input[value="months_6"]:checked) ~ .gate-actions [data-choice="months_6"],
 #gate-options:has(input[value="year_1"]:checked) ~ .gate-actions [data-choice="year_1"] { display: block; }
 .billing-methods legend { font-size: 18px; font-weight: 600; line-height: 1.7; padding: 0 0 14px; }

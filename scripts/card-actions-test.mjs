@@ -80,6 +80,11 @@ try {
     check('price and actions stay inside card '+width,metrics.every(m=>!m.overflow&&m.priceInside&&m.targets));
     check('independent, non-overlapping action targets '+width,metrics.every(m=>m.separated&&m.noPriceOverlap));
     check('RTL no horizontal overflow '+width,await page.evaluate(()=>document.documentElement.dir==='rtl'&&document.documentElement.scrollWidth<=innerWidth));
+    check('price directly below and aligned with right of title '+width,await page.locator('.card').evaluateAll(els=>els.every(el=>{
+      const title=el.querySelector('.card__title').getBoundingClientRect(), price=el.querySelector('.card__price').getBoundingClientRect();
+      return price.top>=title.bottom && Math.abs(price.right-title.right)<1;
+    })));
+    check('entire normal price remains readable '+width,await page.locator('.card__amount').evaluateAll(els=>els.every(el=>el.scrollWidth<=el.clientWidth)));
     check('heart subtle visual, full tap target '+width,await page.locator('.card__heart').first().evaluate(el=>el.offsetWidth>=44&&el.offsetHeight>=44&&getComputedStyle(el,'::before').width==='28px'));
     check('missing contacts have no empty controls '+width,await page.locator('.card').nth(2).locator('.card__action').count()===1);
     check('valid semantic controls '+width,await page.locator('a button, button a, a a').count()===0);
@@ -90,7 +95,7 @@ try {
       const price=el.querySelector('.card__price'), amount=el.querySelector('.card__amount'), currency=el.querySelector('.card__currency');
       const cardRect=el.getBoundingClientRect(), p=price.getBoundingClientRect(), a=amount.getBoundingClientRect(), c=currency.getBoundingClientRect();
       return el.scrollWidth<=el.clientWidth && p.left>=cardRect.left && p.right<=cardRect.right &&
-        a.right<=c.left && c.right<=p.right && currency.scrollWidth<=currency.clientWidth &&
+        (a.right<=c.left || c.top>=a.bottom) && c.right<=p.right && currency.scrollWidth<=currency.clientWidth &&
         amount.textContent==='999,999,999' && (amount.scrollWidth<=amount.clientWidth ||
           (getComputedStyle(amount).overflowX==='hidden' && getComputedStyle(amount).textOverflow==='ellipsis'));
     }));

@@ -181,16 +181,16 @@
 
 /* Use the price row when there is room. Narrow cards keep separate 44px
    targets on one compact second row, without changing the image or grid. */
-.card__commercial { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; direction: ltr; margin-inline: calc(-1 * var(--s-3)); padding-inline: 2px; }
-.card__commercial .card__price { flex: 0 1 auto; min-width: 0; max-width: calc(100% - 16px); margin: 3px 8px 0; white-space: nowrap; }
-/* Keep the currency visible; only an amount wider than the card is ellipsized. */
-.card__commercial .card__amount { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.card__commercial { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; direction: rtl; margin-inline: calc(-1 * var(--s-3)); padding-inline: 2px; }
+.card__commercial .card__price { flex: 0 1 auto; flex-wrap: wrap; min-width: 0; max-width: calc(100% - 20px); margin: 3px 10px 0; white-space: nowrap; }
+/* Keep the full amount and currency readable, even with enlarged fallback text. */
+.card__commercial .card__amount { min-width: 0; white-space: normal; overflow-wrap: anywhere; }
 .card__commercial .card__currency { flex-shrink: 0; }
 @container (max-width: 145px) {
-  .card__commercial .card__price { max-width: calc(100% - 4px); margin-inline: 2px; gap: 3px; }
+  .card__commercial .card__price { gap: 3px; }
   .card__commercial .card__amount { font-size: 17px; }
 }
-.card__actions { display: flex; flex: 0 0 auto; margin-inline-start: auto; direction: ltr; }
+.card__actions { display: flex; flex: 0 0 auto; margin-right: auto; direction: ltr; }
 .card__actions:empty { display: none; }
 .card__action { position: relative; z-index: 2; display: grid; place-items: center; width: 44px; height: 44px; flex: 0 0 44px; padding: 0; border-radius: 10px; }
 .card__action > span { display: grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; }
