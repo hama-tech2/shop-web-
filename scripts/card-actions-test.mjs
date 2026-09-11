@@ -84,6 +84,17 @@ try {
     check('missing contacts have no empty controls '+width,await page.locator('.card').nth(2).locator('.card__action').count()===1);
     check('valid semantic controls '+width,await page.locator('a button, button a, a a').count()===0);
     await page.screenshot({path:join(out,`cards-${width}.png`),fullPage:true});
+    // A wider fallback font/enlarged text must not defeat the price constraint.
+    const widerPrice = await page.addStyleTag({content:'.card__amount { font-family: Arial, sans-serif !important; font-size: 24px !important; }'});
+    check('long price stays constrained with enlarged fallback text '+width,await page.locator('.card').nth(1).evaluate(el=>{
+      const price=el.querySelector('.card__price'), amount=el.querySelector('.card__amount'), currency=el.querySelector('.card__currency');
+      const cardRect=el.getBoundingClientRect(), p=price.getBoundingClientRect(), a=amount.getBoundingClientRect(), c=currency.getBoundingClientRect();
+      return el.scrollWidth<=el.clientWidth && p.left>=cardRect.left && p.right<=cardRect.right &&
+        a.right<=c.left && c.right<=p.right && currency.scrollWidth<=currency.clientWidth &&
+        amount.textContent==='999,999,999' && (amount.scrollWidth<=amount.clientWidth ||
+          (getComputedStyle(amount).overflowX==='hidden' && getComputedStyle(amount).textOverflow==='ellipsis'));
+    }));
+    await widerPrice.evaluate(el=>el.remove());
   }
   const first=page.locator('.card').first();
   await first.locator('[data-card-share]').click();
