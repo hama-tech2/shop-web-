@@ -34,7 +34,18 @@ const PAYMENTS_OFF = process.argv.includes('--payments-off');
 
 const COOKIE = 'sb-access=TEST';
 /** What .dev.vars sets. Deliberately not the host the tests talk to. */
-const RETURN_URL = 'https://staging.bazaro.test/app/subscription/result';
+/**
+ * The return URL the running Worker is configured with.
+ *
+ * Read from the environment rather than fixed here, because this file
+ * asserts that the Worker uses its CONFIGURED URL and never the request
+ * host — and that assertion has to keep holding when the configured URL
+ * changes, which is exactly what happens on the way to production.
+ * The unit cases below still pin the validation rules against literals.
+ */
+const RETURN_URL = process.env.WAYL_RETURN_URL
+  || 'https://shop-web.mahmadmajed149.workers.dev/app/subscription/result';
+const STAGING = 'https://staging.bazaro.test/app/subscription/result';
 const results = [];
 const check = (name, got, want = true) =>
   results.push({ name, got, want, pass: JSON.stringify(got) === JSON.stringify(want) });
@@ -104,6 +115,8 @@ for (const [env, want] of [
   [{ WAYL_RETURN_URL: 'not a url' }, null],
   [{ WAYL_RETURN_URL: 'http://evil.example/app/subscription/result' }, null],
   [{ WAYL_RETURN_URL: 'https://staging.bazaro.test/' }, null],
+  [{ WAYL_RETURN_URL: STAGING }, STAGING],
+  [{ WAYL_RETURN_URL: STAGING + '/?carried=1' }, STAGING],
   [{ WAYL_RETURN_URL: RETURN_URL }, RETURN_URL],
   [{ WAYL_RETURN_URL: RETURN_URL + '/?carried=1' }, RETURN_URL],
   [{ WAYL_RETURN_URL: 'http://127.0.0.1:8810/app/subscription/result' },
@@ -208,7 +221,7 @@ check('the return URL carries only the reference',
 check('the return URL is the configured one, not the request host',
   link?.redirectionUrl?.startsWith(RETURN_URL) && !link?.redirectionUrl?.includes('127.0.0.1'));
 check('the webhook URL is on the configured origin too',
-  link?.webhookUrl?.startsWith('https://staging.bazaro.test/webhooks/wayl/')
+  link?.webhookUrl?.startsWith(`${new URL(RETURN_URL).origin}/webhooks/wayl/`)
   && !link?.webhookUrl?.includes('127.0.0.1'));
 check('the intent was stored against this shop',
   [state.intent.shop_id, state.intent.plan, Number(state.intent.amount), state.intent.status],
