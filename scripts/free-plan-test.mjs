@@ -20,13 +20,14 @@
  *   node scripts/free-plan-test.mjs
  */
 
-import { FREE_IMAGE_LIMIT, FREE_PRODUCT_LIMIT, PLANS } from '../worker/config.js';
+import { FREE_IMAGE_LIMIT, FREE_PRODUCT_LIMIT, PLANS, PRODUCT as T } from '../worker/config.js';
 
 const APP = process.argv[2] || 'http://127.0.0.1:8810';
 const STUB = process.argv[3] || 'http://127.0.0.1:8899';
 const COOKIE = 'sb-access=TEST';
 
 const SHOP = 'aaaaaaaa-1111-4111-8111-111111111111';
+const PRODUCT_ID = 'bbbbbbbb-1111-4111-8111-111111111111';
 
 const results = [];
 const check = (name, got, want = true) =>
@@ -68,6 +69,13 @@ async function publish(n) {
   const draft = crypto.randomUUID();
   return post('/app/new', {
     draft_id: draft, images: gallery(draft, n), title: 'کراسی کوردی', price: '25000',
+  });
+}
+
+/** Edit a product the way the form does, with a chosen visibility. */
+async function setVisibility(status) {
+  return post(`/app/products/${PRODUCT_ID}`, {
+    images: gallery(PRODUCT_ID, 1), title: 'کراسی کوردی', price: '25000', status,
   });
 }
 
@@ -245,17 +253,52 @@ const lapsedPost = await publish(1);
 check('and posting a new product is refused',
   lapsedPost.body.includes('billing--gate') || lapsedPost.body.includes('trial-limit'));
 
-// Nothing was deleted or hidden to get there: the shop's own products
-// are still the shop's, and its profile is still public.
+// Nothing was deleted to get there: the shop's own products are still
+// the shop's, and its profile is still public. What changed is how many
+// of them are up — the database hid the extras, and hidden is a state
+// the seller already knows how to undo.
 const stillThere = await page('/app/products');
 check('the products already posted are still listed', stillThere.includes('کراسی کوردی'));
 check('and the public profile still renders',
   (await page('/@nafin-boutique')).includes('بۆتیکی نافین'));
+check('a hidden product is still the seller\'s to open',
+  (await page(`/app/products/${PRODUCT_ID}`)).includes('publish-page'));
+
+// Five are public and the rest are hidden, so putting a sixth back up
+// is the one edit the database refuses. The seller is told which rule
+// they met, with their form still filled in.
+await control(`/__public/${FREE_PRODUCT_LIMIT}`);
+const sixthPublic = await setVisibility('active');
+check('making a sixth product public is refused', sixthPublic.status, 200);
+check('with the reason, on the form, and no claim that anything was deleted',
+  sixthPublic.body.includes(T.errPublicFull(FREE_PRODUCT_LIMIT))
+  && sixthPublic.body.includes('publish-page'));
+
+// Hiding one is always allowed: that is how a seller makes room.
+check('hiding one of the five is allowed',
+  (await setVisibility('hidden')).location, '/app/products');
+
+// And once there is room, the swap goes through.
+await control(`/__public/${FREE_PRODUCT_LIMIT - 1}`);
+check('and then the other one can go up in its place',
+  (await setVisibility('active')).location, '/app/products');
 
 // Paying again lifts it, with no re-posting and nothing restored.
 await paid(FREE_PRODUCT_LIMIT + 3, 20);
 check('paying again reaches the form immediately',
   (await page('/app/new')).includes('publish-page'));
+await control(`/__public/${FREE_PRODUCT_LIMIT}`);
+check('and a paid seller may have more than five public',
+  (await setVisibility('active')).location, '/app/products');
+
+// A shop that lapses with room to spare loses nothing at all.
+await paid(3, -1);
+await control('/__public/3');
+check('a lapsed shop under the limit still reaches the form',
+  (await page('/app/new?plan=free')).includes('publish-page'));
+check('and can still publish', (await publish(1)).location, '/app/products');
+check('and its products stay public',
+  (await setVisibility('active')).location, '/app/products');
 
 /* ============================================================
    7. the admin's stop button outranks all of it

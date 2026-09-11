@@ -48,6 +48,7 @@ let subDays = 20;                 // days until the subscription expires
 let subPlan = 'free';             // free | month_1 | months_6 | year_1
 let suspended = false;            // the admin's stop button
 let productCount = 0;             // how many products the shop has
+let publicCount = 0;              // how many of them are active
 let dismissed = {};               // banner kind -> ISO timestamp
 const telegram = [];              // every call the Worker made to the bot API
 let nextMessageId = 500;
@@ -121,7 +122,16 @@ http.createServer(async (req, res) => {
   if (p.startsWith('/__plan/')) { subPlan = p.split('/')[2]; return send({ subPlan }); }
   // The admin's stop button, which outranks any plan.
   if (p.startsWith('/__suspended/')) { suspended = p.split('/')[2] === '1'; return send({ suspended }); }
-  if (p.startsWith('/__products/')) { productCount = Number(p.split('/')[2]); return send({ productCount }); }
+  if (p.startsWith('/__products/')) {
+    productCount = Number(p.split('/')[2]);
+    // Unless a test says otherwise, every product a shop has is up.
+    publicCount = Math.min(productCount, 5);
+    return send({ productCount, publicCount });
+  }
+  // How many are active, for the one rule only an edit can meet: five
+  // public at once on Free. A lapsed shop has more products than that
+  // and five of them showing.
+  if (p.startsWith('/__public/')) { publicCount = Number(p.split('/')[2]); return send({ publicCount }); }
   if (p.startsWith('/__dismissed/')) {
     const [, , kind, when] = p.split('/');
     if (kind === 'reset') dismissed = {};
@@ -348,19 +358,24 @@ http.createServer(async (req, res) => {
   }
 
   if (table === 'products') {
-    // app.enforce_trial_product_limit raises SW001 once a trial shop is
-    // full. Modelling it here is the point: the Worker checks first, but
-    // the database is what actually refuses, and the route has to answer
-    // that refusal with the message that links to the plans.
-    // app.enforce_free_product_limit: suspension first, then the count,
-    // and nothing to count on a paid plan.
+    // app.enforce_free_product_limit, as far as the Worker can tell the
+    // refusals apart. Modelling them here is the point: the Worker asks
+    // first, but the database is what actually refuses, and each route
+    // has to answer the refusal it gets with the right way out.
+    //
+    //   SW005  suspended               (insert)
+    //   SW001  five products already   (insert)
+    //   SW007  five already public     (update)
+    const onPaid = ['month_1', 'months_6', 'year_1'].includes(subPlan) && subDays > 0;
     if (write && req.method === 'POST' && suspended) {
       return send({ code: 'SW005', message: 'shop is suspended' }, 400);
     }
-    if (write && req.method === 'POST'
-        && !(['month_1', 'months_6', 'year_1'].includes(subPlan) && subDays > 0)
-        && productCount >= 5) {
+    if (write && req.method === 'POST' && !onPaid && productCount >= 5) {
       return send({ code: 'SW001', message: 'free plan allows 5 products' }, 400);
+    }
+    if (write && req.method === 'PATCH' && !onPaid
+        && lastBody.status === 'active' && publicCount >= 5) {
+      return send({ code: 'SW007', message: 'free plan allows 5 public products' }, 400);
     }
     // app.check_category_same_shop raises 23514 for a category_id that
     // does not exist or belongs to another shop. Modelling it here is
@@ -379,7 +394,6 @@ http.createServer(async (req, res) => {
     return send(rows ? [{ id: PRODUCT_ID }] : []);
   }
 
-  if (table === 'products' && req.method === 'POST') return send([{ id: PRODUCT_ID }]);
   if (table === 'rpc/shop_public_profile') {
     const slug = url.searchParams.get('p_slug') ?? lastBody.p_slug;
     if (String(slug).toLowerCase() !== SHOP.slug) return send([]);

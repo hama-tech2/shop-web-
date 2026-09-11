@@ -195,6 +195,13 @@ export const PRODUCT = {
   // seller's to change. Both must say so instead of claiming success.
   errGone: 'ئەم بەرهەمە نەدۆزرایەوە. لەوانەیە پێشتر سڕابێتەوە.',
 
+  // Five products may be public at once on Free. The seller is not
+  // stuck: hiding one of the five makes room for this one, and nothing
+  // they own is going anywhere in the meantime.
+  errPublicFull: (n) =>
+    `لە پلانی بەخۆڕاییدا تەنها ${n} بەرهەم دەتوانن ئاشکرا بن. ` +
+    'یەکێکیان بشارەوە، یان پلانێک بکڕە. هیچ بەرهەمێکت نەسڕاوەتەوە.',
+
   // The trial limit. A refusal on its own leaves the seller stuck, so
   // the message says what to do next and the screen carries the link.
   trialLimitTitle: 'سنووری مانگی بەخۆڕایی',

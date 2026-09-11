@@ -277,6 +277,15 @@ const FREE_FULL = (res) => res.data?.code === 'SW001';
 /** And for "this shop is suspended", which outranks any plan. */
 const SUSPENDED = (res) => res.data?.code === 'SW005';
 
+/**
+ * And for "five are already public".
+ *
+ * Only an edit can meet this one: a Free shop that lapsed from a paid
+ * plan keeps everything it had, with five of them up and the rest
+ * hidden, and putting a sixth back is the one thing it may not do.
+ */
+const PUBLIC_FULL = (res) => res.data?.code === 'SW007';
+
 async function readForm(request, env, token, shopId, productId) {
   const f = await form(request);
   const picked = cleanImages(f.images, shopId, productId);
@@ -521,12 +530,20 @@ export async function editPost(request, env, id) {
   // Zero rows is not success. The product was deleted in another tab,
   // or the id belongs to someone else and RLS refused it — either way
   // the images must not be written against it.
+  //
+  // A Free shop that is already showing five is its own case: nothing
+  // is wrong with the edit, there is simply no room to make this one
+  // public. Saying that, with the form still filled in, is the whole
+  // difference between a seller who hides one and carries on and a
+  // seller who thinks their product is gone.
   if (!updated.ok || affected(updated) === 0) {
+    const error = PUBLIC_FULL(updated) ? T.errPublicFull(FREE_PRODUCT_LIMIT)
+      : updated.ok ? T.errGone
+      : T.errSave;
     return page(
       productForm({ mode: 'edit', draftId: id, categories,
                     shopCategories: await ownCategories(env, g.token, g.shop.id),
-                    values: parsed.values,
-                    error: updated.ok ? T.errGone : T.errSave }),
+                    values: parsed.values, error }),
       T.editTitle, g.headers,
     );
   }
