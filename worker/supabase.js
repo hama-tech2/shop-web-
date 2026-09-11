@@ -9,7 +9,7 @@
 
 const SELECT_CARD =
   'id,title,price,created_at,platform_category_id,category_id,' +
-  'shops!inner(name,slug,logo_key),' +
+  'shops!inner(name,slug,logo_key,whatsapp,phone,maps_url),' +
   'product_images(r2_key,position)';
 
 function headers(env) {
@@ -90,6 +90,8 @@ function toCard(row) {
     shopName: row.shops?.name ?? '',
     shopSlug: row.shops?.slug ?? '',
     shopLogo: row.shops?.logo_key ?? null,
+    shopWhatsapp: row.shops?.whatsapp || row.shops?.phone || null,
+    shopMapsUrl: row.shops?.maps_url ?? null,
   };
 }
 

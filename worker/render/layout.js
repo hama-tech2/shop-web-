@@ -55,6 +55,9 @@ export function layout({
     `</head>` +
     `<body>${body}` +
     scripts.map((src) => `<script src="${esc(src)}" defer></script>`).join('') +
+    // Cards also arrive after load on Saved and the owner's public-shop preview.
+    (scripts.includes('/js/favorites.js') || body.includes('id="owner-products"')
+      ? `<script src="/js/card-actions.js" defer></script>` : '') +
     `</body>` +
     `</html>`
   );

@@ -1,10 +1,39 @@
 import { APP_NAME, APP_TAGLINE, CHIPS, LOCALES, SLIDE_MS, UI } from '../config.js';
 import { attr, esc, price } from './html.js';
-import { iconGlobe, iconHeart, iconSearch } from './icons.js';
+import { iconGlobe, iconHeart, iconPin, iconSearch, iconShare, iconWhatsapp } from './icons.js';
 import { bottomNav } from './appshell.js';
 
 /** R2 keys are stored, never URLs. This is the only place one becomes a URL. */
 const imgUrl = (key) => `/img/${key.split('/').map(encodeURIComponent).join('/')}`;
+
+/** Contact data belongs to the joined shop, never to an individual product. */
+function whatsappUrl(raw) {
+  let number = String(raw || '').replace(/[٠-٩۰-۹]/g, (digit) =>
+    String('٠١٢٣٤٥٦٧٨٩'.includes(digit) ? '٠١٢٣٤٥٦٧٨٩'.indexOf(digit) : '۰۱۲۳۴۵۶۷۸۹'.indexOf(digit)))
+    .replace(/[\s()+.-]/g, '');
+  if (number.startsWith('00')) number = number.slice(2);
+  else if (number.startsWith('0')) number = '964' + number.slice(1);
+  return /^[1-9][0-9]{6,14}$/.test(number) ? `https://wa.me/${number}` : null;
+}
+
+function mapsUrl(raw) {
+  if (!raw) return null;
+  try {
+    const url = new URL(raw);
+    return url.protocol === 'https:' && !url.username && !url.password ? url.href : null;
+  } catch { return null; }
+}
+
+function cardActions(product, href) {
+  const whatsapp = whatsappUrl(product.shopWhatsapp);
+  const maps = mapsUrl(product.shopMapsUrl);
+  const link = (kind, url, label, icon) => url
+    ? `<a class="card__action card__action--${kind}" href="${esc(url)}" target="_blank" rel="noopener noreferrer" aria-label="${label}"><span>${icon}</span></a>` : '';
+  return `<div class="card__actions">` +
+    (href ? `<button class="card__action card__action--share" type="button" data-card-share="${esc(href)}" aria-label="هاوبەشکردنی بەرهەم"><span>${iconShare(17)}</span></button>` : '') +
+    link('whatsapp', whatsapp, 'پەیوەندی بە دوکان لە واتساپ', iconWhatsapp(18)) +
+    link('location', maps, 'شوێنی دوکان', iconPin(17)) + `</div>`;
+}
 
 /**
  * One product card.
@@ -66,10 +95,10 @@ export function cardHtml(product, index, { linked = true, saved = false } = {}) 
     `</div>` +
     `<div class="card__body">` +
     `<h2 class="card__title">${esc(product.title)}</h2>` +
-    `<p class="card__price">` +
+    `<div class="card__commercial"><p class="card__price">` +
     `<span class="card__amount">${esc(price(product.price))}</span>` +
     `<span class="card__currency">${esc(UI.currency === 'IQD' ? 'د.ع' : UI.currency)}</span>` +
-    `</p>` +
+    `</p>${cardActions(product, href)}</div>` +
     `<div class="card__shop">${avatar}` +
     `<span class="card__shop-name">${esc(product.shopName)}</span></div>` +
     `</div>` +

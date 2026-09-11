@@ -107,6 +107,7 @@
 }
 
 .card {
+  container-type: inline-size;
   background: var(--surface);
   border: 1px solid var(--surface-2);
   border-radius: 15px;
@@ -177,6 +178,31 @@
 .dot.is-active { opacity: 1; }
 
 .card__body { padding-inline: var(--s-3); }
+
+/* Use the price row when there is room. Narrow cards keep separate 44px
+   targets on one compact second row, without changing the image or grid. */
+.card__commercial { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; direction: ltr; margin-inline: calc(-1 * var(--s-3)); padding-inline: 2px; }
+.card__commercial .card__price { flex: 0 0 auto; margin: 3px 8px 0; white-space: nowrap; }
+@container (max-width: 145px) {
+  .card__commercial .card__price { margin-inline: 2px; gap: 3px; }
+  .card__commercial .card__amount { font-size: 17px; }
+}
+.card__actions { display: flex; flex: 0 0 auto; margin-inline-start: auto; direction: ltr; }
+.card__actions:empty { display: none; }
+.card__action { position: relative; z-index: 2; display: grid; place-items: center; width: 44px; height: 44px; flex: 0 0 44px; padding: 0; border-radius: 10px; }
+.card__action > span { display: grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; }
+.card__action--share { color: #2465A0; }
+.card__action--share > span { background: #EFF5FC; }
+.card__action--whatsapp { color: var(--accent); }
+.card__action--whatsapp > span { background: #EDF6F0; }
+.card__action--location { color: #BD3546; }
+.card__action--location > span { background: #FCF0F2; }
+.card__action:focus-visible { outline: 2px solid currentColor; outline-offset: -3px; }
+.card__action:active > span { opacity: .7; }
+.card-share-status { position: fixed; z-index: 50; inset-inline: 16px; bottom: calc(var(--nav-h) + 16px + env(safe-area-inset-bottom)); max-width: 440px; margin: 0 auto; padding: 10px 14px; border-radius: 12px; background: var(--text); color: var(--surface); font-size: 13px; text-align: center; pointer-events: none; }
+.card__heart[data-fav] { inset-block-start: 4px; inset-inline-end: 4px; width: 44px; height: 44px; background: transparent; }
+.card__heart[data-fav]::before { content: ''; position: absolute; width: 28px; height: 28px; border-radius: 50%; background: var(--surface); }
+.card__heart[data-fav] svg { position: relative; }
 
 .card__title {
   font-family: var(--font-body);
