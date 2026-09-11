@@ -69,6 +69,15 @@ begin
   values (b_user, 'sectest-b', 'Seller B', '+9647500000002')
   returning id into b_shop;
 
+  -- A new shop has no plan and may not post; this file is about who can
+  -- see and change whose rows, so both fixtures are put on a trial the
+  -- way time would. app.enforce_trial_product_limit raises SW005
+  -- otherwise, and every product below would fail before the first
+  -- policy was tested.
+  update public.subscriptions
+     set plan = 'trial', status = 'trialing', expires_at = now() + interval '30 days'
+   where shop_id in (a_shop, b_shop);
+
   insert into public.products (shop_id, platform_category_id, title, description, price, status)
   values (b_shop, cat, 'B secret product', 'hidden from everyone but B', 25000, 'hidden')
   returning id into b_prod;

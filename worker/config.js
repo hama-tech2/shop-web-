@@ -607,7 +607,14 @@ export const WAYL = {
 
   statusKeys: ['paymentStatus', 'status', 'state', 'linkStatus'],
   referenceKeys: ['referenceId', 'reference_id', 'reference'],
-  eventKeys: ['eventId', 'event_id', 'id'],
+  // Only a field that actually names an event. `id` was here and had to
+  // go: Wayl's create and status responses both carry the LINK id under
+  // `id`, so if a webhook body does the same, every delivery for one
+  // payment would share a dedupe key and only the first would ever be
+  // acted on. When no real event id is present, worker/routes/payment.js
+  // falls back to a digest of the exact bytes, which still refuses an
+  // identical replay and still lets a genuine second event through.
+  eventKeys: ['eventId', 'event_id'],
   linkIdKeys: ['id', 'linkId', 'link_id'],
   codeKeys: ['code', 'linkCode', 'link_code'],
   urlKeys: ['url', 'checkoutUrl', 'checkout_url'],

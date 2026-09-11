@@ -345,13 +345,40 @@ check('a correctly signed webhook claiming success is accepted',
   (await webhook(INTENT, lyingBody, { secret: SIGNING })).status, 200);
 check('but the body claiming success granted nothing', (await waylState()).activations, 0);
 
+/* Wayl's link id is not an event id. Two different deliveries that
+   both carry it must both be taken; only an identical body is a
+   replay. This is what stops a second webhook for one payment being
+   swallowed as a duplicate. */
+const seen = async () => (await waylState()).events.length;
+let before = await seen();
+check('a body carrying only the link id is taken',
+  (await webhook(INTENT, { id: 'lnk_1', referenceId: REF, status: 'processing' },
+    { secret: SIGNING })).status, 200);
+check('a different body with the same link id is taken too',
+  (await webhook(INTENT, { id: 'lnk_1', referenceId: REF, status: 'pending' },
+    { secret: SIGNING })).status, 200);
+check('two deliveries, two events: a link id never deduplicates',
+  (await seen()) - before, 2);
+
+before = await seen();
+check('a real event id is taken',
+  (await webhook(INTENT, { eventId: 'evt_real', referenceId: REF, status: 'processing' },
+    { secret: SIGNING })).status, 200);
+check('the same event id again is taken and ignored',
+  (await webhook(INTENT, { eventId: 'evt_real', referenceId: REF, status: 'pending' },
+    { secret: SIGNING })).status, 200);
+check('two deliveries, one event: a real event id does deduplicate',
+  (await seen()) - before, 1);
+check('none of them granted anything', (await waylState()).activations, 0);
+
 /* a delivery with no event id of its own is still deduplicated */
 const anonymous = { referenceId: REF, status: 'processing' };
+before = await seen();
 check('a body with no event id is taken',
   (await webhook(INTENT, anonymous, { secret: SIGNING })).status, 200);
 check('the same body again is taken and ignored',
   (await webhook(INTENT, anonymous, { secret: SIGNING })).status, 200);
-check('the identical body is one event, not two', (await waylState()).events.length, 2);
+check('the identical body is one event, not two', (await seen()) - before, 1);
 check('none of them granted anything', (await waylState()).activations, 0);
 
 await control('/__wayl/reports/paid');
