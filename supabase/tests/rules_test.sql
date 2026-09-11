@@ -45,13 +45,30 @@ begin
   values (u, 'rules-shop', 'Rules', '+9647500000003')
   returning id into s;
 
-  -- ---------- 1 month free trial ----------
+  -- ---------- a new shop gets no trial at all ----------
+  -- Superseded rule: a shop used to be given a month for existing. The
+  -- trial is now chosen, by the seller, in front of their first
+  -- product. scripts/trial-db-test.sql covers the choosing.
+  check_name := 'new shop starts with no plan, trial unspent';
+  result := format('plan=%s, status=%s, may publish=%s',
+                   (select plan from public.subscriptions where shop_id = s),
+                   (select status from public.subscriptions where shop_id = s),
+                   app.can_publish(s));
+  ok := (select plan = 'none' and status = 'none' from public.subscriptions where shop_id = s)
+        and not app.can_publish(s);
+  return next;
+
+  -- ---------- and taking it gives 30 days ----------
+  perform set_config('request.jwt.claims',
+    json_build_object('sub', u, 'role', 'authenticated')::text, false);
+  perform public.start_trial(s);
+  perform set_config('request.jwt.claims', '', false);
   select expires_at into v_exp from public.subscriptions where shop_id = s;
-  check_name := 'new shop gets 1 month trial';
+  check_name := 'starting the trial gives 30 days';
   result := format('plan=%s, expires in %s days',
                    (select plan from public.subscriptions where shop_id = s),
                    round(extract(epoch from v_exp - now()) / 86400));
-  ok := (v_exp between now() + interval '29 days' and now() + interval '32 days');
+  ok := (v_exp between now() + interval '29 days' and now() + interval '31 days');
   return next;
 
   -- ---------- paying during the trial => +2 months ----------

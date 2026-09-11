@@ -124,6 +124,21 @@ export async function asUser(env, token, path, { method = 'GET', body, prefer, s
   return { ok: res.ok, status: res.status, data };
 }
 
+/**
+ * What the server says this shop's plan allows, right now.
+ *
+ * One read, used by every screen that has to decide whether a seller
+ * may post: the product form, the form's own POST, and the account
+ * card. `can_publish` and `trial_available` are computed in the
+ * database and are never anything the browser sends.
+ */
+export async function subscriptionState(env, token, shopId) {
+  const res = await asUser(env, token, 'rpc/subscription_state', {
+    method: 'POST', body: { p_shop: shopId },
+  });
+  return res.ok ? res.data?.[0] ?? null : null;
+}
+
 /** Public RPC: is this slug free? Answers without exposing the shops table. */
 export async function slugAvailable(env, slug) {
   const rows = await get(env, 'rpc/slug_available', { p_slug: slug });

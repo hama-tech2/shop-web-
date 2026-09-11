@@ -9,11 +9,13 @@
 
 import {
   APP_NAME, MAX_IMAGES, MAX_UPLOAD_BYTES, PRODUCT as T, PRODUCT_FILTERS,
+  SUBSCRIPTION as S,
 } from '../config.js';
 import { layout } from '../render/layout.js';
 import { productForm, trialLimitPage } from '../render/product-form.js';
+import { accessGatePage } from '../render/subscription.js';
 import { productList } from '../render/product-list.js';
-import { asUser, getCategories } from '../supabase.js';
+import { asUser, getCategories, subscriptionState } from '../supabase.js';
 import { getOwnShop, resolveSession, sameOrigin, setSessionCookies } from '../auth.js';
 import { redirect } from './auth.js';
 
@@ -250,8 +252,28 @@ async function trialSlotsLeft(env, token, shopId) {
   return typeof value === 'number' ? value : null;
 }
 
+/**
+ * Whether this shop may post at all, and whether the free month is
+ * still there to take.
+ *
+ * A shop with no plan, or one whose plan has run out, gets the access
+ * screen instead of a form. The database refuses the insert anyway —
+ * app.enforce_trial_product_limit raises SW005 — so this is what turns
+ * a bare refusal into three things the seller can actually do.
+ */
+async function entitlement(env, token, shopId) {
+  const state = await subscriptionState(env, token, shopId);
+  return {
+    canPublish: Boolean(state?.can_publish),
+    trialAvailable: Boolean(state?.trial_available),
+  };
+}
+
 /** The database's own word for "the free trial is full". */
 const TRIAL_FULL = (res) => res.data?.code === 'SW001';
+
+/** And for "this shop has no plan to post on". */
+const NO_PLAN = (res) => res.data?.code === 'SW005';
 
 async function readForm(request, env, token, shopId, productId) {
   const f = await form(request);
@@ -305,6 +327,11 @@ export async function newGet(request, env) {
   const g = await guard(request, env);
   if (g.redirect) return g.redirect;
 
+  // No plan, or one that has ended: choose before posting. The screen
+  // itself starts nothing.
+  const { canPublish, trialAvailable } = await entitlement(env, g.token, g.shop.id);
+  if (!canPublish) return page(accessGatePage({ trialAvailable }), S.gateTitle, g.headers);
+
   // A trial shop that is full gets the reason and a way out of it,
   // rather than a form whose submit button cannot work.
   const left = await trialSlotsLeft(env, g.token, g.shop.id);
@@ -331,6 +358,11 @@ export async function newPost(request, env) {
   const raw = await request.clone().formData();
   const draftId = String(raw.get('draft_id') || '');
   if (!UUID.test(draftId)) return redirect('/app/new', g.headers);
+
+  // Checked again on the way in. A form kept open across the end of a
+  // trial must not be able to post through it.
+  const { canPublish, trialAvailable } = await entitlement(env, g.token, g.shop.id);
+  if (!canPublish) return page(accessGatePage({ trialAvailable }), S.gateTitle, g.headers);
 
   const parsed = await readForm(request, env, g.token, g.shop.id, draftId);
   const categories = await getCategories(env);

@@ -19,7 +19,7 @@
  * do not render a payment result, and a test pins that.
  */
 
-import { PLANS } from '../config.js';
+import { PLANS, WAYL } from '../config.js';
 import { paymentResultPage } from '../render/payment-result.js';
 import { asUser } from '../supabase.js';
 import { getOwnShop, resolveSession, sameOrigin, setSessionCookies } from '../auth.js';
@@ -33,6 +33,23 @@ import {
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const REFERENCE = /^[A-Za-z0-9-]{6,64}$/;
 const SLUG = /^[a-z0-9][a-z0-9-]{1,38}[a-z0-9]$/i;
+
+/**
+ * The reference, from whichever name the URL carries it under.
+ *
+ * Wayl sends the seller back to `?referenceId=...&orderid=...`, having
+ * replaced the query we asked for. Our own status polling uses `ref`.
+ * Both are read; neither is believed. A reference only says which of
+ * this seller's payments to go and ask Wayl about — RLS decides whether
+ * it is theirs at all, and the answer comes from Wayl.
+ *
+ * `orderid` is Wayl's own link id. It is deliberately ignored: it adds
+ * nothing the reference does not already settle.
+ */
+function referenceFrom(url) {
+  const value = String(url.searchParams.get('referenceId') || url.searchParams.get('ref') || '');
+  return REFERENCE.test(value) ? value : null;
+}
 
 const INTENT_COLUMNS =
   'id,shop_id,plan,amount,currency,status,reference_id,payment_method,' +
@@ -243,6 +260,9 @@ export async function checkoutPost(request, env) {
     // body is parsed.
     webhookUrl: `${new URL(home).origin}/webhooks/wayl/${intent.id}`,
     webhookSecret: secret,
+    // Wayl has been seen to drop this query and append its own
+    // referenceId and orderid instead. Sent anyway, because the page
+    // reads either name and losing it costs nothing.
     redirectionUrl: `${home}?ref=${encodeURIComponent(intent.reference_id)}`,
     customParameter: intent.id,
   });
@@ -313,8 +333,8 @@ export async function statusGet(request, env, url) {
   const g = await guard(request, env, '/app/subscription');
   if (g.redirect) return g.redirect;
 
-  const ref = String(url.searchParams.get('ref') || '');
-  if (!REFERENCE.test(ref)) return json({ error: 'not found' }, 404, g.headers);
+  const ref = referenceFrom(url);
+  if (!ref) return json({ error: 'not found' }, 404, g.headers);
 
   const intent = await loadIntent(env, g.token, g.shop.id, ref);
   if (!intent) return json({ error: 'not found' }, 404, g.headers);
@@ -339,16 +359,22 @@ export async function statusGet(request, env, url) {
 /**
  * Where Wayl sends the seller back to.
  *
- * The query carries a reference and nothing else. Whatever else Wayl
- * appends to that URL is ignored: the state on this page comes from
- * asking Wayl on the server, every single time it is rendered.
+ * Measured, from a real test link: Wayl replaces the query we ask for
+ * with its own, and returns the seller to
+ *   /app/subscription/result/?referenceId=...&orderid=...
+ *
+ * Neither parameter is evidence of anything. The reference picks out
+ * one of this seller's own payments — RLS decides that — and the state
+ * on this page comes from the server asking Wayl, every single time it
+ * is rendered. A seller who edits that query gets, at most, a different
+ * payment of their own to look at.
  */
 export async function resultGet(request, env, url) {
   const g = await guard(request, env, '/app/subscription');
   if (g.redirect) return g.redirect;
 
-  const ref = String(url.searchParams.get('ref') || '');
-  if (!REFERENCE.test(ref)) return redirect('/app/subscription', g.headers);
+  const ref = referenceFrom(url);
+  if (!ref) return redirect('/app/subscription', g.headers);
 
   const intent = await loadIntent(env, g.token, g.shop.id, ref);
   if (!intent || !PLANS.some((p) => p.key === intent.plan)) {
@@ -445,7 +471,7 @@ export async function webhookPost(request, env, intentId) {
 
     // The exact bytes, before anything reads them as a document.
     const raw = await request.text();
-    const signature = request.headers.get('x-wayl-signature-256');
+    const signature = request.headers.get(WAYL.signatureHeader);
     if (!(await signatureValid(secret, raw, signature))) return miss(request, env);
 
     let body = null;

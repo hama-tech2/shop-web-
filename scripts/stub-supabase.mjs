@@ -17,6 +17,7 @@
  * Delete .dev.vars afterwards — it points the app at the stub.
  */
 import http from 'node:http';
+import { GRANT_PLANS } from '../worker/config.js';
 
 const SHOP = {
   id: 'aaaaaaaa-1111-4111-8111-111111111111',
@@ -44,7 +45,8 @@ let isAdmin = false;              // does the session own an admins row
 let adminActive = true;
 const manualGrants = new Map();
 let subDays = 20;                 // days until the subscription expires
-let subPlan = 'trial';            // trial | months_6 | year_1
+let subPlan = 'trial';            // none | trial | month_1 | months_6 | year_1
+let trialTaken = false;           // public.trial_grants: one per account, ever
 let productCount = 0;             // how many products the shop has
 let dismissed = {};               // banner kind -> ISO timestamp
 const telegram = [];              // every call the Worker made to the bot API
@@ -81,7 +83,7 @@ let waylExpiry = null;
 
 function waylReset() {
   waylIntent = null; waylSecret = null; waylCreated = []; waylEvents.clear();
-  waylReports = 'pending'; waylMethod = 'FIB'; waylTotal = null; waylCurrency = 'IQD';
+  waylReports = 'Created'; waylMethod = 'FIB'; waylTotal = null; waylCurrency = 'IQD';
   waylLinkFails = false; waylBusy = false; waylActivations = 0; waylExpiry = null;
 }
 
@@ -117,6 +119,8 @@ http.createServer(async (req, res) => {
   if (p.startsWith('/__admin-active/')) { adminActive = p.split('/')[2] === '1'; return send({ adminActive }); }
   if (p.startsWith('/__sub/')) { subDays = Number(p.split('/')[2]); return send({ subDays }); }
   if (p.startsWith('/__plan/')) { subPlan = p.split('/')[2]; return send({ subPlan }); }
+  // Whether this account has already spent its one free trial.
+  if (p.startsWith('/__trial/')) { trialTaken = p.split('/')[2] === '1'; return send({ trialTaken }); }
   if (p.startsWith('/__products/')) { productCount = Number(p.split('/')[2]); return send({ productCount }); }
   if (p.startsWith('/__dismissed/')) {
     const [, , kind, when] = p.split('/');
@@ -156,11 +160,23 @@ http.createServer(async (req, res) => {
     }
     waylCreated.push(lastBody);
     if (waylLinkFails) return send({ message: 'nope' }, 422);
+    // The real API refuses any other lineItem shape, and did: label is
+    // a string, amount a number, type "increase" or "decrease".
+    const line = Array.isArray(lastBody.lineItem) ? lastBody.lineItem[0] : null;
+    if (typeof line?.label !== 'string' || typeof line?.amount !== 'number'
+        || !['increase', 'decrease'].includes(line?.type)) {
+      return send({ success: false, message: 'Whoops, missing fields' }, 422);
+    }
+    // The real envelope: { data, message, success }, with total as a
+    // string and status "Created" at this point.
     return send({ data: {
-      id: 'lnk_1', code: 'CODE1',
+      env: lastBody.env, customParameter: lastBody.customParameter,
+      referenceId: lastBody.referenceId, id: 'lnk_1', code: 'CODE1',
+      total: String(lastBody.total), currency: lastBody.currency,
+      paymentMethod: null, status: 'Created', completedAt: null,
       url: 'https://checkout.thewayl.test/pay/' + lastBody.referenceId,
-      referenceId: lastBody.referenceId,
-    } });
+      redirectionUrl: lastBody.redirectionUrl, linkExpiresIn: '1h',
+    }, message: 'Done', success: true });
   }
   const waylLink = p.match(/^\/api\/v1\/links\/(.+)$/);
   if (waylLink && req.method === 'GET') {
@@ -331,6 +347,11 @@ http.createServer(async (req, res) => {
     // full. Modelling it here is the point: the Worker checks first, but
     // the database is what actually refuses, and the route has to answer
     // that refusal with the message that links to the plans.
+    // app.enforce_trial_product_limit raises SW005 for a shop with no
+    // live plan, before it counts anything.
+    if (write && req.method === 'POST' && (subPlan === 'none' || subDays <= 0)) {
+      return send({ code: 'SW005', message: 'shop has no active plan' }, 400);
+    }
     if (write && req.method === 'POST' && subPlan === 'trial' && productCount >= 5) {
       return send({ code: 'SW001', message: 'trial product limit of 5 reached' }, 400);
     }
@@ -366,18 +387,36 @@ http.createServer(async (req, res) => {
     const expires = new Date(Date.now() + subDays * 86400000).toISOString();
     // Grace is 3 days, matching subscriptions.grace_days.
     const graceEnds = new Date(Date.now() + (subDays + 3) * 86400000).toISOString();
+    const none = subPlan === 'none';
     return send([{
-      plan: subPlan, status: subPlan === 'trial' ? 'trialing' : 'active',
+      plan: subPlan,
+      status: none ? 'none' : subPlan === 'trial' ? 'trialing' : 'active',
       started_at: new Date(Date.now() - 10 * 86400000).toISOString(),
-      expires_at: expires, grace_ends_at: graceEnds,
-      days_left: Math.max(0, Math.ceil(subDays)), total_days: 30,
-      in_grace: subDays <= 0 && subDays > -3,
-      publicly_visible: subDays > -3,
+      expires_at: none ? new Date().toISOString() : expires,
+      grace_ends_at: none ? new Date().toISOString() : graceEnds,
+      days_left: none ? 0 : Math.max(0, Math.ceil(subDays)), total_days: 30,
+      in_grace: !none && subDays <= 0 && subDays > -3,
+      publicly_visible: !none && subDays > -3,
+      // app.can_publish: a running trial or a paid plan, not past its
+      // date. Grace is not enough to post something new.
+      can_publish: !none && subDays > 0,
+      trial_available: !trialTaken,
     }]);
+  }
+  // public.start_trial: once per account, and never over a live plan.
+  if (table === 'rpc/start_trial') {
+    if (trialTaken) return send({ code: 'SW004' }, 400);
+    if (subPlan !== 'none' && subDays > 0) return send({ code: 'SW006' }, 400);
+    trialTaken = true; subPlan = 'trial'; subDays = 30;
+    return send({ shop_id: SHOP.id, plan: 'trial', status: 'trialing',
+                  expires_at: new Date(Date.now() + 30 * 86400000).toISOString() });
   }
   // Null on a paid plan means unlimited, which is what the app checks.
   if (table === 'rpc/trial_slots_left') {
     return send(subPlan === 'trial' ? Math.max(0, 5 - productCount) : null);
+  }
+  if (table === 'rpc/admin_grant_plan' && !GRANT_PLANS.includes(lastBody.p_plan)) {
+    return send({ code: '22023' }, 400);
   }
   // app.owns_shop, the price trigger, the rate limit and the one-live
   // intent rule, as far as the Worker can tell them apart.

@@ -13,6 +13,11 @@
  * on top of whatever the subscription is really doing, because a seller
  * whose trial is running out while their transfer is unconfirmed is
  * still on trial.
+ *
+ * `none` is a sixth, and it is stored: a shop that has never chosen
+ * anything. It is not `expired` — nothing has run out, and the free
+ * trial is still there to take — and it must never be drawn as a plan
+ * that ended.
  */
 
 export const GRACE_DAYS = 3;
@@ -31,13 +36,20 @@ export function daysUntil(iso, from = Date.now()) {
  * when the shop has a payment_intent waiting on the owner.
  *
  * Returns:
- *   key      trial | pending | active | grace | expired
+ *   key      none | trial | pending | active | grace | expired
  *   days     days left in whatever the key counts, never negative
  *   pending  true when a transfer is waiting, whatever the key is
  */
 export function planState(state, pending = false, now = Date.now()) {
   if (!state) {
     return { key: pending ? 'pending' : 'expired', days: 0, pending };
+  }
+
+  // Nothing has been chosen yet. Read off the stored status rather than
+  // the date, because the date on such a row is today and would
+  // otherwise read as a plan that ended this morning.
+  if (state.status === 'none' || state.plan === 'none') {
+    return { key: 'none', days: 0, pending };
   }
 
   const left = daysUntil(state.expires_at, now);
@@ -84,6 +96,9 @@ export function planState(state, pending = false, now = Date.now()) {
  * data must not be a way to lose the warning.
  */
 export function bannerFor(plan, schedule, dismissedAt = {}, now = Date.now()) {
+  // Nothing has run out for a shop that never started. The access
+  // screen in front of the first product is where this is said, once.
+  if (plan.key === 'none') return null;
   if (plan.key === 'expired') {
     return { kind: 'hidden', days: 0, dismissible: false };
   }

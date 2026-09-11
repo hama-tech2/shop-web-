@@ -11,7 +11,7 @@
  * audit triggers record who did it.
  */
 
-import { ADMIN as A, APP_NAME } from '../config.js';
+import { ADMIN as A, APP_NAME, GRANT_PLANS } from '../config.js';
 import { layout } from '../render/layout.js';
 import {
   adminHome, adminIntents, adminReports, adminShop, adminShops, adminGrant,
@@ -276,7 +276,7 @@ export async function grantPost(request, env, id) {
   const plan = typeof f.plan === 'string' ? f.plan : '';
   const reason = typeof f.reason === 'string' ? f.reason : '';
   const render = (extra = {}) => page(adminGrant({ ...data, plan, reason, ...extra }), g.headers);
-  if (!['months_6', 'year_1'].includes(plan) || !reason || reason.length > 500) {
+  if (!GRANT_PLANS.includes(plan) || !reason || reason.length > 500) {
     return render({ error: 'پلانێک هەڵبژێرە و هۆکارێک بنووسە (تا 500 پیت).' });
   }
   if (!data.sub) return render({ error: A.intentFailed });

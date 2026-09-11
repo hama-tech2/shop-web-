@@ -7,8 +7,8 @@
  *     owner's FIB number, say you sent it, and wait. The screen must
  *     never claim the payment succeeded — only the owner finding the
  *     money does that — and it must never ask for a PIN, a password, a
- *     card number or a receipt. The primary plan UI now uses the safe
- *     Wayl method chooser, covered by subscription-ui-test.mjs.
+ *     card number or a receipt. The primary plan UI now uses the existing
+ *     Wayl hosted checkout, covered by wayl-test.mjs.
  *
  *  2. The state transitions: open -> pending is the seller's only move,
  *     and it moves nothing else. Confirming is the owner's, and
@@ -79,7 +79,7 @@ await setDismissed('reset', 0);
    ============================================================ */
 
 let html = await page('/app/subscription');
-check('the plan screen renders', html.includes('پلانی بەشداریکردن'), true);
+check('the plan screen renders', html.includes('نوێکردنەوەی پلان'), true);
 check('both plans are offered', PLANS.every((p) => html.includes(String(p.amount).replace(/\B(?=(\d{3})+(?!\d))/g, ','))), true);
 check('6 months is priced at 55,000', html.includes('55,000'), true);
 check('1 year is priced at 90,000', html.includes('90,000'), true);
@@ -277,12 +277,14 @@ r = await post('/app/banner/dismiss', { kind: 'soon' },
                { headers: { origin: 'https://evil.test' } });
 check('a cross-origin dismissal is refused', r.status, 403);
 
-/* ---------- and it appears in settings too ---------- */
+/* ---------- Account has one summary, not a second banner ---------- */
 
 await setSub(10);
 html = await page('/app');
-check('the settings panel carries the same banner',
-      (html.match(/class="plan-banner /g) || []).length >= 2, true);
+check('the existing owner banner is preserved once',
+      (html.match(/class="plan-banner /g) || []).length, 1);
+check('Account keeps its subscription summary without a duplicate banner',
+      html.slice(html.indexOf('id="account-settings"')).includes('plan-banner'), false);
 
 /* ============================================================
    4b. never on a page a customer can see
@@ -371,19 +373,19 @@ await setPlan('trial');
 await setProducts(0);
 
 /* ============================================================
-   4d. the plans screen puts the year first
+   4d. six months then the recommended year, selected by default
    ============================================================ */
 
 html = await page('/app/subscription');
 const yearAt = html.indexOf('data-plan="year_1"');
 const sixAt = html.indexOf('data-plan="months_6"');
 
-check('the year card comes before the six-month one', yearAt < sixAt, true);
+check('the six-month card comes before the year', sixAt < yearAt, true);
 check('the year is selected by default', /name="plan" value="year_1" checked/.test(html), true);
 check('there are exactly two commercial choices', (html.match(/type="radio" name="plan"/g) || []).length, 2);
 check('free is not a selectable card',
       /class="plan[^"]*"[^>]*data-plan="trial"/.test(html), false);
-check('but it is still named', html.includes('مانگی بەخۆڕایی'), true);
+check('but the current trial is still named', html.includes('30 ڕۆژ بەخۆڕایی'), true);
 
 /* ============================================================
    5. the admin gate

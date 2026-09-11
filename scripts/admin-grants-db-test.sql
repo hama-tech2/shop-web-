@@ -23,6 +23,11 @@ begin
     values(v_seller, 'grant-rollback-' || v_seller || '@example.invalid', 'authenticated', 'authenticated');
   insert into public.shops(id, owner_id, slug, name, whatsapp)
     values(v_shop, v_seller, 'grant-' || replace(v_shop::text, '-', ''), 'Grant rollback test', '+9647500000001');
+  -- A new shop has no plan and cannot post, so the fixture puts one on
+  -- a trial the way time would: this test is about grants, not gates.
+  update public.subscriptions
+     set plan = 'trial', status = 'trialing', expires_at = now() + interval '30 days'
+   where shop_id = v_shop;
   insert into public.products(id, shop_id, title, price, status)
     values(v_product, v_shop, 'Grant rollback product', 1000, 'active');
 

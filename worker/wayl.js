@@ -105,7 +105,10 @@ export function createLink(env, {
       total,
       currency: WAYL.currency,
       customParameter,
-      lineItem: [{ name: lineItemName, quantity: 1, price: total }],
+      // The shape Wayl actually requires, learned from it refusing
+      // anything else: label, amount, and a type of "increase" or
+      // "decrease". One line, the whole plan, so it adds up to total.
+      lineItem: [{ label: lineItemName, amount: total, type: 'increase' }],
       webhookUrl,
       webhookSecret,
       redirectionUrl,
@@ -166,14 +169,18 @@ export function readTotal(body) {
 /**
  * Wayl's word for what happened, in ours.
  *
- * PROVISIONAL. The lists in config.js are what a first real payment is
- * for: until one has been made and its exact values written down,
- * anything not on them is 'pending', which is the state that costs
- * nobody anything.
+ * "Created" is documented and confirmed: it is what a link says until
+ * somebody pays, and it means nothing has happened yet. The paid,
+ * failed and cancelled lists are still provisional, which is why the
+ * last line is the important one — anything this file does not
+ * recognise is 'pending', the state that costs nobody anything. A
+ * status invented tomorrow, a typo, an empty string and a value from
+ * a Wayl release we have not read all land there.
  */
 export function mapStatus(raw) {
   const value = String(raw ?? '').trim().toLowerCase();
   if (!value) return 'pending';
+  if (WAYL.pendingStatuses.includes(value)) return 'pending';
   if (WAYL.paidStatuses.includes(value)) return 'paid';
   if (WAYL.cancelledStatuses.includes(value)) return 'cancelled';
   if (WAYL.failedStatuses.includes(value)) return 'failed';
@@ -184,23 +191,23 @@ export function mapStatus(raw) {
    the signature
    ============================================================ */
 
-const base64 = (bytes) => btoa(String.fromCharCode(...bytes));
-
 /**
  * Is this webhook really from Wayl?
  *
  * HMAC-SHA256 of the exact bytes that arrived, keyed with this
- * payment's own secret. The body is not parsed until this passes — a
+ * payment's own secret, hex encoded — the encoding Wayl documents for
+ * x-wayl-signature-256. The body is not parsed until this passes: a
  * forged body must not reach a JSON parser, let alone a decision.
  *
- * Hex and base64 are both accepted, and an optional `sha256=` prefix
- * is stripped, because the encoding is not something to be wrong about
- * on the first real payment. The comparison is constant time either
- * way.
+ * A `sha256=` prefix is stripped if one turns up. It is not in the
+ * documentation and it cannot make a wrong signature right; it only
+ * means a header written that way is read rather than silently
+ * refused. The comparison itself is constant time.
  */
 export async function signatureValid(secret, rawBody, header) {
-  const sent = String(header ?? '').trim().replace(/^sha256=/i, '');
-  if (!secret || !sent) return false;
+  const sent = String(header ?? '').trim().replace(/^sha256=/i, '').toLowerCase();
+  // 32 bytes of SHA-256, hex. Anything else is not a signature.
+  if (!secret || !/^[0-9a-f]{64}$/.test(sent)) return false;
 
   const key = await crypto.subtle.importKey(
     'raw',
@@ -213,5 +220,5 @@ export async function signatureValid(secret, rawBody, header) {
     await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(rawBody)),
   );
 
-  return secretsMatch(sent.toLowerCase(), hex(mac)) || secretsMatch(sent, base64(mac));
+  return secretsMatch(sent, hex(mac));
 }

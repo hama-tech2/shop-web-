@@ -1,11 +1,11 @@
 import {
   APP_NAME, FIB_NUMBER, PLANS, SUBSCRIPTION as T, SUPPORT_WHATSAPP,
-  TRIAL_PRODUCT_LIMIT, UI,
+  TRIAL_DAYS, TRIAL_PRODUCT_LIMIT, UI,
 } from '../config.js';
 import { esc, price } from './html.js';
 import { bottomNav } from './appshell.js';
 import { planState } from '../plan-state.js';
-import { iconBack, iconCheck, iconCopy, iconGift, iconLink, iconShield, iconStore, iconWhatsapp } from './icons.js';
+import { iconBack, iconCheck, iconCopy, iconLink, iconShield, iconStore } from './icons.js';
 
 /** 2026/09/06 — Latin digits, isolated so the slashes do not flip. */
 function formatDate(iso) {
@@ -21,6 +21,7 @@ const ltr = (value) => `<span dir="ltr">${esc(value)}</span>`;
 /** One line naming where the seller stands. */
 function statusLine(plan, state) {
   switch (plan.key) {
+    case 'none': return T.warnNone;
     case 'pending': return T.statePending;
     case 'grace': return T.stateGrace(plan.days);
     case 'expired': return T.stateExpired;
@@ -56,13 +57,19 @@ function copyRow(label, value, id) {
 const planName = (p) => p.key === 'year_1' ? '1 ساڵ' : '6 مانگ';
 const monthly = (p) => `<bdi>${esc(price(p.monthly))} د.ع</bdi> مانگانە`;
 const amount = (p) => `<span class="billing-amount"><bdi>${esc(price(p.amount))}</bdi> <span>د.ع</span></span>`;
-const bestBadge = (p) => p.best ? `<span class="billing-best">${esc(T.best)}</span>` : '';
+const bestBadge = (p) => p.best ? `<span class="billing-best">باشترین هەڵبژاردە</span>` : '';
 const billingHeader = (title, back) =>
   `<header class="billing-head"><a class="icon-btn" href="${esc(back)}" aria-label="گەڕانەوە">${iconBack()}</a>` +
   `<h1>${esc(title)}</h1><span></span></header>`;
 const trust = () => `<p class="billing-trust">${iconShield(18)}<span>پارەدان بە سەلامەتی لەڕێی <bdi>Wayl</bdi></span></p>` +
   `<p class="billing-safety">${esc(APP_NAME)} هیچ <bdi>PIN</bdi>، <bdi>OTP</bdi> یان ژمارەی کارت وەرناگرێت</p>`;
 const availability = 'پارەدانی ئۆنلاین هێشتا چالاک نەکراوە. هیچ پارەیەک لێت وەرناگیرێت.';
+const hostedTrust = () => `<p class="billing-trust">${iconShield(18)}<span>پارەدانێکی پارێزراو لەڕێی <bdi>Wayl</bdi></span></p>`;
+const paidOptions = () => PLANS.slice().sort((a, b) => Number(a.best) - Number(b.best));
+const defaultPlan = () => (PLANS.find((p) => p.best) || PLANS[0]).key;
+const storefrontHeader = (title, subtitle, back) =>
+  `<header class="billing-intro"><div class="billing-brand"><a class="icon-btn" href="${esc(back)}" aria-label="گەڕانەوە">${iconBack()}</a>` +
+  `<span>${esc(APP_NAME)}</span><span></span></div><h1>${esc(title)}</h1><p>${esc(subtitle)}</p></header>`;
 
 /**
  * `paymentsEnabled` is the server's word, never the browser's. When it
@@ -74,43 +81,90 @@ const availability = 'پارەدانی ئۆنلاین هێشتا چالاک نە
 export function subscriptionPage({ state, selected, intent, payments = [], error, paymentsEnabled = false }) {
   const plan = state ? planState(state, Boolean(intent && intent.status === 'pending')) : null;
   const key = state?.status === 'suspended' ? 'suspended' : plan?.key;
-  const ordered = PLANS.slice().sort((a, b) => Number(b.best) - Number(a.best));
-  const chosen = PLANS.some((p) => p.key === selected) ? selected : ordered[0].key;
-  const features = [
-    ['تا 1000 بەرهەم', iconCheck()], // products_limit_1000, unchanged.
-    ['پرۆفایلی گشتی دوکان', iconStore(20)],
-    ['لینکی دوکان بۆ بیۆی تۆڕە کۆمەڵایەتییەکان', iconLink(20)],
-    ...(SUPPORT_WHATSAPP ? [['پشتیوانی', iconWhatsapp(20)]] : []),
-  ];
+  const chosen = PLANS.some((p) => p.key === selected) ? selected : defaultPlan();
+  const hasTime = ['trial', 'active'].includes(key) && plan.days > 0;
+  const currentName = state?.plan === 'trial' ? '30 ڕۆژ بەخۆڕایی'
+    : PLANS.find((p) => p.key === state?.plan);
+  const currentLabel = typeof currentName === 'string' ? currentName : currentName ? planName(currentName) : '';
   return `<main class="shell billing billing--plans">` +
-    billingHeader(T.title, '/app#account-settings') +
+    storefrontHeader('نوێکردنەوەی پلان', 'پلانێک هەڵبژێرە بۆ بەردەوامبوون', '/app#account-settings') +
     `<div class="billing-state"${key ? ` data-plan-state="${esc(key)}" data-plan-days="${plan?.days ?? 0}"` : ''}>` +
-    `<span class="billing-state__icon">${iconGift(24)}</span><div>` +
-    `<p>${esc(!state ? 'وردەکاری پلان لە ئێستادا بەردەست نییە.' : key === 'suspended' ? 'بەشداریکردنەکەت ناچالاکە' : statusLine(plan, state))}</p>` +
-    (state?.plan === 'trial' ? `<small>تا ${TRIAL_PRODUCT_LIMIT} بەرهەم لە مانگی بەخۆڕاییدا</small>` : '') + `</div></div>` +
+    `<p class="billing-state__label">پلانی ئێستا</p>` +
+    (currentLabel ? `<h2>${esc(currentLabel)}</h2>` : '') +
+    `<p>${esc(!state ? 'وردەکاری پلان لە ئێستادا بەردەست نییە.' : key === 'suspended' ? 'بەشداریکردنەکەت ناچالاکە'
+      : hasTime ? `${plan.days} ڕۆژ ماوە` : statusLine(plan, state))}</p>` +
+    (hasTime ? `<p class="billing-renewal-note">ماوەی پلانی نوێ دوای کۆتایی ماوەی ئێستات دەست پێ دەکات.</p>` : '') + `</div>` +
     (error ? `<p class="alert alert--error" role="alert">${esc(error)}</p>` : '') +
     `<form method="${paymentsEnabled ? 'post' : 'get'}" ` +
     `action="${paymentsEnabled ? '/app/subscription/checkout' : '/app/subscription'}" ` +
     `id="plan-form" data-native-plans>` +
     (paymentsEnabled ? '' : `<input type="hidden" name="step" value="checkout">`) +
     `<fieldset class="billing-options"><legend class="visually-hidden">پلانێک هەڵبژێرە</legend>` +
-    ordered.map((p) => planCard(p, chosen)).join('') + `</fieldset>` +
-    `<section class="billing-features" aria-labelledby="billing-features-title"><h2 id="billing-features-title">چی لە پلانەکە دەستدەکەوێت؟</h2><ul>` +
-    features.map(([text, icon]) => `<li><span class="billing-feature-icon">${icon}</span><span>${text}</span></li>`).join('') +
-    `</ul></section><button class="billing-primary" type="submit" id="pay-btn">بەردەوام بە پارەدان</button>` +
-    trust() + (paymentsEnabled ? '' : `<p class="billing-availability">${availability}</p>`) + `</form>` +
+    paidOptions().map((p) => planCard(p, chosen)).join('') + `</fieldset>` +
+    `<button class="billing-primary" type="submit" id="pay-btn">بەردەوامبوون بۆ پارەدان ${iconBack(20)}</button>` +
+    hostedTrust() + (paymentsEnabled ? '' : `<p class="billing-availability">${availability}</p>`) + `</form>` +
     // Historical records stay available; no SW code or manual-payment entry CTA.
     `<details class="billing-history"><summary>${esc(T.historyTitle)}</summary>${paymentHistory(payments)}</details>` +
     `</main>` + bottomNav('account', { accountLabel: 'هەژمار' });
 }
 
-function planCard(plan, selected) {
-  return `<label class="billing-choice billing-plan" data-plan="${esc(plan.key)}">` +
-    `<input type="radio" name="plan" value="${esc(plan.key)}"${plan.key === selected ? ' checked' : ''} required>` +
+function planCard(plan, selected, gate = false) {
+  return `<label class="billing-choice billing-plan${gate ? ' gate-plan' : ''}" data-plan="${esc(plan.key)}">` +
+    `<input type="radio" name="${gate ? 'gate-plan' : 'plan'}" value="${esc(plan.key)}"${plan.key === selected ? ' checked' : ''} required>` +
     `<span class="billing-choice__surface"><span class="billing-plan__top">` +
     `<span class="billing-plan__name">${planName(plan)}</span>${bestBadge(plan)}</span>` +
     `<span class="billing-plan__bottom"><span>${amount(plan)}<span class="billing-monthly">${monthly(plan)}</span></span>` +
     `<span class="billing-radio" aria-hidden="true"></span></span></span></label>`;
+}
+
+/* ============================================================
+   the access screen
+   ============================================================ */
+
+/**
+ * What a seller sees the first time they try to post a product without
+ * a plan.
+ *
+ * Three ways forward and no way past: the free month, six months, or a
+ * year. Reading this screen starts nothing — the trial begins on a POST
+ * the seller makes, and the two paid options go where every payment
+ * goes, to Wayl.
+ *
+ * `trialAvailable` is the server's word, from subscription_state. A
+ * seller who has had their month is told so plainly rather than being
+ * shown a button that would be refused.
+ */
+export function accessGatePage({ trialAvailable = false, error = null, back = '/app/products' }) {
+  const chosen = trialAvailable ? 'trial' : defaultPlan();
+  const trial = trialAvailable
+    ? `<label class="billing-choice billing-plan gate-plan gate-trial" data-plan="trial">` +
+      `<input type="radio" name="gate-plan" value="trial" checked required>` +
+      `<span class="billing-choice__surface"><span class="billing-plan__top">` +
+      `<span class="billing-plan__name">${TRIAL_DAYS} ڕۆژ بەخۆڕایی</span></span>` +
+      `<span class="billing-plan__bottom"><span>${amount({ amount: 0 })}<span class="billing-monthly">بێ پارەدان دەست پێ بکە</span></span>` +
+      `<span class="billing-radio" aria-hidden="true"></span></span>` +
+      `<span class="gate-trial__explanation">لە ماوەی تاقیکردنەوەدا دەتوانیت تا ${TRIAL_PRODUCT_LIMIT} بەرهەم بڵاو بکەیت. تەنها یەک جار بۆ هەر هەژمارێک.</span>` +
+      `</span></label>` : '';
+  const features = [['بڵاوکردنەوەی بەرهەم', iconCheck(20)], ['پرۆفایلی گشتی دوکان', iconStore(20)], ['بەستەری دوکان بۆ هاوبەشکردن', iconLink(20)]];
+  return `<main class="shell billing billing--gate">` +
+    storefrontHeader('بەرهەمەکانت بڵاو بکەرەوە', 'یەکێک لەم هەڵبژاردانە هەڵبژێرە بۆ دەستپێکردن', back) +
+    (error ? `<p class="alert alert--error" role="alert">${esc(error)}</p>` : '') +
+    (trialAvailable ? '' : `<p class="alert alert--wait" role="status">${esc(T.gateTrialUsed)}</p>`) +
+    `<fieldset class="billing-options" id="gate-options"><legend class="visually-hidden">پلانێک هەڵبژێرە</legend>` +
+    trial + paidOptions().map((p) => planCard(p, chosen, true)).join('') + `</fieldset>` +
+    `<section class="billing-features" aria-labelledby="billing-features-title"><h2 id="billing-features-title">لە هەموو پلانەکاندا</h2><ul>` +
+    features.map(([label, icon]) => `<li><span class="billing-feature-icon">${icon}</span><span>${label}</span></li>`).join('') + `</ul></section>` +
+    // Native radios reveal exactly one existing POST form. Selection never writes,
+    // and paid choices cannot accidentally start the trial when JS is unavailable.
+    `<div class="gate-actions">` +
+    (trialAvailable ? `<form method="post" action="/app/subscription/trial" data-choice="trial">` +
+      `<button class="billing-primary" type="submit" id="start-trial">دەستپێکردنی ${TRIAL_DAYS} ڕۆژ بەخۆڕایی ${iconBack(20)}</button>` +
+      `<p class="billing-availability">دواتر دەتوانیت پلانێکی پارەدراو هەڵبژێریت</p></form>` : '') +
+    paidOptions().map((p) => `<form method="post" action="/app/subscription/checkout" data-choice="${esc(p.key)}">` +
+      `<input type="hidden" name="plan" value="${esc(p.key)}">` +
+      `<button class="billing-primary" type="submit" aria-label="بەردەوامبوون بۆ پارەدان — ${planName(p)}">بەردەوامبوون بۆ پارەدان ${iconBack(20)}</button>` +
+      hostedTrust() + `</form>`).join('') + `</div>` +
+    `</main>` + bottomNav('account', { accountLabel: 'هەژمار' });
 }
 
 /** A read-only method chooser. No provider session, reference or payment is made. */

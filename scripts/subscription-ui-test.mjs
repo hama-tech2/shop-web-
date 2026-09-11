@@ -47,7 +47,8 @@ try {
     check('trial is real RPC state ' + width, await page.locator('.billing-state').getAttribute('data-plan-state') === 'trial');
     check('trial days are real ' + width, await page.locator('.billing-state').getAttribute('data-plan-days') === '20');
     check('prices and monthly equivalents ' + width, (await page.locator('[data-plan="year_1"]').innerText()).includes('90,000') && (await page.locator('[data-plan="year_1"]').innerText()).includes('7,500') && (await page.locator('[data-plan="months_6"]').innerText()).includes('55,000') && (await page.locator('[data-plan="months_6"]').innerText()).includes('9,200'));
-    check('1000 product cap ' + width, (await page.locator('.billing-features').innerText()).includes('تا 1000 بەرهەم'));
+    check('renewal has no duplicate feature block ' + width, await page.locator('.billing-features').count() === 0);
+    check('early renewal preserves remaining time ' + width, await page.locator('.billing-renewal-note').isVisible());
     check('Plans RTL without overflow ' + width, await noOverflow() && await page.locator('html').getAttribute('dir') === 'rtl');
     const before = await position('.billing-options');
     for (const key of ['months_6', 'year_1', 'months_6']) {
@@ -58,6 +59,8 @@ try {
     await page.waitForTimeout(220);
     check('no plan layout or scroll jump ' + width, JSON.stringify(await position('.billing-options')) === JSON.stringify(before));
     check('3 existing navigation destinations ' + width, JSON.stringify(await page.locator('.nav a').evaluateAll((as) => as.map((a) => a.getAttribute('href')))) === JSON.stringify(['/','/saved','/app']));
+    await page.evaluate(() => scrollTo(0, document.body.scrollHeight));
+    check('Plans footer clears bottom navigation ' + width, await page.locator('.billing-history summary').evaluate((el) => el.getBoundingClientRect().bottom <= document.querySelector('.nav').getBoundingClientRect().top));
     await page.screenshot({ path: join(screenshots, 'plans-' + width + '.png'), fullPage: true });
     await page.locator('#pay-btn').click();
     await page.waitForURL('**/app/subscription?**');

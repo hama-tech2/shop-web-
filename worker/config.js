@@ -387,6 +387,33 @@ export const SUBSCRIPTION = {
   pay: 'پارەدان',
   payVia: 'پارەدان لە ڕێگەی FIB',
 
+  // ---- the access screen, shown when a seller with no plan tries to
+  // post their first product. Looking at it starts nothing. ----
+  gateTitle: 'بۆ زیادکردنی بەرهەم پلانێک هەڵبژێرە',
+  gateBody: 'دەتوانیت بە مانگی بەخۆڕایی دەست پێ بکەیت، یان یەکسەر پلانێک بکڕیت.',
+  gateTrialTitle: (n) => `${n} ڕۆژ بەخۆڕایی`,
+  gateTrialBody: (n) => `تا ${n} بەرهەم لە ماوەی تاقیکردنەوەدا. هیچ پارەیەک وەرناگیرێت.`,
+  gateTrialAction: 'دەستپێکردنی ماوەی بەخۆڕایی',
+  gateTrialOnce: 'ماوەی بەخۆڕایی تەنها یەک جار بەردەستە بۆ هەر هەژمارێک.',
+  gateTrialUsed: 'ماوەی بەخۆڕاییت بەکارهێنراوە. بۆ بەردەوامبوون پلانێک هەڵبژێرە.',
+  gatePlans: 'پلانەکان',
+  gateBack: 'گەڕانەوە',
+
+  // ---- what the Account card says as the end approaches ----
+  warnSoon: (n) => `${n} ڕۆژ لە پلانەکەت ماوە.`,
+  warnUrgent: (n) => `تەنها ${n} ڕۆژ ماوە.`,
+  warnLast: 'سبەی پلانەکەت تەواو دەبێت.',
+  warnExpired: 'پلانەکەت تەواو بووە. ناتوانیت بەرهەمی نوێ زیاد بکەیت.',
+  warnNone: 'هێشتا پلانێکت نییە.',
+  warnAction: 'نوێکردنەوە / بینینی پلانەکان',
+  // Renewal is a payment the seller makes, every time. Nothing here
+  // renews by itself and nothing may say that it does.
+  renewManual: 'نوێکردنەوە دەستییە: کاتێک پلانەکە تەواو دەبێت خۆت پارەکە دەدەیتەوە.',
+
+  errTrial: 'دەستپێکردنی ماوەی بەخۆڕایی سەرکەوتوو نەبوو. تکایە دووبارە هەوڵ بدەوە.',
+  errTrialUsed: 'ماوەی بەخۆڕایی پێشتر بەکارهێنراوە.',
+  errTrialActive: 'پلانێکی چالاکت هەیە.',
+
   // ---- the instructions screen ----
   payTitle: 'ڕێنمایی پارەدان',
   payPlan: 'پلان',
@@ -472,6 +499,17 @@ export const FIB_NUMBER = '07515298365';
 export const TRIAL_PRODUCT_LIMIT = 5;
 
 /**
+ * How long the free trial runs, in days.
+ *
+ * A trial is chosen, not given: a new shop has no plan at all, and this
+ * clock starts when the seller taps the button on the access screen and
+ * the server writes it down. app.trial_days() in the database is the
+ * same number and is what actually sets the date;
+ * scripts/plan-limits-test.mjs fails if the two drift apart.
+ */
+export const TRIAL_DAYS = 30;
+
+/**
  * Renewal banners on the seller's own screens.
  *
  * The two amber ones can be closed and come back on their own; the two
@@ -534,14 +572,38 @@ export const WAYL = {
   currency: 'IQD',
 
   /**
-   * PROVISIONAL, and the reason the manual test on a real phone comes
-   * before this flow is switched on. Anything not on one of these
-   * lists is treated as still in progress — never as paid, never as
-   * failed. See worker/wayl.js mapStatus.
+   * Confirmed against Wayl's documentation and a real test link:
+   *
+   *   status         "Created" until the payment is attempted
+   *   paymentMethod  null until Wayl has one to report
+   *   unknown status treated as still in progress, never as a verdict
+   *
+   * The other three lists are still PROVISIONAL. What a completed
+   * payment and a refused one actually report has not been seen yet,
+   * and must not be guessed: a wrong entry here is either a plan
+   * granted for nothing, or a seller told their money is gone. Only a
+   * finished test payment settles them. See worker/wayl.js mapStatus.
    */
+  pendingStatuses: ['created'],
   paidStatuses: ['paid', 'success', 'successful', 'completed', 'complete'],
   failedStatuses: ['failed', 'failure', 'declined', 'rejected', 'error', 'expired'],
   cancelledStatuses: ['cancelled', 'canceled'],
+
+  /**
+   * The webhook signature, per Wayl's documentation: the header
+   * x-wayl-signature-256 carries an HMAC-SHA256 of the raw body, keyed
+   * with the webhookSecret sent when the link was made, hex encoded.
+   */
+  signatureHeader: 'x-wayl-signature-256',
+
+  /**
+   * A checkout link lives an hour ("linkExpiresIn": "1h"). A seller who
+   * taps Pay again inside this window is sent back to the link they
+   * already have rather than being given a second one; the window is
+   * deliberately well inside the hour, so a reused link is never one
+   * that is about to lapse under them.
+   */
+  reuseMinutes: 25,
 
   statusKeys: ['paymentStatus', 'status', 'state', 'linkStatus'],
   referenceKeys: ['referenceId', 'reference_id', 'reference'],
@@ -670,10 +732,16 @@ export const REPORT_REASONS = {
 
 /** Plan keys as they appear in the database. */
 export const PLAN_LABEL = {
+  none: 'بێ پلان',
   trial: 'بەخۆڕایی',
+  // Never sold. The owner grants it by hand from /admin.
+  month_1: '١ مانگ',
   months_6: '٦ مانگ',
   year_1: '١ ساڵ',
 };
+
+/** Plans an admin may grant. month_1 is grant-only and has no price. */
+export const GRANT_PLANS = ['month_1', 'months_6', 'year_1'];
 
 
 /** /search — the shared search screen. */

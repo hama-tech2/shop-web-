@@ -7,7 +7,7 @@
  */
 
 import {
-  ADMIN as A, CITY_LABEL, PLAN_LABEL, REPORT_REASONS, UI,
+  ADMIN as A, CITY_LABEL, GRANT_PLANS, PLAN_LABEL, REPORT_REASONS, UI,
 } from '../config.js';
 import { esc, price } from './html.js';
 
@@ -249,7 +249,7 @@ export function adminGrant({ shop, sub, plan = '', reason = '', review, proof, e
       `<label class="field__label" for="grant-plan">پلان</label>` +
       `<select class="field__input" id="grant-plan" name="plan" required>` +
       `<option value="">پلانێک هەڵبژێرە</option>` +
-      ['months_6', 'year_1'].map((p) => `<option value="${p}"${p === plan ? ' selected' : ''}>${esc(PLAN_LABEL[p])}</option>`).join('') +
+      GRANT_PLANS.map((p) => `<option value="${p}"${p === plan ? ' selected' : ''}>${esc(PLAN_LABEL[p])}</option>`).join('') +
       `</select><label class="field__label" for="grant-reason">هۆکاری بەخشین (پێویستە)</label>` +
       `<textarea class="field__input field__input--area" id="grant-reason" name="reason" maxlength="500" required>${esc(reason)}</textarea>` +
       `<p class="field__hint">بەخشینی بەخۆڕاییە؛ وەک پارەدان تۆمار ناکرێت.</p>` +
