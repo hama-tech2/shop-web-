@@ -569,7 +569,11 @@ async function loadPayments(env, token, shopId) {
   return res.ok ? res.data ?? [] : [];
 }
 
-const subPage = (body, headers) => page(body, S.title, headers, ['/js/account.js']);
+// The checkout screens carry one extra script: the dinar figure that
+// follows the selected plan, and the guard against a second tap while
+// the first is still on its way to Wayl.
+const subPage = (body, headers) =>
+  page(body, S.title, headers, ['/js/account.js', '/js/checkout.js']);
 
 export async function subscriptionGet(request, env, url) {
   const g = await guard(request, env, '/app/subscription');

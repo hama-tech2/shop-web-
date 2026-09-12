@@ -4,9 +4,15 @@
  * APP_NAME is the placeholder brand. It appears in the header, the page
  * title and the OG tags — change it HERE and nowhere else.
  */
-export const APP_NAME = 'بازاڕ';
+export const APP_NAME = 'بازاڕۆ';
 
-export const APP_TAGLINE = 'بازاڕی هەولێر';
+/**
+ * The one line under the name. Deliberately not a place: Bazaro is not
+ * an Erbil-only product, and a city in the tagline tells a seller in
+ * Sulaymaniyah or Duhok that it is not for them. It says what the app
+ * does instead — one link that is the whole shop.
+ */
+export const APP_TAGLINE = 'دوکانەکەت لە یەک بەستەردا';
 
 /** Products per page. The feed asks for one extra to know if more exist. */
 export const PAGE_SIZE = 6;
@@ -209,7 +215,7 @@ export const PRODUCT = {
     `لە پلانی بەخۆڕاییدا تا ${max} بەرهەم لە هەژمارەکەتدا دەتوانیت هەبێت. ` +
     'بۆ زیادکردنی بەرهەمێکی نوێ، یەکێک بسڕەوە یان پلانێک بکڕە. بەرهەمە ئێستاکانت پارێزراون.',
   trialLimitAction: 'بینینی پلانەکان',
-  trialLeft: (n, max) => `${n} لە ${max} شوێنی پلانی بەخۆڕاییت ماوە. بێ سنووری کات.`,
+  trialLeft: (n, max) => `${n} لە ${max} شوێنی پلانی بەخۆڕاییت ماوە.`,
 
   emptyTitle: 'هێشتا هیچ بەرهەمێکت نییە',
   emptyBody: 'یەکەم بەرهەمت زیاد بکە و لینکەکەت بڵاوبکەرەوە.',
@@ -367,8 +373,8 @@ export const SUBSCRIPTION = {
 
   // The five states a seller can be in. Only trial, pending and active
   // are stored; grace and expired are read off the expiry date.
-  stateTrial: () => 'پلانی بەخۆڕایی، بێ سنووری کات',
-  stateTrialLast: 'پلانی بەخۆڕایی، بێ سنووری کات',
+  stateTrial: () => 'پلانی بەخۆڕایی',
+  stateTrialLast: 'پلانی بەخۆڕایی',
   statePending: 'چاوەڕوانی پشتڕاستکردنەوە',
   stateActive: (d) => `چالاکە تا ${d}`,
   stateGrace: (n) => `بەسەرچووە — ${n} ڕۆژ ماوە پێش شاردنەوەی بەرهەمەکان`,
@@ -376,12 +382,23 @@ export const SUBSCRIPTION = {
 
   best: 'باشترین نرخ',
   perMonth: (n) => `${n} مانگانە`,
+
+  /**
+   * What the seller is about to be charged, said on the button that
+   * takes them to Wayl.
+   *
+   * The plans are talked about in dollars and paid in dinars, so the
+   * dinar figure has to be on the screen BEFORE they leave — nobody
+   * should meet a number for the first time on somebody else's site.
+   */
+  chargeNotice: (iqd) => `${iqd} د.ع لە Wayl دەدەیت`,
+  priceUsdNote: (usd) => `نزیکەی $${usd}`,
   savings: 'لە بەرامبەر ٦ مانگ پاشەکەوت دەکەیت',
 
   // The free month, named at the bottom of the plans, small. It is
   // what a seller is already on, not something to sell them.
   freeTitle: 'پلانی بەخۆڕایی',
-  freeBody: (n) => `تا ${n} بەرهەم، بێ سنووری کات.`,
+  freeBody: (n) => `تا ${n} بەرهەم.`,
 
   whatYouGet: 'چی وەردەگریت',
   benefits: [
@@ -411,9 +428,9 @@ export const SUBSCRIPTION = {
   gateTitle: 'بۆ زیادکردنی بەرهەم پلانێک هەڵبژێرە',
   gateBody: 'بەخۆڕایی بەردەوام بە، یان پلانێکی پارەدراو هەڵبژێرە.',
   gateTrialTitle: () => 'پلانی بەخۆڕایی',
-  gateTrialBody: (n) => `تا ${n} بەرهەم، بێ سنووری کات. هیچ پارەیەک وەرناگیرێت.`,
+  gateTrialBody: (n) => `تا ${n} بەرهەم. هیچ پارەیەک وەرناگیرێت.`,
   gateTrialAction: 'بەردەوامبوون بەخۆڕایی',
-  gateTrialOnce: 'پلانی بەخۆڕایی بێ سنووری کاتە.',
+  gateTrialOnce: 'پلانی بەخۆڕایی.',
   gateTrialUsed: 'پلانی بەخۆڕایی پڕە. بەرهەمێک بسڕەوە یان پلانێک بکڕە.',
   gatePlans: 'پلانەکان',
   gateBack: 'گەڕانەوە',
@@ -581,9 +598,22 @@ export const PLAN_BANNER = {
 };
 
 /** Advertised prices. The monthly figure is display only. */
+/**
+ * The two plans, and what each costs.
+ *
+ * `amount` is IQD and is what the seller is actually charged. It is
+ * display only: app.plan_price() in the database is authoritative, the
+ * browser never sends an amount, and wayl_apply_payment re-derives the
+ * price before a single day is added. scripts/plan-limits-test.mjs
+ * fails if these two numbers drift from the database.
+ *
+ * `usd` is the round number the plan is talked about in. It is never
+ * charged and never sent to Wayl — the seller pays IQD, and the IQD
+ * figure is on the button before they leave for Wayl.
+ */
 export const PLANS = [
-  { key: 'year_1',   name: '١ ساڵ', amount: 90000, monthly: 7500, best: true  },
-  { key: 'months_6', name: '٦ مانگ', amount: 55000, monthly: 9200, best: false },
+  { key: 'year_1',   name: '١ ساڵ', amount: 72000, monthly: 6000, usd: 55, best: true  },
+  { key: 'months_6', name: '٦ مانگ', amount: 38000, monthly: 6300, usd: 29, best: false },
 ];
 
 /**

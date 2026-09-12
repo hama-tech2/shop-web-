@@ -124,7 +124,9 @@ try {
         await view.locator('#account-settings .plan-banner, .settings-plan__limit').count() === 0 && !/تا \d+ بەرهەم|Wayl|FIB|PIN|OTP/.test(await view.locator('.settings-plan').innerText()));
       check('real expiry only ' + key + width, await view.locator('.settings-plan time').count() === (state?.expires_at && state?.tier !== 'free' ? 1 : 0));
       if (key === 'free') {
-        check('permanent Free has no date/countdown ' + width, (await view.locator('.settings-plan').innerText()).includes('بێ سنووری کات') && !/ڕۆژ ماوە|کۆتایی/.test(await view.locator('.settings-plan').innerText()));
+        // Free carries no clock at all now: not a countdown, and not a
+        // line about there being no countdown either.
+        check('permanent Free has no date/countdown ' + width, (await view.locator('.settings-plan').innerText()).includes('بەخۆڕایی') && !/ڕۆژ ماوە|کۆتایی|سنووری کات/.test(await view.locator('.settings-plan').innerText()));
         check('Latin phone digits ' + width, !/[٠-٩۰-۹]/.test(await view.locator('.settings-identity').innerText()));
         await view.evaluate(() => document.fonts.ready);
         await view.evaluate(() => scrollTo(0, document.body.scrollHeight));

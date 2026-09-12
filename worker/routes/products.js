@@ -35,16 +35,22 @@ const PRODUCT_SELECT =
   'id,title,price,description,status,platform_category_id,category_id,created_at,' +
   'product_images(r2_key,r2_key_full,position)';
 
-function page(body, title, headers) {
+function page(body, title, headers, scripts = ['/js/crop.js', '/js/product.js']) {
   const h = new Headers(headers || undefined);
   h.set('content-type', 'text/html; charset=utf-8');
   h.set('cache-control', 'no-store');
   return new Response(
-    layout({ title: `${title} — ${APP_NAME}`, description: APP_NAME, body,
-             scripts: ['/js/crop.js', '/js/product.js'] }),
+    layout({ title: `${title} — ${APP_NAME}`, description: APP_NAME, body, scripts }),
     { headers: h },
   );
 }
+
+/**
+ * The plan gate, which is a billing screen that happens to be reached
+ * from here. It wants the checkout script — the dinar figure and the
+ * guard against a second tap — not the cropper.
+ */
+const gatePage = (body, headers) => page(body, S.gateTitle, headers, ['/js/checkout.js']);
 
 /** Every route here needs a signed-in seller who owns a shop. */
 async function guard(request, env) {
@@ -347,13 +353,13 @@ export async function newGet(request, env, url) {
   const { tier, canPublish, slotsLeft } = await entitlement(env, g.token, g.shop.id);
   const chosenFree = url?.searchParams?.get('plan') === 'free';
   if (tier !== 'paid' && (!canPublish || !chosenFree)) {
-    return page(
+    return gatePage(
       accessGatePage({
         trialAvailable: canPublish,
         slotsLeft,
         error: canPublish ? null : S.freeFull(FREE_PRODUCT_LIMIT),
       }),
-      S.gateTitle, g.headers,
+      g.headers,
     );
   }
 
@@ -388,9 +394,9 @@ export async function newPost(request, env) {
   // went, in another tab or on another phone, must not post through it.
   const { tier, canPublish, slotsLeft } = await entitlement(env, g.token, g.shop.id);
   if (!canPublish) {
-    return page(
+    return gatePage(
       accessGatePage({ trialAvailable: false, error: S.freeFull(FREE_PRODUCT_LIMIT) }),
-      S.gateTitle, g.headers,
+      g.headers,
     );
   }
 
@@ -434,8 +440,8 @@ export async function newPost(request, env) {
     // tab, a slot used between the check and the insert, or a suspension
     // that landed in between.
     if (SUSPENDED(created)) {
-      return page(accessGatePage({ trialAvailable: false, error: S.errSuspended }),
-                  S.gateTitle, g.headers);
+      return gatePage(accessGatePage({ trialAvailable: false, error: S.errSuspended }),
+                      g.headers);
     }
     if (FREE_FULL(created)) {
       return page(trialLimitPage(), T.trialLimitTitle, g.headers);

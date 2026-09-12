@@ -26,7 +26,19 @@
 import { createHmac } from 'node:crypto';
 import { mapStatus, signatureValid } from '../worker/wayl.js';
 import { returnUrl } from '../worker/routes/payment.js';
-import { FIB_NUMBER } from '../worker/config.js';
+import { FIB_NUMBER, PLANS } from '../worker/config.js';
+
+/**
+ * The prices, read from config rather than written here.
+ *
+ * The database is authoritative and config carries the same two
+ * numbers for display; scripts/plan-limits-test.mjs is what proves
+ * they agree. Repeating them a third time in this file only meant
+ * that changing a price broke twenty assertions about something else.
+ */
+const YEAR = PLANS.find((p) => p.key === 'year_1').amount;
+const SIX = PLANS.find((p) => p.key === 'months_6').amount;
+const grouped = (n) => String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
 
 const APP = process.argv.find((a) => a.startsWith('http')) || 'http://127.0.0.1:8810';
 const STUB = process.argv.filter((a) => a.startsWith('http'))[1] || 'http://127.0.0.1:8899';
@@ -179,7 +191,8 @@ if (PAYMENTS_OFF) {
 const plans = await page('/app/subscription');
 check('the plan form posts to checkout',
   plans.includes('action="/app/subscription/checkout"') && plans.includes('method="post"'));
-check('both prices are still server-side', plans.includes('90,000') && plans.includes('55,000'));
+check('both prices are still server-side',
+  plans.includes(grouped(YEAR)) && plans.includes(grouped(SIX)));
 check('no payment method is offered here',
   !plans.includes('payment-method-form') && !plans.includes('SuperQi'));
 // The two dormant flows. Both still exist in the tree on purpose; what
@@ -202,11 +215,11 @@ const link = state.created[0];
 check('the seller is sent to Wayl', [started.status, started.location],
   [303, `https://checkout.thewayl.test/pay/${link?.referenceId}`]);
 check('exactly one link was created', state.created.length, 1);
-check('the amount is the plan price', link?.total, 90000);
+check('the amount is the plan price', link?.total, YEAR);
 // Wayl refuses any other shape, and did: {name, quantity, price} came
 // back 422 naming label, amount and type.
 check('the line item is the shape Wayl requires',
-  link?.lineItem, [{ label: link?.lineItem?.[0]?.label, amount: 90000, type: 'increase' }]);
+  link?.lineItem, [{ label: link?.lineItem?.[0]?.label, amount: YEAR, type: 'increase' }]);
 check('the line item is labelled with the plan and the shop',
   typeof link?.lineItem?.[0]?.label === 'string' && link.lineItem[0].label.length > 0);
 check('IQD', link?.currency, 'IQD');
@@ -225,7 +238,7 @@ check('the webhook URL is on the configured origin too',
   && !link?.webhookUrl?.includes('127.0.0.1'));
 check('the intent was stored against this shop',
   [state.intent.shop_id, state.intent.plan, Number(state.intent.amount), state.intent.status],
-  ['aaaaaaaa-1111-4111-8111-111111111111', 'year_1', 90000, 'open']);
+  ['aaaaaaaa-1111-4111-8111-111111111111', 'year_1', YEAR, 'open']);
 
 const REF = link.referenceId;
 const INTENT = state.intent.id;
@@ -330,10 +343,10 @@ await control('/__wayl/total/1000');
 check('a smaller amount is not this payment', (await statusOf(REF)).body.state, 'checking');
 check('an amount mismatch grants nothing', (await waylState()).activations, 0);
 
-await control('/__wayl/total/900000');
+await control(`/__wayl/total/${YEAR * 10}`);
 check('a larger amount is not this payment either', (await statusOf(REF)).body.state, 'checking');
 
-await control(`/__wayl/total/${90000}`);
+await control(`/__wayl/total/${YEAR}`);
 await control('/__wayl/currency/USD');
 check('another currency is refused', (await statusOf(REF)).body.state, 'checking');
 check('a currency mismatch grants nothing', (await waylState()).activations, 0);
@@ -353,7 +366,7 @@ check('neither granted anything', (await waylState()).activations, 0);
 // is about to be believed by nobody.
 const event = { id: 'evt_1', referenceId: REF, status: 'paid' };
 
-const lyingBody = { id: 'evt_lie', referenceId: REF, status: 'paid', total: 90000 };
+const lyingBody = { id: 'evt_lie', referenceId: REF, status: 'paid', total: YEAR };
 check('a correctly signed webhook claiming success is accepted',
   (await webhook(INTENT, lyingBody, { secret: SIGNING })).status, 200);
 check('but the body claiming success granted nothing', (await waylState()).activations, 0);
@@ -448,7 +461,7 @@ check('status is success', paid.body.state, 'success');
 check('the expiry is the activated one', Boolean(paid.body.expiresAt));
 check('the method is the one Wayl supplied', paid.body.paymentMethod, 'FIB');
 check('polling after success grants nothing', (await waylState()).activations, 1);
-check('the amount is still the plan price', paid.body.amount, 90000);
+check('the amount is still the plan price', paid.body.amount, YEAR);
 
 const success = await page(`/app/subscription/result?ref=${REF}`);
 check('the result page is success', success.includes('data-result-state="success"'));

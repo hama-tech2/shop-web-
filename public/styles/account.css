@@ -635,7 +635,18 @@ body:has(.account-settings:target) .nav__tab[aria-current="page"] svg { fill: #E
 .billing-primary { display: flex; justify-content: center; align-items: center; gap: 5px; width: 100%; min-height: 52px; padding: 12px 16px; border: 0; border-radius: 14px; color: var(--accent-ink); background: var(--accent); font: 500 17px/1.6 var(--font-body); cursor: pointer; }
 .billing-primary:active { opacity: .9; }
 .billing-primary svg { flex: none; transform: rotate(180deg); }
+/* On its way to Wayl. Still legible, plainly not pressable again. */
+.billing-primary.is-busy, .billing-primary:disabled { opacity: .62; cursor: default; }
+/* Scrolling this into view must never park it under the fixed bottom
+   navigation. The page already clears the nav; this makes sure the one
+   button that matters is never the thing hiding behind it. */
+.billing-primary { scroll-margin-bottom: calc(var(--nav-h) + 24px + env(safe-area-inset-bottom)); }
 .billing--plans #pay-btn { margin-top: 24px; }
+/* The dinar figure, said before the seller leaves the site. */
+.billing-charge { margin: 14px 0 0; color: var(--ink); font-size: 15px; font-weight: 500; line-height: 1.7; text-align: center; }
+.billing-charge + .billing-primary { margin-top: 10px; }
+.billing--plans .billing-charge { margin-top: 24px; }
+.billing--plans .billing-charge + #pay-btn { margin-top: 10px; }
 .billing :is(a, button, summary):focus-visible, .billing-result:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
 .billing-trust { display: flex; justify-content: center; align-items: center; gap: 7px; margin: 14px 0 10px; color: var(--muted); font-size: 13px; }
 .billing-trust svg { flex: none; }
