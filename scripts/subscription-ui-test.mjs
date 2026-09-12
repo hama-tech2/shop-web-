@@ -6,10 +6,15 @@ import assert from 'node:assert/strict';
 import { chromium } from 'playwright-core';
 import { mkdir } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
+
 import { join } from 'node:path';
 import { subscriptionPage, paymentMethodPage } from '../worker/render/subscription.js';
 import { layout } from '../worker/render/layout.js';
 import { PLANS } from '../worker/config.js';
+
+/** Prices from config, so a price change does not break the layout tests. */
+const grouped = (n) => String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+const planOf = (key) => PLANS.find((p) => p.key === key);
 
 const APP = process.argv[2] || 'http://127.0.0.1:8810';
 const STUB = process.argv[3] || 'http://127.0.0.1:8899';
@@ -46,7 +51,17 @@ try {
     check('exactly two plans ' + width, await page.locator('input[name="plan"]').count() === 2);
     check('paid is real RPC state ' + width, await page.locator('.billing-state').getAttribute('data-plan-state') === 'active');
     check('paid days are real ' + width, await page.locator('.billing-state').getAttribute('data-plan-days') === '20');
-    check('prices and monthly equivalents ' + width, (await page.locator('[data-plan="year_1"]').innerText()).includes('90,000') && (await page.locator('[data-plan="year_1"]').innerText()).includes('7,500') && (await page.locator('[data-plan="months_6"]').innerText()).includes('55,000') && (await page.locator('[data-plan="months_6"]').innerText()).includes('9,200'));
+    const yearText = await page.locator('[data-plan="year_1"]').innerText();
+    const sixText = await page.locator('[data-plan="months_6"]').innerText();
+    check('prices and monthly equivalents ' + width,
+      yearText.includes(grouped(planOf('year_1').amount))
+      && yearText.includes(grouped(planOf('year_1').monthly))
+      && sixText.includes(grouped(planOf('months_6').amount))
+      && sixText.includes(grouped(planOf('months_6').monthly)));
+    // The dinar figure has to be on the screen before the seller is
+    // handed to Wayl, whatever the width.
+    check('the dinar charge is visible ' + width,
+      await page.locator('.billing-charge:not([hidden])').first().isVisible());
     check('renewal has no duplicate feature block ' + width, await page.locator('.billing-features').count() === 0);
     check('early renewal preserves remaining time ' + width, await page.locator('.billing-renewal-note').isVisible());
     check('Plans RTL without overflow ' + width, await noOverflow() && await page.locator('html').getAttribute('dir') === 'rtl');
@@ -62,12 +77,25 @@ try {
     await page.evaluate(() => scrollTo(0, document.body.scrollHeight));
     check('Plans footer clears bottom navigation ' + width, await page.locator('.billing-history summary').evaluate((el) => el.getBoundingClientRect().bottom <= document.querySelector('.nav').getBoundingClientRect().top));
     await page.screenshot({ path: join(screenshots, 'plans-' + width + '.png'), fullPage: true });
+    // With checkout on, Pay leaves for Wayl. Hold the hop at the
+    // browser so this file can say where it was going without
+    // following it off-site — and so the button's own busy state can
+    // be read at the moment it matters.
+    let wentTo = null;
+    await page.route('https://checkout.thewayl.test/**', (route) => {
+      wentTo = route.request().url();
+      return route.fulfill({ contentType: 'text/html', body: '<p>wayl</p>' });
+    });
     await page.locator('#pay-btn').click();
-    await page.waitForURL('**/app/subscription?**');
-    check('Pay stays safely on Plans ' + width, await page.locator('#plan-form').count() === 1 && await page.locator('.alert[role="alert"]').isVisible());
+    await page.waitForURL(/checkout\.thewayl\.test/, { timeout: 15000 });
+    check('Pay hands the seller to Wayl ' + width, Boolean(wentTo));
+    await page.goBack();
+    await page.waitForURL('**/app/subscription**');
+    check('and coming back leaves the button usable ' + width,
+      await page.locator('#pay-btn').isEnabled());
     check('chooser absent from active flow ' + width, await page.locator('#payment-method-form').count() === 0);
     await page.goto(APP + '/_fixture/method?plan=months_6');
-    check('selected six months carried forward ' + width, (await page.locator('.billing-summary').innerText()).includes('55,000') && !(await page.locator('.billing-summary').innerText()).includes('90,000'));
+    check('selected six months carried forward ' + width, (await page.locator('.billing-summary').innerText()).includes(grouped(planOf('months_6').amount)) && !(await page.locator('.billing-summary').innerText()).includes(grouped(planOf('year_1').amount)));
     check('six month summary has no yearly badge ' + width, await page.locator('.billing-summary .billing-best').count() === 0);
     check('two methods only ' + width, await page.locator('input[name="method"]').count() === 2);
     const methodBefore = await position('.billing-methods');
@@ -98,7 +126,7 @@ try {
   await page.goto(APP + '/app/subscription?step=method&plan=year_1');
   check('old chooser bookmark stays dormant', await page.locator('#payment-method-form').count() === 0);
   await page.goto(APP + '/_fixture/method?plan=year_1');
-  check('year summary and badge', (await page.locator('.billing-summary').innerText()).includes('90,000') && await page.locator('.billing-summary .billing-best').count() === 1);
+  check('year summary and badge', (await page.locator('.billing-summary').innerText()).includes(grouped(planOf('year_1').amount)) && await page.locator('.billing-summary .billing-best').count() === 1);
   await page.locator('input[value="fib"]').focus(); await page.keyboard.press('ArrowDown');
   check('keyboard method and CTA', await page.locator('input[value="superqi"]').isChecked() && await page.locator('#method-continue bdi').textContent() === 'SuperQi');
   for (const [plan, days, expected] of [['year_1',90,'active'], ['year_1',-1,'free'], ['year_1',-10,'free']]) {
@@ -110,21 +138,62 @@ try {
   await page.goto(APP + '/app/subscription');
   check('pending status retained without manual entry', await page.locator('.billing-state').getAttribute('data-plan-state') === 'pending' && await page.locator('a[href="/app/subscription/pay"]').count() === 0);
   check('unknown state never claims active or trial', !/data-plan-state=/.test(subscriptionPage({ state:null })));
-  check('no client POSTs or provider calls', posts.length === 0 && external.length === 0);
+  // Checkout is on now, so the browser does post — exactly once per tap,
+  // to our own route, and the only outside host it then reaches is the
+  // Wayl link the SERVER got back. It never calls a payment API itself,
+  // never carries a credential, and never touches a bank directly.
+  check('the only client POST is our own checkout route',
+    posts.every((u) => u.startsWith(APP + '/app/subscription/checkout')));
+  check('the only outside host is the Wayl checkout the server chose',
+    external.every((u) => u.startsWith('https://checkout.thewayl.test/')));
+  check('the browser never calls the Wayl API itself',
+    !external.some((u) => /api\.thewayl|\/api\/v1\/links/.test(u)));
+  check('and never a bank or WhatsApp from this screen',
+    !external.some((u) => /wa\.me|fib\.iq/i.test(u)));
   check('no browser JS errors', errors.length === 0);
   await ctx.close();
+
+  // The pending-transfer fixture above would send this straight to the
+  // manual payment screen. Clear it, and the earlier checkout with it,
+  // so the no-JS case starts from a seller who has nothing in flight.
+  await stub('/__intent/none');
+  await stub('/__wayl/reset');
 
   const noJS = await browser.newContext({ javaScriptEnabled: false });
   await noJS.addCookies([{ name:'sb-access', value:'TEST', url:APP }]);
   const plain = await noJS.newPage();
+  let plainWentTo = null;
+  await plain.route('https://checkout.thewayl.test/**', (route) => {
+    plainWentTo = route.request().url();
+    return route.fulfill({ contentType: 'text/html', body: '<p>wayl</p>' });
+  });
   await plain.goto(APP + '/app/subscription?plan=months_6');
-  await plain.locator('#pay-btn').click();
-  check('no-JS Pay is read-only unavailable state', new URL(plain.url()).searchParams.get('step') === 'checkout' && await plain.locator('.alert[role="alert"]').isVisible());
+  // The double-tap guard is JavaScript, so with JavaScript off it is
+  // simply not there — and paying still has to work. The server is
+  // what actually makes a second tap safe.
+  check('no-JS still shows the dinar charge',
+    await plain.locator('.billing-charge:not([hidden])').first().isVisible());
   check('no-JS selected plan preserved', await plain.locator('input[value="months_6"]').isChecked());
+  await plain.locator('#pay-btn').click();
+  await plain.waitForURL(/checkout\.thewayl\.test/, { timeout: 15000 });
+  check('no-JS Pay still reaches Wayl', Boolean(plainWentTo));
   check('no-JS cannot open chooser', await plain.locator('#payment-method-form').count() === 0);
   await noJS.close();
   const writes = await (await stub('/__writes')).json();
-  check('whole primary journey makes no payment write', writes.every((w) => w.table === 'rpc/subscription_state'));
+  // Creating a checkout does write — the attempt and the link Wayl
+  // made for it. What the journey must NOT write is a subscription or
+  // a payment: only Wayl confirming to the server does that, and
+  // nothing in a browser can reach it.
+  const allowed = new Set([
+    'rpc/subscription_state', 'rpc/product_slots_left',
+    'rpc/wayl_start_intent', 'rpc/wayl_attach_link',
+  ]);
+  const unexpected = writes.filter((w) => !allowed.has(w.table));
+  check('the journey writes only the checkout it was asked for: '
+    + (unexpected.map((w) => w.table).join(', ') || 'nothing else'),
+    unexpected.length === 0);
+  check('and grants no plan and records no payment',
+    !writes.some((w) => /subscriptions|payments|wayl_apply_payment|admin_apply/.test(w.table)));
   const signedOut = await fetch(APP + '/app/subscription?step=method&plan=year_1', { redirect:'manual' });
   check('chooser retains logged-out guard', signedOut.status === 303 && signedOut.headers.get('location').startsWith('/login'));
 } finally { await browser.close(); }

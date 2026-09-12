@@ -119,9 +119,12 @@ function reuseMinutesFromSql() {
     /create\s+or\s+replace\s+function\s+public\.wayl_start_intent\b[\s\S]*?\$\$([\s\S]*?)\$\$/g,
   )];
   if (!bodies.length) return null;
-  // v_live is the checkout the seller already has. The other interval
-  // in this function is the per-shop rate limit, which is not this.
-  const m = bodies[bodies.length - 1][1].match(/v_live\.created_at\s*>\s*now\(\)\s*-\s*interval\s*'(\d+)\s*minutes'/);
+  // v_window is the checkout the seller already has and may still
+  // finish. The other intervals in this function are the rate limit
+  // and its hourly backstop, which are not this.
+  const body = bodies[bodies.length - 1][1];
+  const m = body.match(/v_window\s+interval\s*:=\s*interval\s*'(\d+)\s*minutes'/)
+    || body.match(/v_live\.created_at\s*>\s*now\(\)\s*-\s*interval\s*'(\d+)\s*minutes'/);
   return m ? Number(m[1]) : null;
 }
 

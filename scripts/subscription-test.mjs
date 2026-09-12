@@ -28,6 +28,10 @@
 
 import { FIB_NUMBER, FREE_PRODUCT_LIMIT, PLANS } from '../worker/config.js';
 
+/** Prices come from config, so changing one does not break this file. */
+const grouped = (n) => String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+const priced = (key) => grouped(PLANS.find((p) => p.key === key).amount);
+
 const APP = process.argv[2] || 'http://127.0.0.1:8810';
 const STUB = process.argv[3] || 'http://127.0.0.1:8899';
 
@@ -81,8 +85,8 @@ await setDismissed('reset', 0);
 let html = await page('/app/subscription');
 check('the plan screen renders', html.includes('نوێکردنەوەی پلان'), true);
 check('both plans are offered', PLANS.every((p) => html.includes(String(p.amount).replace(/\B(?=(\d{3})+(?!\d))/g, ','))), true);
-check('6 months is priced at 55,000', html.includes('55,000'), true);
-check('1 year is priced at 90,000', html.includes('90,000'), true);
+check('6 months is priced from config', html.includes(priced('months_6')), true);
+check('1 year is priced from config', html.includes(priced('year_1')), true);
 check('there is a pay button', html.includes('id="pay-btn"'), true);
 check('payment history is on the screen', html.includes('مێژووی پارەدان'), true);
 check('a confirmed payment is listed', html.includes('پشتڕاستکراوە'), true);
@@ -450,7 +454,7 @@ html = await page('/admin/intents');
 check('admin sees the payments list', html.includes('پارەدانەکان'), true);
 check('the row shows the shop', html.includes('بۆتیکی نافین'), true);
 check('the row shows the reference code', html.includes('SW-4821'), true);
-check('the row shows the amount', html.includes('55,000'), true);
+check('the row shows the amount', html.includes(priced('months_6')), true);
 check('there is an activate button', html.includes('چالاککردن'), true);
 check('there is a not-found button', html.includes('نەدۆزرایەوە'), true);
 check('there is no "rejected" anywhere', /ڕەتکرایەوە/.test(html), false);

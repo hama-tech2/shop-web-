@@ -21,7 +21,7 @@ const ltr = (value) => `<span dir="ltr">${esc(value)}</span>`;
 /** One line naming where the seller stands. */
 function statusLine(plan, state) {
   switch (plan.key) {
-    case 'free': return 'بەخۆڕایی، بێ سنووری کات';
+    case 'free': return 'بەخۆڕایی';
     case 'none': return T.warnNone;
     case 'pending': return T.statePending;
     case 'grace': return T.stateGrace(plan.days);
@@ -65,6 +65,16 @@ const trust = () => `<p class="billing-trust">${iconShield(18)}<span>پارەد�
   `<p class="billing-safety">${esc(APP_NAME)} هیچ <bdi>PIN</bdi>، <bdi>OTP</bdi> یان ژمارەی کارت وەرناگرێت</p>`;
 const availability = 'پارەدانی ئۆنلاین هێشتا چالاک نەکراوە. هیچ پارەیەک لێت وەرناگیرێت.';
 const hostedTrust = () => `<p class="billing-trust">${iconShield(18)}<span>پارەدانێکی پارێزراو لەڕێی <bdi>Wayl</bdi></span></p>`;
+/**
+ * The exact dinar figure, beside the button that leaves for Wayl.
+ *
+ * The plans are named in dollars and charged in dinars. A seller must
+ * not meet the dinar number for the first time on Wayl's screen, so it
+ * is said here, on the last screen we own.
+ */
+const chargeLine = (p) =>
+  `<p class="billing-charge" data-charge="${esc(String(p.amount))}">` +
+  `<bdi>${esc(T.chargeNotice(price(p.amount)))}</bdi></p>`;
 const paidOptions = () => PLANS.slice().sort((a, b) => Number(a.best) - Number(b.best));
 const defaultPlan = () => (PLANS.find((p) => p.best) || PLANS[0]).key;
 const storefrontHeader = (title, subtitle, back) =>
@@ -93,15 +103,18 @@ export function subscriptionPage({ state, selected, intent, payments = [], error
     `<p class="billing-state__label">پلانی ئێستا</p>` +
     (currentLabel ? `<h2>${esc(currentLabel)}</h2>` : '') +
     `<p>${esc(!state ? 'وردەکاری پلان لە ئێستادا بەردەست نییە.' : key === 'suspended' ? 'بەشداریکردنەکەت ناچالاکە'
-      : key === 'free' ? 'بەخۆڕایی، بێ سنووری کات' : hasTime ? `${plan.days} ڕۆژ ماوە` : statusLine(plan, state))}</p>` +
+      : key === 'free' ? 'بەخۆڕایی' : hasTime ? `${plan.days} ڕۆژ ماوە` : statusLine(plan, state))}</p>` +
     (hasTime ? `<p class="billing-renewal-note">ماوەی پلانی نوێ دوای کۆتایی ماوەی ئێستات دەست پێ دەکات.</p>` : '') + `</div>` +
     (error ? `<p class="alert alert--error" role="alert">${esc(error)}</p>` : '') +
     `<form method="${paymentsEnabled ? 'post' : 'get'}" ` +
     `action="${paymentsEnabled ? '/app/subscription/checkout' : '/app/subscription'}" ` +
-    `id="plan-form" data-native-plans>` +
+    `id="plan-form" data-native-plans${paymentsEnabled ? ' data-checkout' : ''}>` +
     (paymentsEnabled ? '' : `<input type="hidden" name="step" value="checkout">`) +
     `<fieldset class="billing-options"><legend class="visually-hidden">پلانێک هەڵبژێرە</legend>` +
     paidOptions().map((p) => planCard(p, chosen)).join('') + `</fieldset>` +
+    (paymentsEnabled ? PLANS.map((p) =>
+      `<p class="billing-charge" id="charge-${esc(p.key)}" data-charge-for="${esc(p.key)}"` +
+      `${p.key === chosen ? '' : ' hidden'}><bdi>${esc(T.chargeNotice(price(p.amount)))}</bdi></p>`).join('') : '') +
     `<button class="billing-primary" type="submit" id="pay-btn">بەردەوامبوون بۆ پارەدان ${iconBack(20)}</button>` +
     hostedTrust() + (paymentsEnabled ? '' : `<p class="billing-availability">${availability}</p>`) + `</form>` +
     // Historical records stay available; no SW code or manual-payment entry CTA.
@@ -136,7 +149,7 @@ export function accessGatePage({ trialAvailable: freeAvailable = false, slotsLef
       `<span class="billing-plan__name">${esc(T.freeName)}</span></span>` +
       `<span class="billing-plan__bottom"><span>${amount({ amount: 0 })}<span class="billing-monthly">بێ پارەدان دەست پێ بکە</span></span>` +
       `<span class="billing-radio" aria-hidden="true"></span></span>` +
-      `<span class="gate-free__explanation">بێ سنووری کات. ${esc(T.freeAllowance(FREE_PRODUCT_LIMIT, FREE_IMAGE_LIMIT))}` +
+      `<span class="gate-free__explanation">${esc(T.freeAllowance(FREE_PRODUCT_LIMIT, FREE_IMAGE_LIMIT))}` +
       (freeAvailable && Number.isInteger(slotsLeft) ? ` ${esc(T.freeSlotsLeft(slotsLeft))}` : '') + `</span>` +
       `</span></label>`;
   const features = [['بڵاوکردنەوەی بەرهەم', iconCheck(20)], ['پرۆفایلی گشتی دوکان', iconStore(20)], ['بەستەری دوکان بۆ هاوبەشکردن', iconLink(20)]];
@@ -153,8 +166,9 @@ export function accessGatePage({ trialAvailable: freeAvailable = false, slotsLef
     (freeAvailable ? `<form method="post" action="/app/subscription/free" data-choice="free">` +
       `<button class="billing-primary" type="submit" id="start-trial">بەردەوامبوون بەخۆڕایی ${iconBack(20)}</button>` +
       `<p class="billing-availability">دواتر دەتوانیت پلانێکی پارەدراو هەڵبژێریت</p></form>` : '') +
-    paidOptions().map((p) => `<form method="post" action="/app/subscription/checkout" data-choice="${esc(p.key)}">` +
+    paidOptions().map((p) => `<form method="post" action="/app/subscription/checkout" data-choice="${esc(p.key)}" data-checkout>` +
       `<input type="hidden" name="plan" value="${esc(p.key)}">` +
+      chargeLine(p) +
       `<button class="billing-primary" type="submit" aria-label="بەردەوامبوون بۆ پارەدان — ${planName(p)}">بەردەوامبوون بۆ پارەدان ${iconBack(20)}</button>` +
       hostedTrust() + `</form>`).join('') + `</div>` +
     `</main>` + bottomNav('account', { accountLabel: 'هەژمار' });

@@ -38,6 +38,9 @@ const CAT_B = 'dddddddd-2222-4222-8222-222222222222';
 /** The id an insert comes back with — nothing the client could guess. */
 const CAT_NEW = 'dddddddd-3333-4333-8333-333333333333';
 
+/** app.plan_price(): the only prices this app bills. */
+const PRICE = { year_1: 72000, months_6: 38000 };
+
 let rows = 1;                     // how many rows a write reports
 let mode = 'shop';                // shop | noshop
 let created = null;               // a shop made through onboarding
@@ -141,7 +144,7 @@ http.createServer(async (req, res) => {
   if (p.startsWith('/__intent/')) {
     const want = p.split('/')[2];
     intent = want === 'none' ? null : {
-      id: INTENT_ID, shop_id: SHOP.id, plan: 'months_6', amount: 55000,
+      id: INTENT_ID, shop_id: SHOP.id, plan: 'months_6', amount: 38000,
       status: want, reference: 'SW-4821',
       created_at: new Date().toISOString(),
     };
@@ -150,6 +153,9 @@ http.createServer(async (req, res) => {
 
   // ---- Wayl controls -------------------------------------------------
   if (p === '/__wayl/reset') { waylReset(); return send({ reset: true }); }
+  // Every create-link body the Worker sent, in order. A retry test
+  // needs to see how many attempts reached Wayl and what each carried.
+  if (p === '/__wayl/created') return send(waylCreated);
   if (p.startsWith('/__wayl/reports/')) { waylReports = decodeURIComponent(p.split('/')[3]); return send({ waylReports }); }
   if (p.startsWith('/__wayl/method/')) { waylMethod = decodeURIComponent(p.split('/')[3]); return send({ waylMethod }); }
   if (p.startsWith('/__wayl/total/')) { waylTotal = Number(p.split('/')[3]); return send({ waylTotal }); }
@@ -312,7 +318,7 @@ http.createServer(async (req, res) => {
     // An admin grant still files one, the way admin_grant_plan does.
     intent = {
       id: INTENT_ID, shop_id: SHOP.id, plan: lastBody.plan,
-      amount: lastBody.plan === 'year_1' ? 90000 : 55000,
+      amount: PRICE[lastBody.plan] ?? 0,
       status: 'open', reference: 'SW-4821',
       created_at: new Date().toISOString(),
     };
@@ -331,7 +337,7 @@ http.createServer(async (req, res) => {
     if (url.searchParams.get('method') === 'eq.manual_grant') return send([...manualGrants.values()]);
     return send([
       { id: '11111111-1111-4111-8111-111111111111', plan: 'months_6',
-        amount: 55000, status: 'confirmed', reference: 'SW-1234',
+        amount: 38000, status: 'confirmed', reference: 'SW-1234',
         paid_at: '2026-08-01T10:00:00Z', created_at: '2026-08-01T10:00:00Z' },
     ]);
   }
@@ -450,14 +456,25 @@ http.createServer(async (req, res) => {
     if (intent && intent.status === 'pending' && intent.plan === lastBody.p_plan) {
       return send({ code: 'SW003' }, 400);
     }
+    // A usable link is handed back exactly as it stands.
     if (waylIntent && waylIntent.status === 'open' && waylIntent.checkout_url
+        && waylIntent.plan === lastBody.p_plan && waylIntent.env === lastBody.p_env) {
+      return send([{ ...waylIntent, reused: true }]);
+    }
+    // An attempt Wayl never issued a link for: the same row, a fresh
+    // reference, and the secret rotated to the one the retry signs
+    // with. No new row, so no rate limit is spent on a failure.
+    if (waylIntent && waylIntent.status === 'open' && !waylIntent.checkout_url
         && waylIntent.plan === lastBody.p_plan) {
+      waylIntent = { ...waylIntent, reference_id: lastBody.p_reference_id,
+                     env: lastBody.p_env };
+      waylSecret = lastBody.p_secret;
       return send([{ ...waylIntent, reused: true }]);
     }
     waylIntent = {
       id: WAYL_INTENT_ID, shop_id: SHOP.id, user_id: USER.id, plan: lastBody.p_plan,
       // The price is the database's, never the caller's.
-      amount: lastBody.p_plan === 'year_1' ? 90000 : 55000, currency: 'IQD',
+      amount: PRICE[lastBody.p_plan] ?? 0, currency: 'IQD',
       status: 'open', reference_id: lastBody.p_reference_id, reference: 'SW-4822',
       wayl_link_id: null, wayl_code: null, checkout_url: null, env: lastBody.p_env,
       payment_method: null, paid_at: null, activated_at: null,
@@ -479,7 +496,7 @@ http.createServer(async (req, res) => {
     if (!(req.headers.authorization || '').includes(SERVICE_KEY)) return send({ code: '42501' }, 403);
     if (!waylIntent || waylIntent.id !== lastBody.p_intent) return send({ code: 'P0002' }, 400);
     if (waylIntent.reference_id !== lastBody.p_reference_id) return send({ code: '22023' }, 400);
-    const price = waylIntent.plan === 'year_1' ? 90000 : 55000;
+    const price = PRICE[waylIntent.plan] ?? 0;
     if (Number(lastBody.p_amount) !== price) return send({ code: '22023' }, 400);
     if (waylIntent.activated_at) {
       return send([{ activated: false, already_active: true, expires_at: waylExpiry }]);

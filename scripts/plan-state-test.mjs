@@ -185,9 +185,18 @@ check('daysUntil on nonsense', daysUntil('not a date', NOW), null);
 */
 
 const priceOf = (key) => PLANS.find((p) => p.key === key)?.amount;
-check('6 months costs 55,000 IQD', priceOf('months_6'), 55000);
-check('1 year costs 90,000 IQD', priceOf('year_1'), 90000);
+check('6 months costs 38,000 IQD', priceOf('months_6'), 38000);
+check('1 year costs 72,000 IQD', priceOf('year_1'), 72000);
 check('there are exactly two paid plans', PLANS.length, 2);
+
+// The plans are talked about in dollars and charged in dinars, so the
+// dollar figure is carried too — display only, never sent to Wayl.
+check('6 months is talked about as $29', priceOf('months_6') && PLANS.find((p) => p.key === 'months_6').usd, 29);
+check('1 year is talked about as $55', PLANS.find((p) => p.key === 'year_1').usd, 55);
+
+// A year must be the better monthly rate, or the badge on it lies.
+const monthlyOf = (key) => PLANS.find((p) => p.key === key).monthly;
+check('the year is the cheaper month', monthlyOf('year_1') < monthlyOf('months_6'), true);
 
 // The year is what a seller should see first, and largest.
 const ordered = PLANS.slice().sort(

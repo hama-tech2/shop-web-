@@ -66,7 +66,7 @@ function subscriptionCard(subscription) {
       : hasTime ? `<p class="settings-plan__remaining">${plan.days} ڕۆژ ماوە</p>` : '') +
     `<p class="settings-plan__date" id="settings-plan-detail">` +
     (date ? `کۆتایی: <time datetime="${esc(date)}" dir="ltr">${date.replaceAll('-', '/')}</time>`
-      : key === 'free' ? 'بەخۆڕایی، بێ سنووری کات' : !key ? 'وردەکاری پلان لە ئێستادا بەردەست نییە.' : '') + `</p>` +
+      : key === 'free' ? 'بەخۆڕایی' : !key ? 'وردەکاری پلان لە ئێستادا بەردەست نییە.' : '') + `</p>` +
     `<a class="settings-plan__action" href="/app/subscription" id="settings-subscription">` +
     `${renew ? 'نوێکردنەوەی پلان' : 'بینینی پلانەکان'} ${arrow}</a></section>`;
 }
