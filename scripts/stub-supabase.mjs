@@ -183,16 +183,26 @@ http.createServer(async (req, res) => {
         || !['increase', 'decrease'].includes(line?.type)) {
       return send({ success: false, message: 'Whoops, missing fields' }, 422);
     }
-    // The real envelope: { data, message, success }, with total as a
-    // string and status "Created" at this point.
-    return send({ data: {
+    // The real envelope, captured from api.thewayl.com on 2026-09-12:
+    // HTTP 201, { data, message, success }, total as a string, status
+    // "Created", the link id under `id`, and the checkout under `url`.
+    // Wayl answers 201 and not 200 — worth pinning, because a caller
+    // that checked for 200 would treat a created link as a failure.
+    const linkId = 'cmty' + Math.random().toString(36).slice(2, 12);
+    res.writeHead(201, { 'content-type': 'application/json' });
+    return res.end(JSON.stringify({ data: {
       env: lastBody.env, customParameter: lastBody.customParameter,
-      referenceId: lastBody.referenceId, id: 'lnk_1', code: 'CODE1',
+      referenceId: lastBody.referenceId, id: linkId, code: 'CGA58BF2',
       total: String(lastBody.total), currency: lastBody.currency,
-      paymentMethod: null, status: 'Created', completedAt: null,
-      url: 'https://checkout.thewayl.test/pay/' + lastBody.referenceId,
-      redirectionUrl: lastBody.redirectionUrl, linkExpiresIn: '1h',
-    }, message: 'Done', success: true });
+      paymentMethod: null, type: 'Schrödinger', status: 'Created',
+      completedAt: null,
+      createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
+      url: 'https://checkout.thewayl.test/pay?id=' + linkId,
+      // Wayl rewrites this, appending its own query to whatever we sent.
+      redirectionUrl: lastBody.redirectionUrl
+        + '/?referenceId=' + lastBody.referenceId + '&orderid=' + linkId,
+      linkExpiresIn: '1h',
+    }, message: 'Done', success: true }));
   }
   const waylLink = p.match(/^\/api\/v1\/links\/(.+)$/);
   if (waylLink && req.method === 'GET') {

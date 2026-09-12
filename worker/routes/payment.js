@@ -195,6 +195,25 @@ export async function verifyAndActivate(env, intent) {
    POST /app/subscription/checkout
    ============================================================ */
 
+/**
+ * Why a checkout could not be made, said once in the Worker log.
+ *
+ * Five different things used to come back to the seller as one word,
+ * `errCheckout`: no return URL configured, the database refusing, Wayl
+ * refusing, Wayl unreachable, or the link failing to store. They are
+ * not the same problem and only one of them is Wayl's. Collapsing them
+ * is what turned a missing environment variable into a hunt.
+ *
+ * `detail` may carry Wayl's own status and message. It must never
+ * carry the API token, the webhook secret, or the seller's session —
+ * none of which is passed in, and `note` below is the only thing that
+ * reaches a log line.
+ */
+function checkoutFailed(where, detail) {
+  const note = detail == null ? '' : ` ${String(detail).slice(0, 200)}`;
+  console.log(`checkout failed: ${where}${note}`);
+}
+
 export async function checkoutPost(request, env) {
   if (!sameOrigin(request)) return new Response('bad origin', { status: 403 });
 
@@ -234,11 +253,15 @@ export async function checkoutPost(request, env) {
     // A hand-made transfer is already waiting on the owner. Send them
     // to the screen that is about it rather than taking money twice.
     if (code === 'SW003') return redirect('/app/subscription/pay', g.headers);
+    checkoutFailed('the database refused the attempt', code ?? started.status);
     return back('errCheckout');
   }
 
   const intent = Array.isArray(started.data) ? started.data[0] : started.data;
-  if (!intent?.id) return back('errCheckout');
+  if (!intent?.id) {
+    checkoutFailed('the database returned no attempt');
+    return back('errCheckout');
+  }
 
   // A checkout they started minutes ago and never finished. Same link,
   // so a second tap does not become a second payment.
@@ -250,7 +273,13 @@ export async function checkoutPost(request, env) {
   // come from configuration only. If it is missing or malformed, no
   // checkout is created at all.
   const home = returnUrl(env);
-  if (!home) return back('errCheckout');
+  if (!home) {
+    // Wayl is never called in this case, so there is no Wayl error to
+    // find — which is exactly what made this one hard to see. It is
+    // configuration, and it is ours.
+    checkoutFailed('WAYL_RETURN_URL is missing or not a usable https URL');
+    return back('errConfig');
+  }
 
   const created = await createLink(env, {
     referenceId: intent.reference_id,
@@ -267,8 +296,18 @@ export async function checkoutPost(request, env) {
     customParameter: intent.id,
   });
 
+  // Wayl answers 201 on success, so anything in the 2xx range counts.
   const checkoutUrl = created.ok ? readCheckoutUrl(created.data) : null;
-  if (!checkoutUrl) return back('errCheckout');
+  if (!checkoutUrl) {
+    // Wayl's own words, so a refused key or a changed field name is
+    // readable in the log instead of being guessed at. The token and
+    // the webhook secret are in the REQUEST, never in this message.
+    checkoutFailed(
+      created.status ? `Wayl answered ${created.status}` : 'Wayl was unreachable',
+      created.data?.message ?? (created.ok ? 'no checkout url in the response' : null),
+    );
+    return back(created.ok ? 'errCheckout' : 'errProvider');
+  }
 
   const attached = await asUser(env, g.token, 'rpc/wayl_attach_link', {
     method: 'POST',
@@ -279,7 +318,13 @@ export async function checkoutPost(request, env) {
       p_url: checkoutUrl,
     },
   });
-  if (!attached.ok) return back('errCheckout');
+  if (!attached.ok) {
+    // The link exists at Wayl but is not stored here, so the webhook
+    // would arrive against an attempt that cannot be matched. Better
+    // to stop than to send the seller to a payment we have lost.
+    checkoutFailed('the link could not be stored', attached.data?.code ?? attached.status);
+    return back('errCheckout');
+  }
 
   // The one redirect in this app that leaves the site. The URL was
   // not supplied by anybody: it came back from an authenticated Wayl

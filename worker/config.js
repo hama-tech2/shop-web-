@@ -489,6 +489,14 @@ export const SUBSCRIPTION = {
   errUnavailable: 'پارەدانی ئۆنلاین هێشتا چالاک نەکراوە. هیچ پارەیەک لێت وەرناگیرێت.',
   errCheckout: 'دەستپێکردنی پارەدان سەرکەوتوو نەبوو. تکایە دووبارە هەوڵ بدەوە.',
   errBusy: 'داواکاری زۆر. تکایە چەند خولەکێک چاوەڕێ بکە و دووبارە هەوڵ بدەوە.',
+
+  // Two failures that are not the seller's and are not a reason to
+  // keep tapping. errConfig is ours — something is unset on the server
+  // — and errProvider is Wayl being unreachable. Both say "not your
+  // fault, not now", because telling somebody to try again when
+  // trying again cannot work is its own small cruelty.
+  errConfig: 'پارەدان لە ئێستادا ڕێک نەخراوە. هەڵەکە لای ئێمەیە — پەیوەندیمان پێوە بکە.',
+  errProvider: 'Wayl لە ئێستادا بەردەست نییە. تکایە دوایی هەوڵ بدەوە.',
   errIntent: 'داواکارییەکە دروست نەکرا. تکایە دووبارە هەوڵ بدەوە.',
   errSent: 'تۆمارکردنی ناردنەکە سەرکەوتوو نەبوو. تکایە دووبارە هەوڵ بدەوە.',
 };
