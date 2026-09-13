@@ -588,7 +588,7 @@ body:has(.account-settings:target) .nav__tab[aria-current="page"] svg { fill: #E
 
 /* Seller plan selection. The existing server decides checkout availability. */
 .billing { padding: 16px 16px 28px; }
-.billing--plans { padding-bottom: calc(var(--nav-h) + 24px + env(safe-area-inset-bottom)); }
+.billing--plans { padding-bottom: calc(var(--nav-h) + 140px + env(safe-area-inset-bottom)); }
 /* Clear of the nav AND of the dock above it, so the last benefit is
    readable rather than sitting under the button. */
 .billing--gate { padding-bottom: calc(var(--nav-h) + 140px + env(safe-area-inset-bottom)); }
@@ -675,7 +675,7 @@ body:has(.account-settings:target) .nav__tab[aria-current="page"] svg { fill: #E
 /* The action dock: fixed directly above the bottom navigation, so the
    one thing a seller came here to do is on screen from the moment the
    page loads. The plan cards and the benefits scroll underneath it. */
-.gate-actions {
+.action-dock {
   position: fixed;
   inset-inline: 0;
   bottom: calc(var(--nav-h) + env(safe-area-inset-bottom));
@@ -699,8 +699,11 @@ body:has(#gate-options input[value="year_1"]:checked) .gate-actions [data-choice
 /* A card scrolled into view must land above the dock, not behind it.
    Without this the last plan is unreachable on a short phone. */
 .gate-plan { scroll-margin-bottom: calc(var(--nav-h) + 130px + env(safe-area-inset-bottom)); }
-.gate-actions .billing-charge { margin: 0 0 8px; font-size: 14px; }
-.gate-actions .billing-primary { margin: 0; min-height: 52px; }
+.action-dock .billing-charge { margin: 0 0 8px; font-size: 14px; }
+.action-dock .billing-primary { margin: 0; min-height: 52px; }
+/* A card scrolled into view on the renewal screen lands above the dock
+   too, and the history below it stays readable rather than covered. */
+.billing--plans .billing-plan { scroll-margin-bottom: calc(var(--nav-h) + 130px + env(safe-area-inset-bottom)); }
 .billing-methods legend { font-size: 18px; font-weight: 600; line-height: 1.7; padding: 0 0 14px; }
 .billing-method .billing-choice__surface { display: flex; align-items: center; gap: 12px; min-height: 88px; padding: 14px; }
 .billing-method__brand { display: grid; place-items: center; flex: none; width: 42px; height: 42px; border-radius: 50%; font: 700 15px/1 system-ui, sans-serif; direction: ltr; }
