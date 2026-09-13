@@ -61,6 +61,10 @@ const SAYS = {
   save:    'پاشەکەوتکردن سەرکەوتوو',  // the generic save failure
 };
 
+// Publishing now lands on the seller's own PUBLIC page for the product:
+// what a customer sees, and the link they are about to share.
+const PUBLIC = `/@nafin-boutique/p/${DRAFT}`;
+
 const MINIMUM = { images: gallery(1), title: 'کراسی کوردی', price: '25000' };
 
 await setMode('shop');
@@ -73,17 +77,17 @@ await control('/__sub/20');
 /* ---------- the locked minimum: image + name + price only ---------- */
 
 let r = await publish(MINIMUM);
-check('minimum publishes (no description, no categories)', r.location, '/app/products');
+check('minimum publishes (no description, no categories)', r.location, PUBLIC);
 check('minimum does not re-render the form', r.status, 303);
 
 r = await publish({ ...MINIMUM, description: '', category: '', own_category: '' });
-check('empty optional fields still publish', r.location, '/app/products');
+check('empty optional fields still publish', r.location, PUBLIC);
 
 r = await publish({ ...MINIMUM, description: 'وەسفێکی کورت', category: 'clothing' });
-check('filled optional fields still publish', r.location, '/app/products');
+check('filled optional fields still publish', r.location, PUBLIC);
 
 r = await publish({ ...MINIMUM, images: gallery(5) });
-check('five images publish', r.location, '/app/products');
+check('five images publish', r.location, PUBLIC);
 
 /* ---------- each failure names its own field ---------- */
 
@@ -115,10 +119,10 @@ check('zero price: says price', r.html.includes(SAYS.price), true);
 
 // A Sorani seller types ٢٥٠٠٠ as readily as 25000; both must publish.
 r = await publish({ ...MINIMUM, price: '٢٥٠٠٠' });
-check('arabic-indic digits publish', r.location, '/app/products');
+check('arabic-indic digits publish', r.location, PUBLIC);
 
 r = await publish({ ...MINIMUM, price: '25,000' });
-check('thousands separators publish', r.location, '/app/products');
+check('thousands separators publish', r.location, PUBLIC);
 
 /* ---------- an image key from another shop is refused ---------- */
 
@@ -143,6 +147,38 @@ check('no shop: publish cannot reach the insert', r.status, 303);
 check('no shop: publish redirects to onboarding', r.location, '/onboarding');
 
 await setMode('shop');
+
+/* ============================================================
+   after publishing, and the one list behind it
+   ============================================================
+
+   A seller who has just posted wants to look at their shop, not
+   administer it. So publishing lands on their own PUBLIC page for the
+   product. The manager is one list: hidden products are marked, not
+   filed somewhere else.
+   ============================================================ */
+
+await control('/__mixed/1');
+const manager = await fetch(`${APP}/app/products`, { headers: { cookie: COOKIE } })
+  .then((res) => res.text());
+
+check('the manager has no All / Visible / Hidden navigation', /manager-filters/.test(manager), false);
+check('and offers no filter links at all', /[?&]filter=/.test(manager), false);
+check('a visible product is in the list', manager.includes('کراسی کوردی'), true);
+check('and a hidden one is in the SAME list', manager.includes('کراسی شاراوە'), true);
+check('each row still says which it is',
+  manager.includes('شاراوەیە') && manager.includes('دیارە'), true);
+check('tapping a row still opens it for editing',
+  manager.includes('href="/app/products/' + DRAFT + '"'), true);
+check('delete is still there', /\/delete"/.test(manager), true);
+check('and Add Product is still there', manager.includes('href="/app/new"'), true);
+await control('/__mixed/0');
+
+// A product saved as hidden has no public page to land on, so that one
+// still goes to the manager.
+const asHidden = await publish({ ...MINIMUM, status: 'hidden' });
+check('publishing a hidden product goes to the manager instead',
+  asHidden.location, '/app/products');
 
 /* ============================================================ */
 

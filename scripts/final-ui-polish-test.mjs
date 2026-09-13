@@ -42,7 +42,7 @@ try {
     const url=new URL(route.request().url());
     const screen=url.pathname.split('/').pop(), state=url.searchParams.get('state');
     const body=screen==='product' ? productPage({product:{...product,shop:{...shop,maps_url:state==='missing'?null:state==='unsafe'?'javascript:alert(1)':shop.maps_url}},more,origin:APP})
-      : screen==='manager' ? productList({products:state==='empty'?[]:inventory,filter:state || 'all'})
+      : screen==='manager' ? productList({products:state==='empty'?[]:inventory})
       : productForm({mode:'edit',draftId:id,categories:[],imageLimit:1,values:{title,price:999999999,status:state || 'hidden',images:state==='kept'?[...images,{card:'old-2',full:'old-2'},{card:'old-3',full:'old-3'}]:images},error:state==='error'?'هەڵەی پاشەکەوتکردن':null});
     return route.fulfill({contentType:'text/html',body:layout({title:'UI fixture',body,scripts:screen==='product'?['/js/shop.js','/js/favorites.js']:['/js/product.js']})});
   });
@@ -52,11 +52,15 @@ try {
     for(const state of ['all','hidden','empty']) {
       await page.goto(APP+'/_fixture/manager?state='+state);await page.evaluate(()=>document.fonts.ready);
       check('compact inventory RTL/overflow '+width+state,!await overflow()&&await page.locator('html').getAttribute('dir')==='rtl');
-      check('exactly three real filter links '+width+state,JSON.stringify(await page.locator('.manager-filters a').evaluateAll(as=>as.map(a=>a.search)))===JSON.stringify(['?filter=all','?filter=visible','?filter=hidden']));
+      // One list now: hidden products are marked, not filed elsewhere.
+      check('no filter navigation at all '+width+state,await page.locator('.manager-filters').count()===0);
       check('Add Product retained '+width+state,await page.locator('.shell__head a[href="/app/new"]').count()===1);
       check('valid management HTML '+width+state,await page.locator('a button,a a,a form').count()===0);
       if(state==='hidden') {
-        check('hidden explanation and preserved data '+width,(await page.locator('.manager-help--hidden').innerText()).includes('نەسڕاونەتەوە'));
+        // The filter-specific help is gone with the filters. What has to
+        // survive is that a hidden product is still in this one list and
+        // still says it is hidden.
+        check('a hidden product is still listed and still marked '+width,(await page.locator('.rows').innerText()).includes('شاراوەیە'));
         check('compact rows with accessible delete '+width,await page.locator('.manager-row').evaluateAll(els=>els.every(el=>el.offsetHeight<125&&el.querySelector('button').offsetWidth>=44&&el.querySelector('button').offsetHeight>=44)));
         await page.screenshot({path:join(out,'manager-'+width+'.png'),fullPage:true});
       }

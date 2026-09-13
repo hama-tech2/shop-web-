@@ -187,6 +187,9 @@ export const PRODUCT = {
   newTitle: 'زیادکردنی بەرهەم',
   editTitle: 'دەستکاری بەرهەم',
   listTitle: 'بەرهەمەکانم',
+  // One list holds everything, so the help line says what a tap does
+  // rather than explaining a filter that no longer exists.
+  listHelp: 'بۆ دەستکاری یان گۆڕینی دۆخی بەرهەم، لەسەری بدە.',
   add: 'زیادکردنی بەرهەم',
 
   photos: 'وێنەکان',

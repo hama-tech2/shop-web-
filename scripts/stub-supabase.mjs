@@ -55,6 +55,7 @@ let publicCount = 0;              // how many of them are active
 let shopCover = null;             // shops.cover_key, for the share card ladder
 let shopLogo = null;              // shops.logo_key
 let productImages = [];           // product_images on the public product
+let mixedList = false;            // the manager holding a visible AND a hidden product
 let dismissed = {};               // banner kind -> ISO timestamp
 const telegram = [];              // every call the Worker made to the bot API
 let nextMessageId = 500;
@@ -146,6 +147,9 @@ http.createServer(async (req, res) => {
     productImages = v === '-' ? [] : [{ r2_key: v, r2_key_full: v, position: 1 }];
     return send({ productImages });
   }
+  // One list has to be able to hold both states at once, or "hidden is
+  // still reachable" cannot be proven.
+  if (p.startsWith('/__mixed/')) { mixedList = p.split('/')[2] === '1'; return send({ mixedList }); }
   if (p.startsWith('/__public/')) { publicCount = Number(p.split('/')[2]); return send({ publicCount }); }
   if (p.startsWith('/__dismissed/')) {
     const [, , kind, when] = p.split('/');
@@ -413,6 +417,15 @@ http.createServer(async (req, res) => {
       return send({ code: '23514', message: 'category does not belong to this shop' }, 400);
     }
     if (!write) {
+      if (mixedList) {
+        const base = { price: 85000, description: '', shop_id: SHOP.id, sort_order: 0,
+                       platform_category_id: null, category_id: null, product_images: [] };
+        return send([
+          { ...base, id: PRODUCT_ID, title: 'کراسی کوردی', status: 'active' },
+          { ...base, id: 'bbbbbbbb-2222-4222-8222-222222222222',
+            title: 'کراسی شاراوە', status: 'hidden' },
+        ]);
+      }
       return send([{
         id: PRODUCT_ID, title: 'کراسی کوردی', price: 85000, description: '',
         status: 'active', shop_id: SHOP.id, sort_order: 0,

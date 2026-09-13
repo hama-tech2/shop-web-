@@ -152,7 +152,8 @@ const published = await step(w.cookies, '/app/new', {
   title: 'کراسی کوردی سەوز',
   price: '85000',
 });
-check('first product publishes', published.location, '/app/products');
+check('first product publishes onto its own public page',
+      published.location?.startsWith('/@nafin-boutique/p/'), true);
 
 /* ============================================================ */
 
