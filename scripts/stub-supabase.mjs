@@ -52,6 +52,9 @@ let subPlan = 'free';             // free | month_1 | months_6 | year_1
 let suspended = false;            // the admin's stop button
 let productCount = 0;             // how many products the shop has
 let publicCount = 0;              // how many of them are active
+let shopCover = null;             // shops.cover_key, for the share card ladder
+let shopLogo = null;              // shops.logo_key
+let productImages = [];           // product_images on the public product
 let dismissed = {};               // banner kind -> ISO timestamp
 const telegram = [];              // every call the Worker made to the bot API
 let nextMessageId = 500;
@@ -134,6 +137,15 @@ http.createServer(async (req, res) => {
   // How many are active, for the one rule only an edit can meet: five
   // public at once on Free. A lapsed shop has more products than that
   // and five of them showing.
+  // The share-image ladder: a seller's link must preview the seller.
+  // '-' clears one, so a test can walk cover -> logo -> product -> brand.
+  if (p.startsWith('/__cover/')) { const v = decodeURIComponent(p.slice(9)); shopCover = v === '-' ? null : v; return send({ shopCover }); }
+  if (p.startsWith('/__logo/')) { const v = decodeURIComponent(p.slice(8)); shopLogo = v === '-' ? null : v; return send({ shopLogo }); }
+  if (p.startsWith('/__productimg/')) {
+    const v = decodeURIComponent(p.slice(14));
+    productImages = v === '-' ? [] : [{ r2_key: v, r2_key_full: v, position: 1 }];
+    return send({ productImages });
+  }
   if (p.startsWith('/__public/')) { publicCount = Number(p.split('/')[2]); return send({ publicCount }); }
   if (p.startsWith('/__dismissed/')) {
     const [, , kind, when] = p.split('/');
@@ -404,7 +416,11 @@ http.createServer(async (req, res) => {
       return send([{
         id: PRODUCT_ID, title: 'کراسی کوردی', price: 85000, description: '',
         status: 'active', shop_id: SHOP.id, sort_order: 0,
-        platform_category_id: null, category_id: null, product_images: [],
+        platform_category_id: null, category_id: null, product_images: productImages,
+        // getProduct() joins shops!inner and reads the slug off it to
+        // prove the product belongs to the shop in the URL.
+        shops: { id: SHOP.id, name: SHOP.name, slug: SHOP.slug, logo_key: shopLogo,
+                 whatsapp: SHOP.whatsapp, city: SHOP.city, maps_url: null },
       }]);
     }
     return send(rows ? [{ id: PRODUCT_ID }] : []);
@@ -417,7 +433,7 @@ http.createServer(async (req, res) => {
       ...SHOP, bio: null, phone: null,
       instagram: null, tiktok: null, facebook: null, snapchat: 'nafin-shop',
       maps_url: 'https://maps.app.goo.gl/abc123',
-      cover_key: null, products_visible: true,
+      cover_key: shopCover, logo_key: shopLogo, products_visible: true,
     }]);
   }
   if (table === 'rpc/subscription_state') {

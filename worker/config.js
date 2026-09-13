@@ -7,6 +7,38 @@
 export const APP_NAME = 'بازاڕۆ';
 
 /**
+ * The same brand in Latin script.
+ *
+ * Used where a crawler, an app store or an operating system reads the
+ * name rather than a Sorani speaker: og:site_name, the web manifest,
+ * the apple-touch title. The visible UI stays Kurdish.
+ */
+export const APP_NAME_LATIN = 'Bazaro';
+
+/**
+ * The brand assets, generated from public/brand/bazaro-logo.png by
+ * `node scripts/brand-icons.mjs`. Paths only — the generator owns the
+ * sizes, and scripts/brand-assets-test.mjs fails if any is missing.
+ */
+export const BRAND = {
+  logo: '/brand/bazaro-logo.png',
+  icon16: '/brand/favicon-16.png',
+  icon32: '/brand/favicon-32.png',
+  icon48: '/brand/favicon-48.png',
+  ico: '/favicon.ico',
+  appleTouch: '/brand/apple-touch-icon.png',
+  icon192: '/brand/icon-192.png',
+  icon512: '/brand/icon-512.png',
+  manifest: '/site.webmanifest',
+  // The share card for a page that has no image of its own. A seller's
+  // own link never uses this: /@slug prefers their cover, then their
+  // logo, then their first product.
+  ogImage: '/brand/og-default.png',
+  ogWidth: 1200,
+  ogHeight: 630,
+};
+
+/**
  * The one line under the name. Deliberately not a place: Bazaro is not
  * an Erbil-only product, and a city in the tagline tells a seller in
  * Sulaymaniyah or Duhok that it is not for them. It says what the app

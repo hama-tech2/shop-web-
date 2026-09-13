@@ -1,4 +1,4 @@
-import { APP_NAME } from '../config.js';
+import { APP_NAME, APP_NAME_LATIN, BRAND } from '../config.js';
 import { esc } from './html.js';
 
 /**
@@ -11,6 +11,16 @@ export function layout({
   ogImageWidth, ogImageHeight, ogType = 'website',
   scripts = ['/js/feed.js'],
 }) {
+  // A page with no image of its own still needs a share card, and an
+  // og:image must be absolute or every crawler drops it silently. The
+  // canonical URL is the only origin this function is given, so a page
+  // without one simply gets no fallback rather than a broken relative
+  // path. A seller's own link never reaches this: /@slug picks their
+  // cover, their logo, or their first product first.
+  const brandOg = canonical ? new URL(BRAND.ogImage, canonical).toString() : null;
+  const shareImage = ogImage || brandOg;
+  const shareWidth = ogImage ? ogImageWidth : BRAND.ogWidth;
+  const shareHeight = ogImage ? ogImageHeight : BRAND.ogHeight;
   return (
     `<!doctype html>` +
     `<html lang="ckb" dir="rtl">` +
@@ -18,27 +28,37 @@ export function layout({
     `<meta charset="utf-8">` +
     `<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">` +
     `<meta name="theme-color" content="#FBF9F6">` +
+    // Every size a browser, a phone home screen or an app store asks
+    // for. The .ico is last because only old Windows still wants it,
+    // and browsers take the first format they understand.
+    `<link rel="icon" type="image/png" sizes="32x32" href="${BRAND.icon32}">` +
+    `<link rel="icon" type="image/png" sizes="16x16" href="${BRAND.icon16}">` +
+    `<link rel="icon" type="image/png" sizes="48x48" href="${BRAND.icon48}">` +
+    `<link rel="apple-touch-icon" sizes="180x180" href="${BRAND.appleTouch}">` +
+    `<link rel="manifest" href="${BRAND.manifest}">` +
+    `<link rel="icon" href="${BRAND.ico}" sizes="any">` +
+    `<meta name="apple-mobile-web-app-title" content="${esc(APP_NAME_LATIN)}">` +
     `<title>${esc(title)}</title>` +
     `<meta name="description" content="${esc(description)}">` +
     (canonical ? `<link rel="canonical" href="${esc(canonical)}">` : '') +
 
     `<meta property="og:type" content="${esc(ogType)}">` +
-    `<meta property="og:site_name" content="${esc(APP_NAME)}">` +
+    `<meta property="og:site_name" content="${esc(APP_NAME_LATIN)}">` +
     `<meta property="og:title" content="${esc(title)}">` +
     `<meta property="og:description" content="${esc(description)}">` +
     (canonical ? `<meta property="og:url" content="${esc(canonical)}">` : '') +
-    (ogImage
-      ? `<meta property="og:image" content="${esc(ogImage)}">` +
-        `<meta property="og:image:secure_url" content="${esc(ogImage)}">` +
-        (ogImageWidth ? `<meta property="og:image:width" content="${esc(ogImageWidth)}">` : '') +
-        (ogImageHeight ? `<meta property="og:image:height" content="${esc(ogImageHeight)}">` : '') +
+    (shareImage
+      ? `<meta property="og:image" content="${esc(shareImage)}">` +
+        `<meta property="og:image:secure_url" content="${esc(shareImage)}">` +
+        (shareWidth ? `<meta property="og:image:width" content="${esc(shareWidth)}">` : '') +
+        (shareHeight ? `<meta property="og:image:height" content="${esc(shareHeight)}">` : '') +
         `<meta property="og:image:alt" content="${esc(title)}">` +
-        `<meta name="twitter:image" content="${esc(ogImage)}">`
+        `<meta name="twitter:image" content="${esc(shareImage)}">`
       : '') +
     `<meta property="og:locale" content="ckb_IQ">` +
     `<meta name="twitter:title" content="${esc(title)}">` +
     `<meta name="twitter:description" content="${esc(description)}">` +
-    `<meta name="twitter:card" content="${ogImage ? 'summary_large_image' : 'summary'}">` +
+    `<meta name="twitter:card" content="${shareImage ? 'summary_large_image' : 'summary'}">` +
 
     `<link rel="preconnect" href="https://fonts.googleapis.com">` +
     `<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>` +
