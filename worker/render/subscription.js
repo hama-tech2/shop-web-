@@ -161,17 +161,29 @@ export function accessGatePage({ trialAvailable: freeAvailable = false, slotsLef
     (!freeAvailable ? `<p class="billing-availability"><a href="/app/products">بەڕێوەبردن و سڕینەوەی بەرهەمەکان</a></p>` : '') +
     `<section class="billing-features" aria-labelledby="billing-features-title"><h2 id="billing-features-title">لە هەموو پلانەکاندا</h2><ul>` +
     features.map(([label, icon]) => `<li><span class="billing-feature-icon">${icon}</span><span>${label}</span></li>`).join('') + `</ul></section>` +
-    // Native radios reveal one existing POST form. Selection never writes.
-    `<div class="gate-actions">` +
+    // Said once, in the scroll, rather than under every paid button. The
+    // dock below holds the action and nothing else.
+    hostedTrust() +
+    (freeAvailable ? `<p class="billing-availability">دواتر دەتوانیت پلانێکی پارەدراو هەڵبژێریت</p>` : '') +
+    `</main>` +
+    // The action sits in a dock fixed above the bottom navigation, not
+    // at the end of the page. A seller who has just chosen Free should
+    // not have to scroll past the benefits to find out they may use it —
+    // that made an available plan look unavailable.
+    //
+    // Still one form per choice, still the existing POST actions, and
+    // still native radios deciding which one is shown. Selection writes
+    // nothing and no JavaScript is involved in choosing where a tap goes.
+    `<div class="gate-actions" role="group" aria-label="بەردەوامبوون">` +
     (freeAvailable ? `<form method="post" action="/app/subscription/free" data-choice="free">` +
       `<button class="billing-primary" type="submit" id="start-trial">بەردەوامبوون بەخۆڕایی ${iconBack(20)}</button>` +
-      `<p class="billing-availability">دواتر دەتوانیت پلانێکی پارەدراو هەڵبژێریت</p></form>` : '') +
+      `</form>` : '') +
     paidOptions().map((p) => `<form method="post" action="/app/subscription/checkout" data-choice="${esc(p.key)}" data-checkout>` +
       `<input type="hidden" name="plan" value="${esc(p.key)}">` +
       chargeLine(p) +
       `<button class="billing-primary" type="submit" aria-label="بەردەوامبوون بۆ پارەدان — ${planName(p)}">بەردەوامبوون بۆ پارەدان ${iconBack(20)}</button>` +
-      hostedTrust() + `</form>`).join('') + `</div>` +
-    `</main>` + bottomNav('account', { accountLabel: 'هەژمار' });
+      `</form>`).join('') + `</div>` +
+    bottomNav('account', { accountLabel: 'هەژمار' });
 }
 
 /** A read-only method chooser. No provider session, reference or payment is made. */

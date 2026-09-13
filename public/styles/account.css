@@ -588,7 +588,13 @@ body:has(.account-settings:target) .nav__tab[aria-current="page"] svg { fill: #E
 
 /* Seller plan selection. The existing server decides checkout availability. */
 .billing { padding: 16px 16px 28px; }
-.billing--plans, .billing--gate { padding-bottom: calc(var(--nav-h) + 24px + env(safe-area-inset-bottom)); }
+.billing--plans { padding-bottom: calc(var(--nav-h) + 24px + env(safe-area-inset-bottom)); }
+/* Clear of the nav AND of the dock above it, so the last benefit is
+   readable rather than sitting under the button. */
+.billing--gate { padding-bottom: calc(var(--nav-h) + 140px + env(safe-area-inset-bottom)); }
+.billing--gate .billing-options { gap: 10px; }
+.billing--gate .billing-features { margin-top: 14px; }
+.billing--gate .billing-trust { margin: 12px 0 0; }
 .billing h1, .billing h2, .billing legend { font-family: var(--font-body); }
 .billing-head { display: grid; grid-template-columns: 44px minmax(0, 1fr) 44px; align-items: center; gap: 4px; margin-bottom: 20px; }
 .billing-head h1 { font-size: 24px; font-weight: 700; line-height: 1.5; text-align: center; }
@@ -666,10 +672,35 @@ body:has(.account-settings:target) .nav__tab[aria-current="page"] svg { fill: #E
 .gate-free__explanation { display: block; border-top: 1px solid #E0ECE6; margin-top: 12px; padding-top: 12px; color: var(--muted); font-size: 13px; line-height: 1.8; }
 .gate-free:has(input:disabled) { cursor: default; }
 .gate-free:has(input:disabled) .billing-choice__surface { background: var(--surface-2); }
-.gate-actions > form { display: none; }
-#gate-options:has(input[value="free"]:checked) ~ .gate-actions [data-choice="free"],
-#gate-options:has(input[value="months_6"]:checked) ~ .gate-actions [data-choice="months_6"],
-#gate-options:has(input[value="year_1"]:checked) ~ .gate-actions [data-choice="year_1"] { display: block; }
+/* The action dock: fixed directly above the bottom navigation, so the
+   one thing a seller came here to do is on screen from the moment the
+   page loads. The plan cards and the benefits scroll underneath it. */
+.gate-actions {
+  position: fixed;
+  inset-inline: 0;
+  bottom: calc(var(--nav-h) + env(safe-area-inset-bottom));
+  z-index: 30;
+  padding: 10px 16px 12px;
+  background: var(--surface);
+  border-top: 1px solid #ECE7DE;
+  box-shadow: 0 -6px 18px rgba(31, 29, 23, .06);
+}
+.gate-actions > form { display: none; margin: 0; }
+/* The dock is no longer a sibling of the options, so the match is made
+   on the document. Native radios still decide it; no JavaScript does. */
+body:has(#gate-options input[value="free"]:checked) .gate-actions [data-choice="free"],
+body:has(#gate-options input[value="months_6"]:checked) .gate-actions [data-choice="months_6"],
+body:has(#gate-options input[value="year_1"]:checked) .gate-actions [data-choice="year_1"] { display: block; }
+/* Without :has() every action would stack in the dock. Show the first
+   and let the rest queue behind it rather than covering the screen. */
+@supports not selector(:has(*)) {
+  .gate-actions > form { display: block; }
+}
+/* A card scrolled into view must land above the dock, not behind it.
+   Without this the last plan is unreachable on a short phone. */
+.gate-plan { scroll-margin-bottom: calc(var(--nav-h) + 130px + env(safe-area-inset-bottom)); }
+.gate-actions .billing-charge { margin: 0 0 8px; font-size: 14px; }
+.gate-actions .billing-primary { margin: 0; min-height: 52px; }
 .billing-methods legend { font-size: 18px; font-weight: 600; line-height: 1.7; padding: 0 0 14px; }
 .billing-method .billing-choice__surface { display: flex; align-items: center; gap: 12px; min-height: 88px; padding: 14px; }
 .billing-method__brand { display: grid; place-items: center; flex: none; width: 42px; height: 42px; border-radius: 50%; font: 700 15px/1 system-ui, sans-serif; direction: ltr; }
