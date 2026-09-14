@@ -24,9 +24,9 @@
  */
 
 import { createHmac } from 'node:crypto';
-import { mapStatus, signatureValid, waylEnv } from '../worker/wayl.js';
+import { mapStatus, signatureValid } from '../worker/wayl.js';
 import { returnUrl } from '../worker/routes/payment.js';
-import { FIB_NUMBER, PLANS, plansIn } from '../worker/config.js';
+import { FIB_NUMBER, PLANS } from '../worker/config.js';
 
 /**
  * The prices, read from config rather than written here.
@@ -36,13 +36,8 @@ import { FIB_NUMBER, PLANS, plansIn } from '../worker/config.js';
  * they agree. Repeating them a third time in this file only meant
  * that changing a price broke twenty assertions about something else.
  */
-// The prices the seller is shown depend on which Wayl the Worker is
-// pointed at, so the expected numbers have to come from the same place
-// the Worker gets them — and by the same rule, not a second copy of it.
-// An unset WAYL_ENV means test, exactly as it does in the Worker.
-const PRICED = plansIn(waylEnv({ WAYL_ENV: process.env.WAYL_ENV }));
-const YEAR = PRICED.find((p) => p.key === 'year_1').amount;
-const SIX = PRICED.find((p) => p.key === 'months_6').amount;
+const YEAR = PLANS.find((p) => p.key === 'year_1').amount;
+const SIX = PLANS.find((p) => p.key === 'months_6').amount;
 const grouped = (n) => String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
 
 const APP = process.argv.find((a) => a.startsWith('http')) || 'http://127.0.0.1:8810';
@@ -233,11 +228,11 @@ check('the line item is the shape Wayl requires',
 check('the line item is labelled with the plan and the shop',
   typeof link?.lineItem?.[0]?.label === 'string' && link.lineItem[0].label.length > 0);
 check('IQD', link?.currency, 'IQD');
-// The environment the Worker is configured with, not a fixed word:
-// what is being pinned is that WAYL_ENV reaches Wayl unchanged, and
-// that has to hold on the way to live as well as in test.
+// The environment the Worker is configured with, not a fixed word.
+// What is being pinned is that WAYL_ENV reaches Wayl unchanged, and
+// that has to keep holding once it says live.
 check('the configured Wayl environment is the one sent',
-  link?.env, waylEnv({ WAYL_ENV: process.env.WAYL_ENV }));
+  link?.env, process.env.WAYL_ENV === 'live' ? 'live' : 'test');
 check('a fresh reference', /^BZ-[0-9A-Z]+-[0-9A-F]+$/.test(link?.referenceId || ''));
 check('the webhook is per payment',
   link?.webhookUrl?.endsWith(`/webhooks/wayl/${state.intent.id}`));
@@ -353,11 +348,7 @@ check('an unknown status stays checking', (await statusOf(REF)).body.state, 'che
 check('an unknown status grants nothing', (await waylState()).activations, 0);
 
 await control('/__wayl/reports/paid');
-// Derived, never a literal: 1,000 used to be a safely wrong number and
-// is now exactly what a test checkout costs, so it stopped being a
-// mismatch and quietly activated the payment the next twelve checks
-// were about to prove could not be activated.
-await control(`/__wayl/total/${YEAR - 1}`);
+await control('/__wayl/total/1000');
 check('a smaller amount is not this payment', (await statusOf(REF)).body.state, 'checking');
 check('an amount mismatch grants nothing', (await waylState()).activations, 0);
 

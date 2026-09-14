@@ -7,12 +7,7 @@
 -- nothing ever reached Wayl to be spent.
 --
 -- And since 0034: an attempt is reusable only while it is recent, in
--- this environment, AND priced at what that environment charges.
---
--- Every attempt below is made in the live environment, because this
--- file is about retries and the rate limit rather than pricing, and
--- live is where 72,000 and 38,000 are the prices. The test
--- environment's own prices are pinned by scripts/price-env-db-test.sql.
+-- this environment, AND priced at what app.plan_price() says right now.
 -- A stale price is cancelled and replaced, never re-linked.
 --
 -- What must still hold: a manual transfer waiting on the owner blocks
@@ -43,7 +38,7 @@ begin
 
   -- 1. the first tap makes one attempt, priced by the database
   select * into v_a from public.wayl_start_intent(
-    v_shop, 'year_1', 'BZ-RETRY-000001', 'live', repeat('a', 64));
+    v_shop, 'year_1', 'BZ-RETRY-000001', 'test', repeat('a', 64));
   if v_a.reused then raise exception 'FAIL the first tap reported a reuse'; end if;
   if v_a.amount <> 72000 then
     raise exception 'FAIL the first attempt is priced %, not 72000', v_a.amount;
@@ -55,7 +50,7 @@ begin
 
   -- 2. Wayl failed: no link was attached. The seller taps again.
   select * into v_b from public.wayl_start_intent(
-    v_shop, 'year_1', 'BZ-RETRY-000002', 'live', repeat('b', 64));
+    v_shop, 'year_1', 'BZ-RETRY-000002', 'test', repeat('b', 64));
   if not v_b.reused then raise exception 'FAIL the retry did not reuse the attempt'; end if;
   if v_b.id <> v_a.id then
     raise exception 'FAIL the retry made a second attempt (% then %)', v_a.id, v_b.id;
@@ -87,7 +82,7 @@ begin
   -- 3. ten more ordinary taps. This is what used to lock a seller out.
   for i in 3..12 loop
     select * into v_c from public.wayl_start_intent(
-      v_shop, 'year_1', 'BZ-RETRY-' || lpad(i::text, 6, '0'), 'live', repeat('c', 64));
+      v_shop, 'year_1', 'BZ-RETRY-' || lpad(i::text, 6, '0'), 'test', repeat('c', 64));
     if not v_c.reused or v_c.id <> v_a.id then
       raise exception 'FAIL tap % stopped reusing the attempt', i;
     end if;
@@ -100,7 +95,7 @@ begin
   -- 4. Wayl finally answers. The link is attached and handed back.
   perform public.wayl_attach_link(v_a.id, 'link-1', 'CODE1', 'https://pay.thewayl.test/abc');
   select * into v_c from public.wayl_start_intent(
-    v_shop, 'year_1', 'BZ-RETRY-000013', 'live', repeat('d', 64));
+    v_shop, 'year_1', 'BZ-RETRY-000013', 'test', repeat('d', 64));
   if not v_c.reused or v_c.checkout_url <> 'https://pay.thewayl.test/abc' then
     raise exception 'FAIL a usable link was not handed back: %', v_c.checkout_url;
   end if;
@@ -116,12 +111,12 @@ begin
     insert into public.payment_intents
       (shop_id, plan, amount, source, reference_id, env, checkout_url, status, created_at)
     values (v_shop, 'year_1', 72000, 'payment', 'BZ-LINKED-' || lpad(i::text, 6, '0'),
-            'live', 'https://pay.thewayl.test/' || i, 'cancelled', now());
+            'test', 'https://pay.thewayl.test/' || i, 'cancelled', now());
   end loop;
   set local role authenticated;
   begin
     perform public.wayl_start_intent(
-      v_shop, 'year_1', 'BZ-RETRY-000020', 'live', repeat('e', 64));
+      v_shop, 'year_1', 'BZ-RETRY-000020', 'test', repeat('e', 64));
     raise exception 'FAIL six real links in ten minutes were not rate limited';
   exception when sqlstate 'SW002' then
     raise notice 'PASS six real links in ten minutes is still refused';
@@ -135,7 +130,7 @@ begin
   set local role authenticated;
   begin
     perform public.wayl_start_intent(
-      v_shop, 'months_6', 'BZ-RETRY-000030', 'live', repeat('f', 64));
+      v_shop, 'months_6', 'BZ-RETRY-000030', 'test', repeat('f', 64));
     raise exception 'FAIL a checkout was started over a waiting transfer';
   exception when sqlstate 'SW003' then
     raise notice 'PASS a manual transfer waiting on the owner still blocks checkout';
@@ -146,7 +141,7 @@ begin
   delete from public.payment_intents where shop_id = v_shop;
   set local role authenticated;
   select * into v_a from public.wayl_start_intent(
-    v_shop, 'year_1', 'BZ-RETRY-000040', 'live', repeat('g', 64));
+    v_shop, 'year_1', 'BZ-RETRY-000040', 'test', repeat('g', 64));
   begin
     select webhook_secret into v_secret
       from public.payment_intent_secrets where intent_id = v_a.id;
@@ -163,7 +158,7 @@ begin
     raise exception 'FAIL the attempt is priced %, not 72000', v_a.amount;
   end if;
   select * into v_b from public.wayl_start_intent(
-    v_shop, 'months_6', 'BZ-RETRY-000050', 'live', repeat('h', 64));
+    v_shop, 'months_6', 'BZ-RETRY-000050', 'test', repeat('h', 64));
   if v_b.amount <> 38000 then
     raise exception 'FAIL six months is priced %, not 38000', v_b.amount;
   end if;
@@ -183,7 +178,7 @@ begin
   -- An attempt from before the change: current price, wrong amount.
   insert into public.payment_intents
     (shop_id, plan, amount, source, reference_id, env, status, created_at)
-  values (v_shop, 'year_1', 0, 'payment', 'BZ-STALE-000001', 'live', 'open', now())
+  values (v_shop, 'year_1', 0, 'payment', 'BZ-STALE-000001', 'test', 'open', now())
   returning id into v_swap;
   -- The trigger priced it at today's number on the way in. Age it back to
   -- what it held before the price changed, which is exactly how the live
@@ -196,7 +191,7 @@ begin
   end if;
 
   select * into v_a from public.wayl_start_intent(
-    v_shop, 'year_1', 'BZ-AFTER-000001', 'live', repeat('p', 64));
+    v_shop, 'year_1', 'BZ-AFTER-000001', 'test', repeat('p', 64));
 
   if v_a.reused then
     raise exception 'FAIL an attempt priced 90000 was reused at a 72000 price';
@@ -225,14 +220,14 @@ begin
   delete from public.payment_intents where shop_id = v_shop;
   insert into public.payment_intents
     (shop_id, plan, amount, source, reference_id, env, status, checkout_url, created_at)
-  values (v_shop, 'year_1', 0, 'payment', 'BZ-STALE-000002', 'live', 'open',
+  values (v_shop, 'year_1', 0, 'payment', 'BZ-STALE-000002', 'test', 'open',
           'https://checkout.thewayl.test/pay?id=old', now())
   returning id into v_swap;
   update public.payment_intents set amount = 90000 where id = v_swap;
   set local role authenticated;
 
   select * into v_a from public.wayl_start_intent(
-    v_shop, 'year_1', 'BZ-AFTER-000002', 'live', repeat('q', 64));
+    v_shop, 'year_1', 'BZ-AFTER-000002', 'test', repeat('q', 64));
   if v_a.reused or v_a.checkout_url is not null or v_a.amount <> 72000 then
     raise exception 'FAIL a linked attempt at the old price was handed back';
   end if;
@@ -246,10 +241,10 @@ begin
   set local role authenticated;
 
   select * into v_a from public.wayl_start_intent(
-    v_shop, 'year_1', 'BZ-NORMAL-00001', 'live', repeat('r', 64));
+    v_shop, 'year_1', 'BZ-NORMAL-00001', 'test', repeat('r', 64));
   for i in 2..12 loop
     select * into v_b from public.wayl_start_intent(
-      v_shop, 'year_1', 'BZ-NORMAL-' || lpad(i::text, 5, '0'), 'live', repeat('r', 64));
+      v_shop, 'year_1', 'BZ-NORMAL-' || lpad(i::text, 5, '0'), 'test', repeat('r', 64));
     if not v_b.reused or v_b.id <> v_a.id then
       raise exception 'FAIL tap % stopped reusing the attempt', i;
     end if;

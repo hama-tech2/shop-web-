@@ -20,8 +20,7 @@
  *   node scripts/free-plan-test.mjs
  */
 
-import { waylEnv } from '../worker/wayl.js';
-import { FREE_IMAGE_LIMIT, FREE_PRODUCT_LIMIT, PLANS, PRODUCT as T, plansIn } from '../worker/config.js';
+import { FREE_IMAGE_LIMIT, FREE_PRODUCT_LIMIT, PLANS, PRODUCT as T } from '../worker/config.js';
 
 const APP = process.argv[2] || 'http://127.0.0.1:8810';
 const STUB = process.argv[3] || 'http://127.0.0.1:8899';
@@ -132,12 +131,8 @@ const gate = await page('/app/new');
 check('Add Product shows the plan screen, not the form',
   gate.includes('billing--gate') && !gate.includes('id="product-form"'));
 check('carrying on for nothing is offered', gate.includes('id="start-trial"'));
-// Priced by the environment the Worker is pointed at, by the Worker's
-// own rule: a test checkout charges a token amount and the screen has
-// to say so, or the seller reads one number and Wayl asks for another.
-const PRICED = plansIn(waylEnv({ WAYL_ENV: process.env.WAYL_ENV }));
 check('both paid plans are offered',
-  PRICED.every((p) => gate.includes(String(p.amount).replace(/\B(?=(\d{3})+(?!\d))/g, ','))));
+  PLANS.every((p) => gate.includes(String(p.amount).replace(/\B(?=(\d{3})+(?!\d))/g, ','))));
 check('the year keeps its badge', gate.includes('billing-best'));
 check('the paid options go to Wayl checkout',
   (gate.match(/action="\/app\/subscription\/checkout"/g) || []).length, 2);

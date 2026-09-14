@@ -26,8 +26,7 @@
  *   node scripts/subscription-test.mjs
  */
 
-import { waylEnv } from '../worker/wayl.js';
-import { FIB_NUMBER, FREE_PRODUCT_LIMIT, PLANS, plansIn } from '../worker/config.js';
+import { FIB_NUMBER, FREE_PRODUCT_LIMIT, PLANS } from '../worker/config.js';
 
 /** Prices come from config, so changing one does not break this file. */
 const grouped = (n) => String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
@@ -85,18 +84,9 @@ await setDismissed('reset', 0);
 
 let html = await page('/app/subscription');
 check('the plan screen renders', html.includes('نوێکردنەوەی پلان'), true);
-// The prices the seller is shown depend on which Wayl the Worker is
-// pointed at, so the expected numbers have to come from the same place
-// the Worker gets them — and by the same rule, not a second copy of it.
-// An unset WAYL_ENV means test, exactly as it does in the Worker.
-const PRICED = plansIn(waylEnv({ WAYL_ENV: process.env.WAYL_ENV }));
-check('both plans are offered', PRICED.every((p) => html.includes(String(p.amount).replace(/\B(?=(\d{3})+(?!\d))/g, ','))), true);
-// `priced` reads the config list and stays that way for the payment
-// history further down, which shows what was actually charged. The plan
-// screen shows what this environment charges now.
-const pricedNow = (key) => grouped(PRICED.find((p) => p.key === key).amount);
-check('6 months is priced for this environment', html.includes(pricedNow('months_6')), true);
-check('1 year is priced for this environment', html.includes(pricedNow('year_1')), true);
+check('both plans are offered', PLANS.every((p) => html.includes(String(p.amount).replace(/\B(?=(\d{3})+(?!\d))/g, ','))), true);
+check('6 months is priced from config', html.includes(priced('months_6')), true);
+check('1 year is priced from config', html.includes(priced('year_1')), true);
 check('there is a pay button', html.includes('id="pay-btn"'), true);
 check('payment history is on the screen', html.includes('مێژووی پارەدان'), true);
 check('a confirmed payment is listed', html.includes('پشتڕاستکراوە'), true);

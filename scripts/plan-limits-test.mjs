@@ -16,7 +16,7 @@
  */
 
 import { readFileSync, readdirSync } from 'node:fs';
-import { FREE_IMAGE_LIMIT, FREE_PRODUCT_LIMIT, PLANS, TEST_PLAN_AMOUNT, WAYL, plansIn } from '../worker/config.js';
+import { FREE_IMAGE_LIMIT, FREE_PRODUCT_LIMIT, PLANS, WAYL } from '../worker/config.js';
 
 const DIR = new URL('../supabase/migrations/', import.meta.url);
 
@@ -64,58 +64,6 @@ for (const key of Object.keys(configPrices)) {
   check(`${key}: the seller is shown what the database charges`,
         configPrices[key], dbPrices?.[key]);
 }
-
-/* ---------- the test environment's price ---------- */
-
-/**
- * A test checkout charges a token amount instead of 38,000 or 72,000,
- * and two places say what it is: app.plan_price_for(plan, env) in the
- * database, which decides, and TEST_PLAN_AMOUNT in config.js, which is
- * what the seller reads on the screen before they leave for Wayl. If
- * those drift, the screen and the charge disagree — the exact mismatch
- * the environment split was added to prevent.
- */
-function testPriceFromSql() {
-  const bodies = [...sql.matchAll(
-    /create\s+or\s+replace\s+function\s+app\.plan_price_for\b[\s\S]*?\$\$([\s\S]*?)\$\$/g,
-  )];
-  if (!bodies.length) return null;
-  // The test branch only: everything after `when p_env = 'test'` and
-  // before the `else` that falls through to the live list.
-  const body = bodies[bodies.length - 1][1];
-  const branch = body.split(/\belse\b/)[0];
-  const amounts = [...branch.matchAll(/when\s+'(\w+)'\s+then\s+(\d+)/g)]
-    .map(([, , amount]) => Number(amount));
-  return amounts.length ? amounts : null;
-}
-
-const testPrices = testPriceFromSql();
-check('app.plan_price_for prices the test environment', testPrices !== null, true);
-check('every plan costs the same token amount in test',
-      [...new Set(testPrices ?? [])].length, 1);
-check('the test amount on the screen is the one the database charges',
-      TEST_PLAN_AMOUNT, testPrices?.[0]);
-check('the test amount is not a real price',
-      Object.values(configPrices).includes(TEST_PLAN_AMOUNT), false);
-
-/* ---------- plansIn: what each environment shows ---------- */
-
-check('live shows the real prices',
-      plansIn('live').map((p) => p.amount).sort((a, b) => a - b), [38000, 72000]);
-check('test shows the token amount for both plans',
-      plansIn('test').map((p) => p.amount), [TEST_PLAN_AMOUNT, TEST_PLAN_AMOUNT]);
-// Anything that is not exactly 'test' is priced live, matching the
-// database. A missing or mangled environment must not sell a year for
-// a token amount.
-for (const odd of [undefined, null, '', 'TEST', 'sandbox', 'Live']) {
-  check(`${JSON.stringify(odd)} is priced live`,
-        plansIn(odd).map((p) => p.amount).sort((a, b) => a - b), [38000, 72000]);
-}
-check('test keeps the plan keys and order',
-      plansIn('test').map((p) => p.key), PLANS.map((p) => p.key));
-check('test drops the dollar figure rather than showing a false one',
-      plansIn('test').every((p) => p.usd === null), true);
-check('live is the untouched list', plansIn('live'), PLANS);
 
 /* ---------- what the Free plan allows ---------- */
 

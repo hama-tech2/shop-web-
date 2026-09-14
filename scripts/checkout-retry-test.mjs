@@ -19,20 +19,14 @@
  *   node scripts/checkout-retry-test.mjs
  */
 
-import { waylEnv } from '../worker/wayl.js';
-import { PLANS, SUBSCRIPTION as S, plansIn } from '../worker/config.js';
+import { PLANS, SUBSCRIPTION as S } from '../worker/config.js';
 
 const APP = process.argv[2] || 'http://127.0.0.1:8810';
 const STUB = process.argv[3] || 'http://127.0.0.1:8899';
 const COOKIE = 'sb-access=TEST';
 
-// The prices the seller is shown depend on which Wayl the Worker is
-// pointed at, so the expected numbers have to come from the same place
-// the Worker gets them — and by the same rule, not a second copy of it.
-// An unset WAYL_ENV means test, exactly as it does in the Worker.
-const PRICED = plansIn(waylEnv({ WAYL_ENV: process.env.WAYL_ENV }));
-const YEAR = PRICED.find((p) => p.key === 'year_1');
-const SIX = PRICED.find((p) => p.key === 'months_6');
+const YEAR = PLANS.find((p) => p.key === 'year_1');
+const SIX = PLANS.find((p) => p.key === 'months_6');
 const grouped = (n) => String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
 
 const results = [];

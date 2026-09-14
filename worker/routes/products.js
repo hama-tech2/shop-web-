@@ -9,12 +9,11 @@
 
 import {
   APP_NAME, FREE_IMAGE_LIMIT, FREE_PRODUCT_LIMIT, MAX_IMAGES, MAX_UPLOAD_BYTES,
-  PRODUCT as T, SUBSCRIPTION as S, plansIn,
+  PRODUCT as T, SUBSCRIPTION as S,
 } from '../config.js';
 import { layout } from '../render/layout.js';
 import { productForm, trialLimitPage } from '../render/product-form.js';
 import { accessGatePage } from '../render/subscription.js';
-import { waylEnv } from '../wayl.js';
 import { productList } from '../render/product-list.js';
 import { asUser, getCategories, subscriptionState } from '../supabase.js';
 import { getOwnShop, resolveSession, sameOrigin, setSessionCookies } from '../auth.js';
@@ -358,7 +357,6 @@ export async function newGet(request, env, url) {
       accessGatePage({
         trialAvailable: canPublish,
         slotsLeft,
-        plans: plansIn(waylEnv(env)),
         error: canPublish ? null : S.freeFull(FREE_PRODUCT_LIMIT),
       }),
       g.headers,
@@ -397,8 +395,7 @@ export async function newPost(request, env) {
   const { tier, canPublish, slotsLeft } = await entitlement(env, g.token, g.shop.id);
   if (!canPublish) {
     return gatePage(
-      accessGatePage({ trialAvailable: false, error: S.freeFull(FREE_PRODUCT_LIMIT),
-        plans: plansIn(waylEnv(env)) }),
+      accessGatePage({ trialAvailable: false, error: S.freeFull(FREE_PRODUCT_LIMIT) }),
       g.headers,
     );
   }
@@ -443,8 +440,7 @@ export async function newPost(request, env) {
     // tab, a slot used between the check and the insert, or a suspension
     // that landed in between.
     if (SUSPENDED(created)) {
-      return gatePage(accessGatePage({ trialAvailable: false, error: S.errSuspended,
-        plans: plansIn(waylEnv(env)) }),
+      return gatePage(accessGatePage({ trialAvailable: false, error: S.errSuspended }),
                       g.headers);
     }
     if (FREE_FULL(created)) {
