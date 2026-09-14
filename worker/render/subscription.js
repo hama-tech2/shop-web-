@@ -75,8 +75,10 @@ const hostedTrust = () => `<p class="billing-trust">${iconShield(18)}<span>پا�
 const chargeLine = (p) =>
   `<p class="billing-charge" data-charge="${esc(String(p.amount))}">` +
   `<bdi>${esc(T.chargeNotice(price(p.amount)))}</bdi></p>`;
-const paidOptions = () => PLANS.slice().sort((a, b) => Number(a.best) - Number(b.best));
-const defaultPlan = () => (PLANS.find((p) => p.best) || PLANS[0]).key;
+// Both take the list the page was given rather than reading PLANS, so
+// a test-environment page prices every mention of a plan the same way.
+const paidOptions = (plans) => plans.slice().sort((a, b) => Number(a.best) - Number(b.best));
+const defaultPlan = (plans) => (plans.find((p) => p.best) || plans[0]).key;
 const storefrontHeader = (title, subtitle, back) =>
   `<header class="billing-intro"><div class="billing-brand"><a class="icon-btn" href="${esc(back)}" aria-label="گەڕانەوە">${iconBack()}</a>` +
   `<span>${esc(APP_NAME)}</span><span></span></div><h1>${esc(title)}</h1><p>${esc(subtitle)}</p></header>`;
@@ -88,14 +90,14 @@ const storefrontHeader = (title, subtitle, back) =>
  * on, the same button posts to the checkout route, and the seller's
  * next screen is Wayl's.
  */
-export function subscriptionPage({ state, selected, intent, payments = [], error, paymentsEnabled = false }) {
+export function subscriptionPage({ state, selected, intent, payments = [], error, paymentsEnabled = false, plans = PLANS }) {
   const plan = state ? planState(state, Boolean(intent && intent.status === 'pending')) : null;
   if (plan && Number.isInteger(state.days_left) && state.tier === 'paid') plan.days = state.days_left;
   const key = state?.status === 'suspended' ? 'suspended' : state?.tier === 'free' ? 'free' : plan?.key;
-  const chosen = PLANS.some((p) => p.key === selected) ? selected : defaultPlan();
+  const chosen = plans.some((p) => p.key === selected) ? selected : defaultPlan(plans);
   const hasTime = key === 'active' && plan.days > 0;
   const currentName = key === 'free' ? T.freeName
-    : PLANS.find((p) => p.key === state?.plan);
+    : plans.find((p) => p.key === state?.plan);
   const currentLabel = typeof currentName === 'string' ? currentName : currentName ? planName(currentName) : '';
   return `<main class="shell billing billing--plans">` +
     storefrontHeader('نوێکردنەوەی پلان', 'پلانێک هەڵبژێرە بۆ بەردەوامبوون', '/app#account-settings') +
@@ -111,7 +113,7 @@ export function subscriptionPage({ state, selected, intent, payments = [], error
     `id="plan-form" data-native-plans${paymentsEnabled ? ' data-checkout' : ''}>` +
     (paymentsEnabled ? '' : `<input type="hidden" name="step" value="checkout">`) +
     `<fieldset class="billing-options"><legend class="visually-hidden">پلانێک هەڵبژێرە</legend>` +
-    paidOptions().map((p) => planCard(p, chosen)).join('') + `</fieldset>` +
+    paidOptions(plans).map((p) => planCard(p, chosen)).join('') + `</fieldset>` +
     // The form keeps the radios; its submit button lives in the dock
     // below and reaches back here by id. One form, one action, unchanged.
     `</form>` +
@@ -125,7 +127,7 @@ export function subscriptionPage({ state, selected, intent, payments = [], error
     // button submits #plan-form through the form attribute, so the
     // route, the method and the selected plan are exactly as before.
     `<div class="action-dock plans-dock">` +
-    (paymentsEnabled ? PLANS.map((p) =>
+    (paymentsEnabled ? plans.map((p) =>
       `<p class="billing-charge" id="charge-${esc(p.key)}" data-charge-for="${esc(p.key)}"` +
       `${p.key === chosen ? '' : ' hidden'}><bdi>${esc(T.chargeNotice(price(p.amount)))}</bdi></p>`).join('') : '') +
     `<button class="billing-primary" type="submit" id="pay-btn" form="plan-form">بەردەوامبوون بۆ پارەدان ${iconBack(20)}</button>` +
@@ -150,8 +152,8 @@ function planCard(plan, selected, gate = false) {
  * choosing Free continues without starting a subscription or writing data.
  * Keep the legacy argument name while the routes share this renderer.
  */
-export function accessGatePage({ trialAvailable: freeAvailable = false, slotsLeft = null, error = null, back = '/app/products' }) {
-  const chosen = freeAvailable ? 'free' : defaultPlan();
+export function accessGatePage({ trialAvailable: freeAvailable = false, slotsLeft = null, error = null, back = '/app/products', plans = PLANS }) {
+  const chosen = freeAvailable ? 'free' : defaultPlan(plans);
   const free =
       `<label class="billing-choice billing-plan gate-plan gate-free" data-plan="free">` +
       `<input type="radio" name="gate-plan" value="free"${freeAvailable ? ' checked' : ' disabled'} required>` +
@@ -167,7 +169,7 @@ export function accessGatePage({ trialAvailable: freeAvailable = false, slotsLef
     storefrontHeader('بەرهەمەکانت بڵاو بکەرەوە', 'یەکێک لەم هەڵبژاردانە هەڵبژێرە بۆ دەستپێکردن', back) +
     (error ? `<p class="alert alert--error" role="alert">${esc(error)}</p>` : '') +
     `<fieldset class="billing-options" id="gate-options"><legend class="visually-hidden">پلانێک هەڵبژێرە</legend>` +
-    free + paidOptions().map((p) => planCard(p, chosen, true)).join('') + `</fieldset>` +
+    free + paidOptions(plans).map((p) => planCard(p, chosen, true)).join('') + `</fieldset>` +
     (!freeAvailable ? `<p class="billing-availability"><a href="/app/products">بەڕێوەبردن و سڕینەوەی بەرهەمەکان</a></p>` : '') +
     `<section class="billing-features" aria-labelledby="billing-features-title"><h2 id="billing-features-title">لە هەموو پلانەکاندا</h2><ul>` +
     features.map(([label, icon]) => `<li><span class="billing-feature-icon">${icon}</span><span>${label}</span></li>`).join('') + `</ul></section>` +
@@ -188,7 +190,7 @@ export function accessGatePage({ trialAvailable: freeAvailable = false, slotsLef
     (freeAvailable ? `<form method="post" action="/app/subscription/free" data-choice="free">` +
       `<button class="billing-primary" type="submit" id="start-trial">بەردەوامبوون بەخۆڕایی ${iconBack(20)}</button>` +
       `</form>` : '') +
-    paidOptions().map((p) => `<form method="post" action="/app/subscription/checkout" data-choice="${esc(p.key)}" data-checkout>` +
+    paidOptions(plans).map((p) => `<form method="post" action="/app/subscription/checkout" data-choice="${esc(p.key)}" data-checkout>` +
       `<input type="hidden" name="plan" value="${esc(p.key)}">` +
       chargeLine(p) +
       `<button class="billing-primary" type="submit" aria-label="بەردەوامبوون بۆ پارەدان — ${planName(p)}">بەردەوامبوون بۆ پارەدان ${iconBack(20)}</button>` +

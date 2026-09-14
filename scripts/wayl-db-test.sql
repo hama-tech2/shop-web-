@@ -40,7 +40,7 @@ begin
   -- Read from the price list, never pinned to a number here: this test
   -- went stale and silently stopped running the moment the year changed
   -- from 90,000 to 72,000.
-  v_price := app.plan_price_for('year_1', v_shop);
+  v_price := app.plan_price_for('year_1', 'test');
   if v_row.amount <> v_price then
     raise exception 'FAIL price % is not %', v_row.amount, v_price;
   end if;
@@ -110,8 +110,12 @@ begin
   set local role service_role;
 
   -- 7. the amount is the plan price or nothing
+  --
+  -- Derived, not a literal: 1,000 used to be a safely wrong number and
+  -- is now exactly what a test checkout costs, which made this pass by
+  -- activating the very thing it was meant to refuse.
   begin
-    perform public.wayl_apply_payment(v_intent, v_ref, 1000, 'FIB', 'wayl');
+    perform public.wayl_apply_payment(v_intent, v_ref, v_price - 1, 'FIB', 'wayl');
     raise exception 'FAIL a smaller amount activated a plan';
   exception when invalid_parameter_value then
     raise notice 'PASS an amount that is not the plan price is refused';

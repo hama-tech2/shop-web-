@@ -655,9 +655,43 @@ export const PLAN_BANNER = {
  * figure is on the button before they leave for Wayl.
  */
 export const PLANS = [
-  { key: 'year_1',   name: '١ ساڵ', amount: 72000, monthly: 6000, usd: 55, best: true  },
-  { key: 'months_6', name: '٦ مانگ', amount: 38000, monthly: 6300, usd: 29, best: false },
+  { key: 'year_1',   name: '١ ساڵ', amount: 72000, monthly: 6000, months: 12, usd: 55, best: true  },
+  { key: 'months_6', name: '٦ مانگ', amount: 38000, monthly: 6300, months: 6,  usd: 29, best: false },
 ];
+
+/**
+ * What a plan costs in Wayl's test environment.
+ *
+ * A test checkout says it is pretending and moves no money, but it
+ * still moves a number, and rehearsing the flow should not involve
+ * 38,000 or 72,000 of anything. Both plans cost this instead, and the
+ * database says the same: app.plan_price_for(plan, env) in migration
+ * 20260917_test_env_pricing is what is actually charged and what
+ * wayl_apply_payment checks against. This constant exists so the screen
+ * the seller reads and the amount Wayl is asked for cannot disagree.
+ */
+export const TEST_PLAN_AMOUNT = 1000;
+
+/**
+ * The plans as they are priced in one Wayl environment.
+ *
+ * Takes the resolved environment name — 'test' or 'live', from
+ * waylEnv() in wayl.js — rather than the Worker's env, so that the rule
+ * for which one it is lives in exactly one place and this module keeps
+ * importing nothing.
+ *
+ * Anything but exactly 'test' is priced live, matching the database.
+ * A missing or mangled environment shows the real price rather than the
+ * token one.
+ */
+export const plansIn = (waylEnvName) =>
+  waylEnvName !== 'test' ? PLANS : PLANS.map((p) => ({
+    ...p,
+    amount: TEST_PLAN_AMOUNT,
+    monthly: Math.round(TEST_PLAN_AMOUNT / p.months),
+    // Never shown, and meaningless at this amount.
+    usd: null,
+  }));
 
 /**
  * Wayl — the payment provider for subscriptions.

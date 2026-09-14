@@ -38,8 +38,17 @@ const CAT_B = 'dddddddd-2222-4222-8222-222222222222';
 /** The id an insert comes back with — nothing the client could guess. */
 const CAT_NEW = 'dddddddd-3333-4333-8333-333333333333';
 
-/** app.plan_price(): the only prices this app bills. */
+/**
+ * app.plan_price_for(plan, env): what a plan costs, per Wayl
+ * environment. The live list is the only thing this app bills; a test
+ * checkout charges a token amount so the flow can be rehearsed without
+ * real money. Anything that is not exactly 'test' is priced live, which
+ * is what the real function does — a missing env must not go cheap.
+ */
 const PRICE = { year_1: 72000, months_6: 38000 };
+const TEST_PRICE = 1000;
+const priceFor = (plan, env) =>
+  (env === 'test' ? (plan in PRICE ? TEST_PRICE : 0) : PRICE[plan] ?? 0);
 
 let rows = 1;                     // how many rows a write reports
 let mode = 'shop';                // shop | noshop
@@ -513,7 +522,7 @@ http.createServer(async (req, res) => {
     waylIntent = {
       id: WAYL_INTENT_ID, shop_id: SHOP.id, user_id: USER.id, plan: lastBody.p_plan,
       // The price is the database's, never the caller's.
-      amount: PRICE[lastBody.p_plan] ?? 0, currency: 'IQD',
+      amount: priceFor(lastBody.p_plan, lastBody.p_env), currency: 'IQD',
       status: 'open', reference_id: lastBody.p_reference_id, reference: 'SW-4822',
       wayl_link_id: null, wayl_code: null, checkout_url: null, env: lastBody.p_env,
       payment_method: null, paid_at: null, activated_at: null,
@@ -535,7 +544,9 @@ http.createServer(async (req, res) => {
     if (!(req.headers.authorization || '').includes(SERVICE_KEY)) return send({ code: '42501' }, 403);
     if (!waylIntent || waylIntent.id !== lastBody.p_intent) return send({ code: 'P0002' }, 400);
     if (waylIntent.reference_id !== lastBody.p_reference_id) return send({ code: '22023' }, 400);
-    const price = PRICE[waylIntent.plan] ?? 0;
+    // Re-derived from the intent's own env, exactly as the real
+    // function does, so a live price cannot activate a test intent.
+    const price = priceFor(waylIntent.plan, waylIntent.env);
     if (Number(lastBody.p_amount) !== price) return send({ code: '22023' }, 400);
     if (waylIntent.activated_at) {
       return send([{ activated: false, already_active: true, expires_at: waylExpiry }]);

@@ -7,7 +7,7 @@
  */
 
 import {
-  APP_NAME, CATEGORIES_UI as C, FREE_PRODUCT_LIMIT, MAX_CATEGORIES, PLANS,
+  APP_NAME, CATEGORIES_UI as C, FREE_PRODUCT_LIMIT, MAX_CATEGORIES, PLANS, plansIn,
   PROFILE as P, PROFILE_VARIANTS as V, SUBSCRIPTION as S,
 } from '../config.js';
 import { layout } from '../render/layout.js';
@@ -16,7 +16,7 @@ import { categoriesPage } from '../render/categories.js';
 import { accessGatePage, payPage, subscriptionPage } from '../render/subscription.js';
 import { notifyPending } from '../telegram.js';
 import { asUser, subscriptionState } from '../supabase.js';
-import { paymentsEnabled } from '../wayl.js';
+import { paymentsEnabled, waylEnv } from '../wayl.js';
 import { getOwnShop, resolveSession, sameOrigin, setSessionCookies } from '../auth.js';
 import { redirect, safeNext } from './auth.js';
 
@@ -599,6 +599,9 @@ export async function subscriptionGet(request, env, url) {
   return subPage(
     subscriptionPage({
       state, selected, intent, payments, paymentsEnabled: enabled,
+      // Priced for the Wayl the checkout will actually reach, so the
+      // number on this screen is the number Wayl is asked for.
+      plans: plansIn(waylEnv(env)),
       error: checkoutUnavailable
         ? S.errUnavailable
         : errorKey && S[errorKey] ? S[errorKey] : null,
@@ -633,6 +636,7 @@ export async function accessGateGet(request, env, url) {
       // the screen keeps the paid plans and says why.
       trialAvailable: !full,
       slotsLeft: state?.slots_left,
+      plans: plansIn(waylEnv(env)),
       error: errorKey && S[errorKey] ? S[errorKey]
         : full ? S.freeFull(FREE_PRODUCT_LIMIT) : null,
     }),
@@ -706,7 +710,8 @@ export async function subscriptionPayGet(request, env, url) {
   const intent = await loadLiveIntent(env, g.token, g.shop.id);
   if (!intent) return redirect('/app/subscription', g.headers);
 
-  const plan = PLANS.find((p) => p.key === intent.plan) ?? PLANS[0];
+  const priced = plansIn(waylEnv(env));
+  const plan = priced.find((p) => p.key === intent.plan) ?? priced[0];
   const errorKey = url.searchParams.get('e');
 
   return subPage(
