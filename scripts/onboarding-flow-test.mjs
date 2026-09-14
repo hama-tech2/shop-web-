@@ -168,7 +168,7 @@ const published = await step(w.cookies, '/app/new', {
 // owner controls and is publicly cacheable — scripts/publish-flow-test.mjs
 // pins that in full.
       check('first product publishes into the owner manager',
-      published.location === '/app/products', true);
+      published.location === '/app', true);
 
 /* ============================================================ */
 

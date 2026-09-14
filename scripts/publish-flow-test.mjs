@@ -61,15 +61,21 @@ const SAYS = {
   save:    'پاشەکەوتکردن سەرکەوتوو',  // the generic save failure
 };
 
-// Publishing lands the seller back in their own manager, in owner mode.
+// Publishing lands the seller in their own owner view of the shop.
 //
 // It used to land on /@slug/p/<id> — the customer's copy of the page.
 // That view has no owner controls, because nothing under /@ knows who
 // is looking, and it is served `public, s-maxage=…` where every /app
 // screen is `no-store`. Pressing Back from it walked to /@slug and left
 // the owner sitting in a cached, shared, customer view of their own
-// shop. OWNER is where publishing goes now; PUBLIC is what it must not.
-const OWNER = '/app/products';
+// shop.
+//
+// OWNER is /app: the shop as its owner sees it — header, owner-controls
+// and products. Not /app/products, which is the management list: a place
+// to administer stock, not to look at the shop you have just added to.
+// PUBLIC is the customer's copy, and is what publishing must never use.
+const OWNER = '/app';
+const MANAGER = '/app/products';
 const PUBLIC = `/@nafin-boutique/p/${DRAFT}`;
 
 const MINIMUM = { images: gallery(1), title: 'کراسی کوردی', price: '25000' };
@@ -181,37 +187,47 @@ check('and Add Product is still there', manager.includes('href="/app/new"'), tru
 await control('/__mixed/0');
 
 const asHidden = await publish({ ...MINIMUM, status: 'hidden' });
-check('publishing a hidden product goes to the manager', asHidden.location, OWNER);
+check('publishing a hidden product goes to the owner view too', asHidden.location, OWNER);
 
 /* ---------- the regression itself ---------- */
 
 // The bug: a successful publish handed the seller the customer's view
-// of their own shop. These are the three properties that were broken,
-// pinned one at a time so a future change cannot quietly undo them.
+// of their own shop. These are the properties that were broken, pinned
+// one at a time so a future change cannot quietly undo them.
 
 const published = await publish(MINIMUM);
 
-check('a visible product goes to the manager too, not the storefront',
-  published.location, OWNER);
+check('a visible product goes to the owner view', published.location, OWNER);
 // Named explicitly rather than inferred from the check above: the point
-// is the storefront, not just "some other path".
+// is which places publishing must not use, not just "some other path".
 check('publishing never lands on the public product page',
   published.location === PUBLIC, false);
 check('publishing never lands anywhere under /@',
   published.location.startsWith('/@'), false);
+check('publishing never lands on the management list',
+  published.location === MANAGER, false);
 check('publishing stays inside the authenticated area',
-  published.location.startsWith('/app/'), true);
+  published.location.startsWith('/app'), true);
 
 // Owner mode, checked by what the landing page actually contains rather
-// than by its URL: the controls a customer never sees.
+// than by its URL: the shop header and the controls a customer never
+// sees.
 const landing = await fetch(`${APP}${published.location}`, {
   headers: { cookie: COOKIE },
 });
 const landingHtml = await landing.text();
 check('the landing page renders', landing.status, 200);
-check('it offers editing', /href="\/app\/products\//.test(landingHtml), true);
-check('it offers deleting', /\/delete"/.test(landingHtml), true);
-check('it offers adding another', landingHtml.includes('href="/app/new"'), true);
+check('it is the owner view of the shop', landingHtml.includes('owner-controls'), true);
+check('it shows the shop\u2019s own products section',
+  landingHtml.includes('id="owner-products"'), true);
+check('it offers editing the profile',
+  landingHtml.includes('href="/app/profile"'), true);
+check('it offers adding another product',
+  landingHtml.includes('href="/app/new"'), true);
+// The public link is present as a deliberate choice, not as the place
+// the seller was dropped.
+check('the public shop link is offered, not forced',
+  landingHtml.includes('owner-preview-link'), true);
 
 // And the property that made Back dangerous. Every /app screen is
 // no-store; the storefront is `public, s-maxage=…`. Landing on a
@@ -221,11 +237,23 @@ const cache = landing.headers.get('cache-control') || '';
 check('the landing page is not cacheable', cache.includes('no-store'), true);
 check('and is not marked public', cache.includes('public'), false);
 
+// A signed-out visitor cannot reach it at all, which is the difference
+// between an owner view and a storefront.
+const signedOut = await fetch(`${APP}${published.location}`, { redirect: 'manual' });
+check('the owner view is closed to anyone not signed in',
+  [302, 303, 307].includes(signedOut.status), true);
+check('and sends them to log in',
+  (signedOut.headers.get('location') || '').startsWith('/login'), true);
+
 // The storefront is still public and still cacheable — that is correct
 // for a customer, and is exactly why a seller must not be sent there.
 const storefront = await fetch(`${APP}${PUBLIC}`);
 check('the public product page is still served publicly',
   (storefront.headers.get('cache-control') || '').includes('public'), true);
+
+// The management list is untouched by this change and still reachable.
+const managerPage = await fetch(`${APP}${MANAGER}`, { headers: { cookie: COOKIE } });
+check('the management list still works', managerPage.status, 200);
 
 /* ============================================================ */
 

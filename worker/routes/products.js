@@ -480,11 +480,16 @@ export async function newPost(request, env) {
   // owner mode except the navigation bar.
   //
   // A seller who has just posted does want to see their shop — but
-  // through their own door, not the customer's. /app/products is that
-  // door: their products, their controls, never cached, and the public
-  // link is one deliberate tap away rather than somewhere they land by
-  // accident and cannot tell apart from being logged out.
-  return redirect('/app/products', g.headers);
+  // through their own door, not the customer's. /app is that door: the
+  // owner view of the shop, with its header, its owner-controls and its
+  // products, never cached, and the public link one deliberate tap away
+  // rather than somewhere they land by accident and cannot tell apart
+  // from being logged out.
+  //
+  // Not /app/products: that is the management list, which is a place to
+  // administer stock rather than to look at the shop you have just
+  // added to. It is unchanged and still reachable.
+  return redirect('/app', g.headers);
 }
 
 /* ============================================================
