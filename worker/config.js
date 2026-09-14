@@ -656,10 +656,7 @@ export const PLAN_BANNER = {
  */
 export const PLANS = [
   { key: 'year_1',   name: '١ ساڵ', amount: 72000, monthly: 6000, usd: 55, best: true  },
-  // TEMPORARY: 38,000 / 6,300 normally. Dropped to 1,000 for one real
-  // live payment test — see the migration
-  // 20260919_temporary_live_six_month_price and restore both together.
-  { key: 'months_6', name: '٦ مانگ', amount: 1000, monthly: 167, usd: 29, best: false },
+  { key: 'months_6', name: '٦ مانگ', amount: 38000, monthly: 6300, usd: 29, best: false },
 ];
 
 /**

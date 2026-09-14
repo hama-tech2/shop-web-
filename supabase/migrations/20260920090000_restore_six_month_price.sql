@@ -1,14 +1,11 @@
 -- ============================================================
--- PREPARED ROLLBACK — restore the live six-month price to 38,000
+-- Restore the live six-month price to 38,000
 --
--- Not a migration yet: the extension is .ready so that a replay of
--- supabase/migrations does not pick it up while the test is still
--- running. To use it, rename it to a dated migration —
---
---   supabase/migrations/20260920090000_restore_six_month_price.sql
---
--- — and apply it, or just run the body against production. Either way
--- the effect is the same and it is safe to run twice.
+-- The one real payment is done: BZ-MU19Y0W5-AADD31A42E, 1,000 IQD in
+-- the live environment, a real Wallet charge, one webhook event, and
+-- 181 days granted. 20260919_temporary_live_six_month_price existed for
+-- that transaction and nothing else, so it goes now — until it does,
+-- every shop buys six months for 1,000.
 --
 -- What this does NOT change, deliberately:
 --   * the year stays 72,000

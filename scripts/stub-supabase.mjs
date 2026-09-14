@@ -39,8 +39,7 @@ const CAT_B = 'dddddddd-2222-4222-8222-222222222222';
 const CAT_NEW = 'dddddddd-3333-4333-8333-333333333333';
 
 /** app.plan_price(): the only prices this app bills. */
-// TEMPORARY: months_6 is 38000 normally; 1000 for one live payment test.
-const PRICE = { year_1: 72000, months_6: 1000 };
+const PRICE = { year_1: 72000, months_6: 38000 };
 
 let rows = 1;                     // how many rows a write reports
 let mode = 'shop';                // shop | noshop
