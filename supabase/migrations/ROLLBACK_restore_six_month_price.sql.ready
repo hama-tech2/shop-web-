@@ -1,0 +1,45 @@
+-- ============================================================
+-- PREPARED ROLLBACK — restore the live six-month price to 38,000
+--
+-- Not a migration yet: the extension is .ready so that a replay of
+-- supabase/migrations does not pick it up while the test is still
+-- running. To use it, rename it to a dated migration —
+--
+--   supabase/migrations/20260920090000_restore_six_month_price.sql
+--
+-- — and apply it, or just run the body against production. Either way
+-- the effect is the same and it is safe to run twice.
+--
+-- What this does NOT change, deliberately:
+--   * the year stays 72,000
+--   * WAYL_ENV stays live
+--   * WAYL_RETURN_URL stays https://bazarnow.xyz/app/subscription/result
+--
+-- The Worker half must move with it or the screen will say 1,000 while
+-- Wayl is asked for 38,000. scripts/six-month-price-rollback.sql lists
+-- the three files and the one deploy.
+-- ============================================================
+
+create or replace function app.plan_price(p_plan text)
+returns numeric
+language sql
+immutable
+as $$
+  select case p_plan
+           when 'months_6' then 38000::numeric
+           when 'year_1'   then 72000::numeric
+         end;
+$$;
+
+comment on function app.plan_price(text) is
+  'IQD price per plan, authoritative. PLANS in worker/config.js must be edited to match.';
+
+-- Close anything created at the temporary price, so no link is left
+-- that nobody can pay into. wayl_start_intent would cancel and replace
+-- it on the next tap anyway, and wayl_apply_payment would refuse to
+-- activate it; this only makes that immediate.
+update public.payment_intents pi
+   set status = 'cancelled', handled_at = now()
+ where pi.status in ('open', 'pending')
+   and pi.source = 'payment'
+   and pi.amount <> app.plan_price_for(pi.plan, pi.shop_id);

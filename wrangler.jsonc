@@ -53,14 +53,17 @@
   // WAYL_API_TOKEN is a SECRET — `wrangler secret put WAYL_API_TOKEN`.
   // WAYL_RETURN_URL is required once payments are on: the public https
   // URL of /app/subscription/result. Wayl's webhook URL is built from
-  // its origin. It is deliberately never taken from the request, whose
-  // Host header the caller controls. Missing it means no checkout.
+  // its origin, so this one value decides both where a paying seller
+  // lands and where Wayl calls us — https://bazarnow.xyz/webhooks/wayl/…
+  // Both must reach this Worker. It is deliberately never taken from the
+  // request, whose Host header the caller controls. Missing it means no
+  // checkout at all.
   "vars": {
     "SUPABASE_URL": "https://kvwgiobnpwrjwyevadvc.supabase.co",
     "SUPABASE_PUBLISHABLE_KEY": "sb_publishable_j6YHgYneV4Bfox79hrxH7g_0r28MsBg",
     "R2_BUCKET": "shop-web-images",
     "PAYMENTS_ENABLED": "true",
     "WAYL_ENV": "live",
-    "WAYL_RETURN_URL": "https://shop-web.mahmadmajed149.workers.dev/app/subscription/result"
+    "WAYL_RETURN_URL": "https://bazarnow.xyz/app/subscription/result"
   }
 }

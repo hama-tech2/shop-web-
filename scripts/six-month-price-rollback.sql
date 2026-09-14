@@ -15,6 +15,14 @@
 --   3. scripts/stub-supabase.mjs — PRICE.months_6 back to 38000
 --   4. npx wrangler deploy
 --
+-- What must NOT move while doing it:
+--   * the year stays 72,000
+--   * WAYL_ENV stays "live" in wrangler.jsonc
+--   * WAYL_RETURN_URL stays https://bazarnow.xyz/app/subscription/result
+--
+-- The database half of this is also prepared as a file ready to apply:
+--   supabase/migrations/ROLLBACK_restore_six_month_price.sql.ready
+--
 -- An open checkout still sitting at 1,000 is not a loose end:
 -- wayl_start_intent only reuses an attempt priced at what the shop pays
 -- today, so the next tap cancels and replaces it, and
