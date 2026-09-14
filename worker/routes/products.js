@@ -465,17 +465,25 @@ export async function newPost(request, env) {
     return redirect(`/app/products/${draftId}`, g.headers);
   }
 
-  // Published, images and all. Send them to their own public page — the
-  // thing a customer will see, and the link they are about to share —
-  // rather than to a management list. A seller who has just posted
-  // wants to look at their shop, not administer it.
+  // Published, images and all. Back to the seller's own manager.
   //
-  // Only when it is actually public: a product saved as hidden has no
-  // page to land on, so that one still goes to the manager.
-  if (parsed.values?.status !== 'hidden' && g.shop.slug) {
-    return redirect(`/@${g.shop.slug}/p/${draftId}`, g.headers);
-  }
-
+  // This used to send them to /@slug/p/<id> so they could admire the
+  // thing they had just posted. That is the customer's copy of the
+  // page, and putting it at the end of an authenticated flow broke two
+  // things at once. It renders with no owner controls, because nothing
+  // under /@ knows who is looking — so the seller who had just
+  // published was handed the anonymous view of their own product. And
+  // it is served `public, s-maxage=120, stale-while-revalidate=600`,
+  // where every screen inside /app is `no-store`: pressing Back walked
+  // from the storefront to /@slug and sat the owner in a cached,
+  // shared, customer view of their own shop with no way back into
+  // owner mode except the navigation bar.
+  //
+  // A seller who has just posted does want to see their shop — but
+  // through their own door, not the customer's. /app/products is that
+  // door: their products, their controls, never cached, and the public
+  // link is one deliberate tap away rather than somewhere they land by
+  // accident and cannot tell apart from being logged out.
   return redirect('/app/products', g.headers);
 }
 

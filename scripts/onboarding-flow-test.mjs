@@ -163,8 +163,12 @@ const published = await step(w.cookies, '/app/new', {
   title: 'کراسی کوردی سەوز',
   price: '85000',
 });
-check('first product publishes onto its own public page',
-      published.location?.startsWith('/@nafin-boutique/p/'), true);
+// Publishing lands in the seller's own manager, in owner mode. It used
+// to land on the customer's copy of the product page, which has no
+// owner controls and is publicly cacheable — scripts/publish-flow-test.mjs
+// pins that in full.
+      check('first product publishes into the owner manager',
+      published.location === '/app/products', true);
 
 /* ============================================================ */
 

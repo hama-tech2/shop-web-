@@ -168,7 +168,7 @@ for (const held of [0, 1, 2, 3, 4]) {
   check(`with ${held} products the form is reachable`,
     (await page('/app/new?plan=free')).includes('publish-page'));
   const r = await publish(1);
-  check(`product ${held + 1} publishes`, r.location?.startsWith(`/@nafin-boutique/p/`), true);
+  check(`product ${held + 1} publishes`, r.location === '/app/products', true);
 }
 
 await free(FREE_PRODUCT_LIMIT);
@@ -190,7 +190,7 @@ check('full', (await page('/app/new?plan=free')).includes('publish-page'), false
 await control(`/__products/${FREE_PRODUCT_LIMIT - 1}`);
 check('deleting one gives the slot back',
   (await page('/app/new?plan=free')).includes('publish-page'));
-check('and the next product publishes again', (await publish(1)).location?.startsWith(`/@nafin-boutique/p/`), true);
+check('and the next product publishes again', (await publish(1)).location === '/app/products', true);
 
 // The gate says so too, rather than offering a button that is refused.
 await free(FREE_PRODUCT_LIMIT);
@@ -206,7 +206,7 @@ check('and asking for it anyway is refused by the server',
    ============================================================ */
 
 await free(0);
-check(`${FREE_IMAGE_LIMIT} image publishes on Free`, (await publish(1)).location?.startsWith(`/@nafin-boutique/p/`), true);
+check(`${FREE_IMAGE_LIMIT} image publishes on Free`, (await publish(1)).location === '/app/products', true);
 
 await control('/__calls/reset');
 const two = await publish(FREE_IMAGE_LIMIT + 1);
@@ -229,8 +229,8 @@ check('and is not told about slots', paidForm.includes('publish-free-left'), fal
 await paid(FREE_PRODUCT_LIMIT + 3);
 check(`${FREE_PRODUCT_LIMIT + 3} products is nothing to a paid seller`,
   (await page('/app/new')).includes('publish-page'));
-check('who can still publish', (await publish(1)).location?.startsWith(`/@nafin-boutique/p/`), true);
-check('with more than one image', (await publish(5)).location?.startsWith(`/@nafin-boutique/p/`), true);
+check('who can still publish', (await publish(1)).location === '/app/products', true);
+check('with more than one image', (await publish(5)).location === '/app/products', true);
 
 await paid(0);
 const gateForPaid = await fetch(`${APP}/app/subscription/start`,
@@ -296,7 +296,7 @@ await paid(3, -1);
 await control('/__public/3');
 check('a lapsed shop under the limit still reaches the form',
   (await page('/app/new?plan=free')).includes('publish-page'));
-check('and can still publish', (await publish(1)).location?.startsWith(`/@nafin-boutique/p/`), true);
+check('and can still publish', (await publish(1)).location === '/app/products', true);
 check('and its products stay public',
   (await setVisibility('active')).location, '/app/products');
 

@@ -61,8 +61,15 @@ const SAYS = {
   save:    'پاشەکەوتکردن سەرکەوتوو',  // the generic save failure
 };
 
-// Publishing now lands on the seller's own PUBLIC page for the product:
-// what a customer sees, and the link they are about to share.
+// Publishing lands the seller back in their own manager, in owner mode.
+//
+// It used to land on /@slug/p/<id> — the customer's copy of the page.
+// That view has no owner controls, because nothing under /@ knows who
+// is looking, and it is served `public, s-maxage=…` where every /app
+// screen is `no-store`. Pressing Back from it walked to /@slug and left
+// the owner sitting in a cached, shared, customer view of their own
+// shop. OWNER is where publishing goes now; PUBLIC is what it must not.
+const OWNER = '/app/products';
 const PUBLIC = `/@nafin-boutique/p/${DRAFT}`;
 
 const MINIMUM = { images: gallery(1), title: 'کراسی کوردی', price: '25000' };
@@ -77,17 +84,17 @@ await control('/__sub/20');
 /* ---------- the locked minimum: image + name + price only ---------- */
 
 let r = await publish(MINIMUM);
-check('minimum publishes (no description, no categories)', r.location, PUBLIC);
+check('minimum publishes (no description, no categories)', r.location, OWNER);
 check('minimum does not re-render the form', r.status, 303);
 
 r = await publish({ ...MINIMUM, description: '', category: '', own_category: '' });
-check('empty optional fields still publish', r.location, PUBLIC);
+check('empty optional fields still publish', r.location, OWNER);
 
 r = await publish({ ...MINIMUM, description: 'وەسفێکی کورت', category: 'clothing' });
-check('filled optional fields still publish', r.location, PUBLIC);
+check('filled optional fields still publish', r.location, OWNER);
 
 r = await publish({ ...MINIMUM, images: gallery(5) });
-check('five images publish', r.location, PUBLIC);
+check('five images publish', r.location, OWNER);
 
 /* ---------- each failure names its own field ---------- */
 
@@ -119,10 +126,10 @@ check('zero price: says price', r.html.includes(SAYS.price), true);
 
 // A Sorani seller types ٢٥٠٠٠ as readily as 25000; both must publish.
 r = await publish({ ...MINIMUM, price: '٢٥٠٠٠' });
-check('arabic-indic digits publish', r.location, PUBLIC);
+check('arabic-indic digits publish', r.location, OWNER);
 
 r = await publish({ ...MINIMUM, price: '25,000' });
-check('thousands separators publish', r.location, PUBLIC);
+check('thousands separators publish', r.location, OWNER);
 
 /* ---------- an image key from another shop is refused ---------- */
 
@@ -152,10 +159,9 @@ await setMode('shop');
    after publishing, and the one list behind it
    ============================================================
 
-   A seller who has just posted wants to look at their shop, not
-   administer it. So publishing lands on their own PUBLIC page for the
-   product. The manager is one list: hidden products are marked, not
-   filed somewhere else.
+   Publishing lands the seller in their own manager, in owner mode,
+   whatever the product's visibility. The manager is one list: hidden
+   products are marked, not filed somewhere else.
    ============================================================ */
 
 await control('/__mixed/1');
@@ -174,11 +180,52 @@ check('delete is still there', /\/delete"/.test(manager), true);
 check('and Add Product is still there', manager.includes('href="/app/new"'), true);
 await control('/__mixed/0');
 
-// A product saved as hidden has no public page to land on, so that one
-// still goes to the manager.
 const asHidden = await publish({ ...MINIMUM, status: 'hidden' });
-check('publishing a hidden product goes to the manager instead',
-  asHidden.location, '/app/products');
+check('publishing a hidden product goes to the manager', asHidden.location, OWNER);
+
+/* ---------- the regression itself ---------- */
+
+// The bug: a successful publish handed the seller the customer's view
+// of their own shop. These are the three properties that were broken,
+// pinned one at a time so a future change cannot quietly undo them.
+
+const published = await publish(MINIMUM);
+
+check('a visible product goes to the manager too, not the storefront',
+  published.location, OWNER);
+// Named explicitly rather than inferred from the check above: the point
+// is the storefront, not just "some other path".
+check('publishing never lands on the public product page',
+  published.location === PUBLIC, false);
+check('publishing never lands anywhere under /@',
+  published.location.startsWith('/@'), false);
+check('publishing stays inside the authenticated area',
+  published.location.startsWith('/app/'), true);
+
+// Owner mode, checked by what the landing page actually contains rather
+// than by its URL: the controls a customer never sees.
+const landing = await fetch(`${APP}${published.location}`, {
+  headers: { cookie: COOKIE },
+});
+const landingHtml = await landing.text();
+check('the landing page renders', landing.status, 200);
+check('it offers editing', /href="\/app\/products\//.test(landingHtml), true);
+check('it offers deleting', /\/delete"/.test(landingHtml), true);
+check('it offers adding another', landingHtml.includes('href="/app/new"'), true);
+
+// And the property that made Back dangerous. Every /app screen is
+// no-store; the storefront is `public, s-maxage=…`. Landing on a
+// cacheable page at the end of an authenticated flow is what put a
+// shared customer view into the seller's history.
+const cache = landing.headers.get('cache-control') || '';
+check('the landing page is not cacheable', cache.includes('no-store'), true);
+check('and is not marked public', cache.includes('public'), false);
+
+// The storefront is still public and still cacheable — that is correct
+// for a customer, and is exactly why a seller must not be sent there.
+const storefront = await fetch(`${APP}${PUBLIC}`);
+check('the public product page is still served publicly',
+  (storefront.headers.get('cache-control') || '').includes('public'), true);
 
 /* ============================================================ */
 

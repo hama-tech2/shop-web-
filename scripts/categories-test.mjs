@@ -198,7 +198,7 @@ const cases = [
 
 for (const [name, fields] of cases) {
   const out = await publish({ ...MINIMUM, ...fields });
-  check(`publishes with ${name}`, out.location?.startsWith(`/@nafin-boutique/p/`), true);
+  check(`publishes with ${name}`, out.location === '/app/products', true);
   check(`publishes with ${name}: no save error`, out.html.includes(SAVE_FAILED), false);
 }
 
