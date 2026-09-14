@@ -9,7 +9,7 @@
 
 import {
   APP_NAME, FREE_IMAGE_LIMIT, FREE_PRODUCT_LIMIT, MAX_IMAGES, MAX_UPLOAD_BYTES,
-  PRODUCT as T, PRODUCT_FILTERS, SUBSCRIPTION as S,
+  PRODUCT as T, SUBSCRIPTION as S,
 } from '../config.js';
 import { layout } from '../render/layout.js';
 import { productForm, trialLimitPage } from '../render/product-form.js';
@@ -465,6 +465,17 @@ export async function newPost(request, env) {
     return redirect(`/app/products/${draftId}`, g.headers);
   }
 
+  // Published, images and all. Send them to their own public page — the
+  // thing a customer will see, and the link they are about to share —
+  // rather than to a management list. A seller who has just posted
+  // wants to look at their shop, not administer it.
+  //
+  // Only when it is actually public: a product saved as hidden has no
+  // page to land on, so that one still goes to the manager.
+  if (parsed.values?.status !== 'hidden' && g.shop.slug) {
+    return redirect(`/@${g.shop.slug}/p/${draftId}`, g.headers);
+  }
+
   return redirect('/app/products', g.headers);
 }
 
@@ -596,24 +607,23 @@ export async function listGet(request, env, url) {
   const g = await guard(request, env);
   if (g.redirect) return g.redirect;
 
-  const key = url.searchParams.get('filter') || 'all';
-  const filter = PRODUCT_FILTERS.find((f) => f.key === key) ?? PRODUCT_FILTERS[0];
-
-  const search = {
-    select: PRODUCT_SELECT,
-    shop_id: `eq.${g.shop.id}`,
-    order: 'created_at.desc',
-    limit: '100',
-  };
-  if (filter.status) search.status = `eq.${filter.status}`;
-
-  const res = await asUser(env, g.token, 'products', { search });
+  // One list, every product, visible and hidden together. Each row
+  // carries its own status badge, so nothing is hidden from the seller
+  // and there is no filter to get lost in.
+  const res = await asUser(env, g.token, 'products', {
+    search: {
+      select: PRODUCT_SELECT,
+      shop_id: `eq.${g.shop.id}`,
+      order: 'created_at.desc',
+      limit: '100',
+    },
+  });
 
   const errorKey = url.searchParams.get('e');
   const error = errorKey && T[errorKey] ? T[errorKey] : null;
 
   return page(
-    productList({ products: res.ok ? res.data ?? [] : [], filter: filter.key, error }),
+    productList({ products: res.ok ? res.data ?? [] : [], error }),
     T.listTitle, g.headers,
   );
 }

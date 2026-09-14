@@ -91,9 +91,9 @@ check('each gate checkout form is guarded',
 await control('/__wayl/linkfails/1');
 
 const first = await pay('year_1');
-check('the first tap does not reach Wayl', first.status, 303);
-check('and lands back on the plans screen with a reason',
-  first.location, '/app/subscription?e=errCheckout');
+check('the first tap comes back rather than hanging', first.status, 303);
+check('and says the failure was Wayl\'s, not the seller\'s',
+  first.location, '/app/subscription?e=errProvider');
 
 // Nine more ordinary taps. This is the exact sequence that used to end
 // in "you are going too fast" and no way to pay.
@@ -101,7 +101,7 @@ const tries = [];
 for (let i = 0; i < 9; i += 1) tries.push(await pay('year_1'));
 
 check('every retry is still answered, none is rate limited',
-  tries.every((r) => r.location === '/app/subscription?e=errCheckout'));
+  tries.every((r) => r.location === '/app/subscription?e=errProvider'));
 check('no retry was ever told the shop is busy',
   tries.some((r) => r.location?.includes('errBusy')), false);
 
@@ -125,6 +125,11 @@ check('the tap that works redirects to Wayl', worked.status, 303);
 check('and the link is Wayl\'s, not ours', worked.location?.startsWith('https://'));
 check('Wayl was asked for the price the database holds',
   (await created()).at(-1)?.total, YEAR.amount);
+// Wayl answers 201, not 200, when it creates a link. The Worker reads
+// the whole 2xx range; a check for 200 would read a created link as a
+// failure and leave the seller with nothing.
+check('a 201 from Wayl is a created link, not a failure',
+  worked.location?.startsWith('https://checkout.'));
 
 // A second tap on a link that already exists is the same link, not a
 // second payment.
@@ -133,7 +138,34 @@ check('tapping again hands back the same checkout', again.location, worked.locat
 check('and no eleventh link was made at Wayl', (await created()).length, 11);
 
 /* ============================================================
-   4. the guards that must survive all of this
+   4. a failure that is ours, said as ours
+   ============================================================
+
+   Five different things used to come back as one word, errCheckout: no
+   return URL configured, the database refusing, Wayl refusing, Wayl
+   unreachable, the link failing to store. Only one of those is Wayl's,
+   and only one is worth tapping again for.
+
+   The missing-return-URL case is the one that actually bit: Wayl is
+   never called at all, so there is no Wayl error to find and no link,
+   id or code to store. Verified live on 2026-09-12 by running the
+   Worker with WAYL_RETURN_URL removed from wrangler.jsonc: the route
+   answered ?e=errConfig, made zero create-link calls, and logged
+   "checkout failed: WAYL_RETURN_URL is missing or not a usable https
+   URL". That one needs a second Worker to reproduce, so what is pinned
+   here is everything reachable with one.
+   ============================================================ */
+
+await fresh();
+await control('/__wayl/linkfails/1');
+const refused = await pay('year_1');
+check('Wayl refusing is reported as Wayl, not as the seller',
+  refused.location, '/app/subscription?e=errProvider');
+check('and the attempt still holds no link', (await created()).length, 1);
+await control('/__wayl/linkfails/0');
+
+/* ============================================================
+   5. the guards that must survive all of this
    ============================================================ */
 
 await fresh();
@@ -161,7 +193,7 @@ check('an invented plan buys nothing', madeUp.location, '/app/subscription?e=err
 check('and reached Wayl not at all', (await created()).length, 0);
 
 /* ============================================================
-   5. nothing about the payment leaks to the browser
+   6. nothing about the payment leaks to the browser
    ============================================================ */
 
 await fresh();

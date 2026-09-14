@@ -40,8 +40,8 @@ try {
     submissions.push({ path:new URL(route.request().url()).pathname, fields:new URLSearchParams(route.request().postData()) });
     return route.fulfill({ status:204 });
   });
-  for (const width of [320,360,390,430]) {
-    await page.setViewportSize({ width, height:844 });
+  for (const [width, height] of [[320,844],[360,640],[390,844],[430,844]]) {
+    await page.setViewportSize({ width, height });
     await page.goto(APP + '/app/new');
     await page.evaluate(() => document.fonts.ready);
     const submissionsBefore = submissions.length;
@@ -52,7 +52,12 @@ try {
       !/تا \d+ بەرهەم/.test(await page.locator('.billing-features').innerText()));
     check('paid options in approved order ' + width,
       JSON.stringify(await page.locator('.gate-plan').evaluateAll((els) => els.map((el) => el.dataset.plan))) === JSON.stringify(['free','months_6','year_1']));
-    const before = await page.locator('#gate-options').boundingBox();
+    // Layout-relative, not viewport-relative: selecting a card scrolls it
+    // clear of the dock, so a viewport box would move without anything
+    // having reflowed. offsetTop/offsetHeight answer the real question.
+    const box = () => page.locator('#gate-options')
+      .evaluate((el) => [el.offsetTop, el.offsetHeight, el.offsetWidth]);
+    const before = await box();
     for (const selected of ['months_6','year_1','free','year_1','months_6','free']) {
       await page.locator(`[data-plan="${selected}"]`).click();
       check('native gate choice ' + selected + ' ' + width, await page.locator(`input[name="gate-plan"][value="${selected}"]`).isChecked());
@@ -61,7 +66,7 @@ try {
       check('badge stays yearly ' + selected + ' ' + width, await page.locator('[data-plan="year_1"] .billing-best').innerText() === 'باشترین هەڵبژاردە');
     }
     check('selection never submits ' + width, submissions.length === submissionsBefore);
-    check('gate choices do not shift ' + width, JSON.stringify(await page.locator('#gate-options').boundingBox()) === JSON.stringify(before));
+    check('gate choices do not shift ' + width, JSON.stringify(await box()) === JSON.stringify(before));
     for (const selected of ['free','months_6','year_1']) {
       await page.locator(`[data-plan="${selected}"]`).click();
       const button = page.locator('.gate-actions button:visible');
@@ -74,9 +79,55 @@ try {
     }
     await page.locator('[data-plan="free"]').click();
     await page.waitForTimeout(220);
+
+    // The whole point of the dock: the action is on screen the moment
+    // the page loads, without scrolling past the benefits. An available
+    // Free plan that looks unavailable is the bug this fixes.
+    check('the Free action is on screen without scrolling ' + width,
+      await page.locator('.gate-actions button:visible').evaluate((el) => {
+        const b = el.getBoundingClientRect();
+        return b.top >= 0 && b.bottom <= innerHeight;
+      }));
+    check('the dock is fixed, not the end of the page ' + width,
+      await page.locator('.gate-actions').evaluate((el) => getComputedStyle(el).position === 'fixed'));
+    check('and it sits outside the scrolling content ' + width,
+      await page.locator('.gate-actions').evaluate((el) => !el.closest('.billing--gate')));
+    check('the benefits do not decide where it is ' + width,
+      await page.evaluate(() => {
+        const dock = document.querySelector('.gate-actions');
+        const features = document.querySelector('.billing-features');
+        return features !== null && !features.contains(dock);
+      }));
+    check('one action only, no duplicate CTA ' + width,
+      await page.locator('.gate-actions button:visible').count() === 1
+      && await page.locator('.billing--gate button[type="submit"]').count() === 0);
+
     await page.evaluate(() => scrollTo(0, document.body.scrollHeight));
     check('gate action clears bottom navigation ' + width,
       await page.locator('.gate-actions button:visible').evaluate((el) => el.getBoundingClientRect().bottom <= document.querySelector('.nav').getBoundingClientRect().top));
+    check('it is still there at the bottom of the page ' + width,
+      await page.locator('.gate-actions button:visible').evaluate((el) => {
+        const b = el.getBoundingClientRect();
+        return b.top >= 0 && b.bottom <= innerHeight;
+      }));
+    check('and the last content is not hidden under it ' + width,
+      await page.evaluate(() => {
+        const last = document.querySelector('.billing-features li:last-child');
+        const dock = document.querySelector('.gate-actions').getBoundingClientRect();
+        return last.getBoundingClientRect().bottom <= dock.top + 1;
+      }));
+    check('no horizontal overflow with the dock ' + width,
+      await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
+    check('RTL still ' + width, await page.locator('html').getAttribute('dir') === 'rtl');
+
+    // Paid selection swaps the action to the payment one, same dock.
+    await page.locator('[data-plan="year_1"]').click();
+    check('a paid plan shows the payment action in the dock ' + width,
+      await page.locator('.gate-actions [data-choice="year_1"] button').isVisible()
+      && await page.locator('.gate-actions button:visible').count() === 1);
+    check('and the dinar charge rides with it ' + width,
+      await page.locator('.gate-actions [data-choice="year_1"] .billing-charge').isVisible());
+    await page.locator('[data-plan="free"]').click();
     await page.screenshot({ path:join(screenshots, `gate-${width}.png`), fullPage:true });
   }
   check('no write reached the backend while selecting', (await (await fetch(STUB + '/__writes')).json()).every((w) => w.table === 'rpc/subscription_state'));

@@ -112,14 +112,24 @@ export function subscriptionPage({ state, selected, intent, payments = [], error
     (paymentsEnabled ? '' : `<input type="hidden" name="step" value="checkout">`) +
     `<fieldset class="billing-options"><legend class="visually-hidden">پلانێک هەڵبژێرە</legend>` +
     paidOptions().map((p) => planCard(p, chosen)).join('') + `</fieldset>` +
+    // The form keeps the radios; its submit button lives in the dock
+    // below and reaches back here by id. One form, one action, unchanged.
+    `</form>` +
+    hostedTrust() + (paymentsEnabled ? '' : `<p class="billing-availability">${availability}</p>`) +
+    // Historical records stay available; no SW code or manual-payment entry CTA.
+    `<details class="billing-history"><summary>${esc(T.historyTitle)}</summary>${paymentHistory(payments)}</details>` +
+    `</main>` +
+    // The same dock as the plan gate: the action sits fixed above the
+    // bottom navigation instead of at the end of the page, so a seller
+    // never has to scroll past their payment history to renew. The
+    // button submits #plan-form through the form attribute, so the
+    // route, the method and the selected plan are exactly as before.
+    `<div class="action-dock plans-dock">` +
     (paymentsEnabled ? PLANS.map((p) =>
       `<p class="billing-charge" id="charge-${esc(p.key)}" data-charge-for="${esc(p.key)}"` +
       `${p.key === chosen ? '' : ' hidden'}><bdi>${esc(T.chargeNotice(price(p.amount)))}</bdi></p>`).join('') : '') +
-    `<button class="billing-primary" type="submit" id="pay-btn">بەردەوامبوون بۆ پارەدان ${iconBack(20)}</button>` +
-    hostedTrust() + (paymentsEnabled ? '' : `<p class="billing-availability">${availability}</p>`) + `</form>` +
-    // Historical records stay available; no SW code or manual-payment entry CTA.
-    `<details class="billing-history"><summary>${esc(T.historyTitle)}</summary>${paymentHistory(payments)}</details>` +
-    `</main>` + bottomNav('account', { accountLabel: 'هەژمار' });
+    `<button class="billing-primary" type="submit" id="pay-btn" form="plan-form">بەردەوامبوون بۆ پارەدان ${iconBack(20)}</button>` +
+    `</div>` + bottomNav('account', { accountLabel: 'هەژمار' });
 }
 
 function planCard(plan, selected, gate = false) {
@@ -161,17 +171,29 @@ export function accessGatePage({ trialAvailable: freeAvailable = false, slotsLef
     (!freeAvailable ? `<p class="billing-availability"><a href="/app/products">بەڕێوەبردن و سڕینەوەی بەرهەمەکان</a></p>` : '') +
     `<section class="billing-features" aria-labelledby="billing-features-title"><h2 id="billing-features-title">لە هەموو پلانەکاندا</h2><ul>` +
     features.map(([label, icon]) => `<li><span class="billing-feature-icon">${icon}</span><span>${label}</span></li>`).join('') + `</ul></section>` +
-    // Native radios reveal one existing POST form. Selection never writes.
-    `<div class="gate-actions">` +
+    // Said once, in the scroll, rather than under every paid button. The
+    // dock below holds the action and nothing else.
+    hostedTrust() +
+    (freeAvailable ? `<p class="billing-availability">دواتر دەتوانیت پلانێکی پارەدراو هەڵبژێریت</p>` : '') +
+    `</main>` +
+    // The action sits in a dock fixed above the bottom navigation, not
+    // at the end of the page. A seller who has just chosen Free should
+    // not have to scroll past the benefits to find out they may use it —
+    // that made an available plan look unavailable.
+    //
+    // Still one form per choice, still the existing POST actions, and
+    // still native radios deciding which one is shown. Selection writes
+    // nothing and no JavaScript is involved in choosing where a tap goes.
+    `<div class="action-dock gate-actions" role="group" aria-label="بەردەوامبوون">` +
     (freeAvailable ? `<form method="post" action="/app/subscription/free" data-choice="free">` +
       `<button class="billing-primary" type="submit" id="start-trial">بەردەوامبوون بەخۆڕایی ${iconBack(20)}</button>` +
-      `<p class="billing-availability">دواتر دەتوانیت پلانێکی پارەدراو هەڵبژێریت</p></form>` : '') +
+      `</form>` : '') +
     paidOptions().map((p) => `<form method="post" action="/app/subscription/checkout" data-choice="${esc(p.key)}" data-checkout>` +
       `<input type="hidden" name="plan" value="${esc(p.key)}">` +
       chargeLine(p) +
       `<button class="billing-primary" type="submit" aria-label="بەردەوامبوون بۆ پارەدان — ${planName(p)}">بەردەوامبوون بۆ پارەدان ${iconBack(20)}</button>` +
-      hostedTrust() + `</form>`).join('') + `</div>` +
-    `</main>` + bottomNav('account', { accountLabel: 'هەژمار' });
+      `</form>`).join('') + `</div>` +
+    bottomNav('account', { accountLabel: 'هەژمار' });
 }
 
 /** A read-only method chooser. No provider session, reference or payment is made. */

@@ -13,6 +13,7 @@ declare
   v_ref     text := 'BZ-DBTEST-' || substr(replace(gen_random_uuid()::text, '-', ''), 1, 10);
   v_secret  text := repeat('a', 64);
   v_row     record;
+  v_price   numeric;
   v_before  timestamptz;
   v_after   timestamptz;
   v_now     timestamptz;
@@ -36,7 +37,13 @@ begin
   -- 1. a checkout, priced by the server
   select * into v_row from public.wayl_start_intent(v_shop, 'year_1', v_ref, 'test', v_secret);
   v_intent := v_row.id;
-  if v_row.amount <> 90000 then raise exception 'FAIL price % is not 90000', v_row.amount; end if;
+  -- Read from the price list, never pinned to a number here: this test
+  -- went stale and silently stopped running the moment the year changed
+  -- from 90,000 to 72,000.
+  v_price := app.plan_price_for('year_1', v_shop);
+  if v_row.amount <> v_price then
+    raise exception 'FAIL price % is not %', v_row.amount, v_price;
+  end if;
   if v_row.reused then raise exception 'FAIL a fresh intent claimed to be reused'; end if;
   if v_row.status <> 'open' then raise exception 'FAIL a new intent is %', v_row.status; end if;
   raise notice 'PASS a checkout is created at the server price';
@@ -55,14 +62,18 @@ begin
   set local role authenticated;
   raise notice 'PASS the webhook secret is stored, in its own table';
 
-  -- 3. an open intent with no link is stale, not reusable
+  -- 3. an open intent Wayl never issued a link for is retried on the
+  --    same row — a fresh reference and a rotated secret. Nothing was
+  --    spent, because nothing reached Wayl. (This was a cancel until
+  --    20260914_checkout_retry_and_prices; the retry is the contract
+  --    scripts/checkout-retry-db-test.sql pins in full.)
   select * into v_row from public.wayl_start_intent(v_shop, 'year_1', v_ref || 'B', 'test', v_secret);
-  if v_row.reused then raise exception 'FAIL reused an intent that has no checkout url'; end if;
+  if not v_row.reused then raise exception 'FAIL a link-less attempt was not retried'; end if;
+  if v_row.id <> v_intent then raise exception 'FAIL the retry made a second row'; end if;
   select status into v_method from public.payment_intents where id = v_intent;
-  if v_method <> 'cancelled' then raise exception 'FAIL the stale intent is %', v_method; end if;
-  v_intent := v_row.id;
+  if v_method <> 'open' then raise exception 'FAIL the retried intent is %', v_method; end if;
   v_ref := v_ref || 'B';
-  raise notice 'PASS a stale intent is cancelled, never left live';
+  raise notice 'PASS an attempt Wayl never linked is retried, not duplicated';
 
   -- 4. one with a link comes back, so a second tap is not a second payment
   perform public.wayl_attach_link(v_intent, 'lnk_1', 'CODE1', 'https://checkout.example.invalid/x');
@@ -87,7 +98,7 @@ begin
 
   -- 6. and cannot activate their own payment
   begin
-    perform public.wayl_apply_payment(v_intent, v_ref, 90000, 'FIB', 'seller');
+    perform public.wayl_apply_payment(v_intent, v_ref, v_price, 'FIB', 'seller');
     raise exception 'FAIL a seller activated their own payment';
   exception when insufficient_privilege then
     raise notice 'PASS a seller cannot activate their own payment';
@@ -108,7 +119,7 @@ begin
 
   -- 8. and the reference is this payment's or nothing
   begin
-    perform public.wayl_apply_payment(v_intent, 'BZ-SOMEONE-ELSE', 90000, 'FIB', 'wayl');
+    perform public.wayl_apply_payment(v_intent, 'BZ-SOMEONE-ELSE', v_price, 'FIB', 'wayl');
     raise exception 'FAIL another reference activated this plan';
   exception when invalid_parameter_value then
     raise notice 'PASS another payment''s reference is refused';
@@ -119,7 +130,7 @@ begin
 
   -- 9. the activation itself, and the one date rule
   v_now := now();
-  select * into v_row from public.wayl_apply_payment(v_intent, v_ref, 90000, 'FIB', 'wayl');
+  select * into v_row from public.wayl_apply_payment(v_intent, v_ref, v_price, 'FIB', 'wayl');
   if not v_row.activated then raise exception 'FAIL the payment did not activate'; end if;
   select expires_at into v_after from public.subscriptions where shop_id = v_shop;
   if date_trunc('day', v_after)
@@ -128,9 +139,13 @@ begin
   end if;
   raise notice 'PASS the plan extends from max(now, current expiry)';
 
+  -- As the owner: this shim's service_role has no BYPASSRLS, so the
+  -- payments policy hides the row and the count would read 0.
+  set local role none;
   select count(*) into v_count from public.payments
-   where shop_id = v_shop and method = 'wayl' and amount = 90000;
+   where shop_id = v_shop and method = 'wayl' and amount = v_price;
   if v_count <> 1 then raise exception 'FAIL % wayl payments recorded', v_count; end if;
+  set local role service_role;
   select payment_method, activated_at is not null into v_method, v_active
     from public.payment_intents where id = v_intent;
   if not v_active then raise exception 'FAIL activated_at was not set'; end if;
@@ -138,12 +153,14 @@ begin
   raise notice 'PASS the payment, and the method Wayl supplied, are recorded';
 
   -- 10. the same payment again: a webhook retry, or a browser still polling
-  select * into v_row from public.wayl_apply_payment(v_intent, v_ref, 90000, 'FIB', 'wayl');
+  select * into v_row from public.wayl_apply_payment(v_intent, v_ref, v_price, 'FIB', 'wayl');
   if v_row.activated or not v_row.already_active then
     raise exception 'FAIL a repeat activated a second time';
   end if;
+  set local role none;
   select count(*) into v_count from public.payments where shop_id = v_shop;
   if v_count <> 1 then raise exception 'FAIL % payments after a repeat', v_count; end if;
+  set local role service_role;
   select expires_at into v_before from public.subscriptions where shop_id = v_shop;
   if v_before <> v_after then raise exception 'FAIL the expiry moved twice'; end if;
   raise notice 'PASS a repeated activation grants nothing';
@@ -174,15 +191,23 @@ begin
     raise notice 'PASS a manual transfer awaiting the owner is not overtaken';
   end;
 
-  -- 13. and one shop cannot make checkouts in a loop
-  begin
-    for i in 1..8 loop
-      perform public.wayl_start_intent(v_shop, 'year_1', v_ref || '-R' || i, 'test', v_secret);
-    end loop;
-    raise exception 'FAIL a shop made unlimited checkouts';
-  exception when sqlstate 'SW002' then
-    raise notice 'PASS a shop cannot make checkouts in a loop';
-  end;
+  -- 13. tapping again costs a seller nothing
+  --
+  -- Since 20260914_checkout_retry_and_prices the rate limit counts only
+  -- attempts Wayl actually issued a link for, so a seller whose network
+  -- drops eight times is not locked out of paying. The limit itself —
+  -- six linked attempts in ten minutes, twenty rows in an hour — is
+  -- pinned in full by scripts/checkout-retry-db-test.sql.
+  for i in 1..8 loop
+    perform public.wayl_start_intent(v_shop, 'year_1', v_ref || '-R' || i, 'test', v_secret);
+  end loop;
+  select count(*) into v_count
+    from public.payment_intents
+   where shop_id = v_shop and plan = 'year_1' and status in ('open', 'pending');
+  if v_count <> 1 then
+    raise exception 'FAIL eight taps left % live year attempts, not one', v_count;
+  end if;
+  raise notice 'PASS eight taps Wayl never linked stay one row and are not rate limited';
 
   set local role none;
   raise notice 'ALL WAYL DATABASE CHECKS PASSED';

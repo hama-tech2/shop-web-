@@ -186,7 +186,7 @@ try {
     check('cover: saved rotated/zoomed image is 4:5', Math.abs(ratio - 1.25) < .01);
     check('cover: saved image actually changes', await select.locator('img').getAttribute('src') !== original);
     await page.goto(APP + '/app/products?e=errGone');
-    check('management list: reachable with error and three filters', await page.locator('.alert').count() > 0 && await page.locator('.manager-filters a').count() === 3);
+    check('management list: reachable with error, and one list with no filters', await page.locator('.alert').count() > 0 && await page.locator('.manager-filters').count() === 0);
     check('browser: no form/editor errors', errors.length === 0);
     await ctx.close();
   }

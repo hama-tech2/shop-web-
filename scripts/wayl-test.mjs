@@ -212,8 +212,13 @@ const started = await post('/app/subscription/checkout', {
 let state = await waylState();
 const link = state.created[0];
 
+// The URL is not written here: it is whatever Wayl returned and the
+// database stored, and the redirect must be exactly that. Wayl's link
+// shape is Wayl's to change.
 check('the seller is sent to Wayl', [started.status, started.location],
-  [303, `https://checkout.thewayl.test/pay/${link?.referenceId}`]);
+  [303, state.intent?.checkout_url]);
+check('and that URL is a real https checkout',
+  /^https:\/\/checkout\./.test(started.location || ''));
 check('exactly one link was created', state.created.length, 1);
 check('the amount is the plan price', link?.total, YEAR);
 // Wayl refuses any other shape, and did: {name, quantity, price} came
@@ -255,7 +260,7 @@ check('the API token is in no page the seller sees',
 const again = await post('/app/subscription/checkout', { plan: 'year_1' });
 state = await waylState();
 check('a second tap reuses the same checkout',
-  [state.created.length, again.location], [1, `https://checkout.thewayl.test/pay/${REF}`]);
+  [state.created.length, again.location], [1, state.intent?.checkout_url]);
 
 await control('/__wayl/busy/1');
 const busy = await post('/app/subscription/checkout', { plan: 'months_6' });

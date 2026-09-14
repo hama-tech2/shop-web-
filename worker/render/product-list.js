@@ -1,4 +1,4 @@
-import { FREE_PRODUCT_LIMIT, PRODUCT as T, PRODUCT_FILTERS, UI } from '../config.js';
+import { PRODUCT as T, PRODUCT_FILTERS, UI } from '../config.js';
 import { esc, price } from './html.js';
 import { alert } from './forms.js';
 import { bottomNav } from './appshell.js';
@@ -10,7 +10,7 @@ const STATUS_LABEL = {
   archived: PRODUCT_FILTERS[3].label,
 };
 
-export function productList({ products, filter = 'all', error }) {
+export function productList({ products, error }) {
   const rows = products.map(rowHtml).join('');
 
   return (
@@ -21,15 +21,15 @@ export function productList({ products, filter = 'all', error }) {
     `</div>` +
 
     alert(error) +
-    `<nav class="manager-filters" aria-label="پاڵاوتنی بەرهەمەکان">` +
-    PRODUCT_FILTERS.slice(0, 3).map(f => `<a href="/app/products?filter=${f.key}"${f.key === filter ? ' aria-current="page"' : ''}>${esc(f.label)}</a>`).join('') + `</nav>` +
-    `<p class="manager-help">بۆ دەستکاری یان گۆڕینی دۆخی بەرهەم، لەسەری بدە.</p>` +
-    (filter === 'hidden' ? `<p class="manager-help manager-help--hidden">بەرهەم و وێنە شاراوەکان نەسڕاونەتەوە. لە پلانی بەخۆڕاییدا دەتوانیت تا ${FREE_PRODUCT_LIMIT} بەرهەم ئاشکرا بکەیت؛ ئەگەر پڕە، سەرەتا یەکێک بشارەوە. پارەدان بەرهەمە شاراوەکان خۆکار بڵاو ناکاتەوە.</p>` : '') +
+    // One list. Every product is here, visible and hidden alike, each
+    // row wearing its own status badge — so a hidden product is never
+    // somewhere else, it is just marked.
+    `<p class="manager-help">${esc(T.listHelp)}</p>` +
 
     (products.length
       ? `<div class="rows">${rows}</div>`
-      : `<div class="empty"><p class="empty__title">${esc(filter === 'all' ? T.emptyTitle : 'هیچ بەرهەمێک لەم دۆخەدا نییە')}</p>` +
-        (filter === 'all' ? `<p>${esc(T.emptyBody)}</p>` : '') + `</div>`) +
+      : `<div class="empty"><p class="empty__title">${esc(T.emptyTitle)}</p>` +
+        `<p>${esc(T.emptyBody)}</p></div>`) +
     `</div>` +
     bottomNav('account')
   );

@@ -6,6 +6,10 @@
 -- webhook secret, and never count against the rate limit — because
 -- nothing ever reached Wayl to be spent.
 --
+-- And since 0034: an attempt is reusable only while it is recent, in
+-- this environment, AND priced at what app.plan_price() says right now.
+-- A stale price is cancelled and replaced, never re-linked.
+--
 -- What must still hold: a manual transfer waiting on the owner blocks
 -- a checkout, a usable link is handed back unchanged, and a shop making
 -- real links in a loop is still stopped.
@@ -20,6 +24,7 @@ declare
   v_c      record;
   v_secret text;
   v_count  int;
+  v_swap   uuid;
   v_ref    text;
 begin
   insert into auth.users(id, email, aud, role)
@@ -158,6 +163,101 @@ begin
     raise exception 'FAIL six months is priced %, not 38000', v_b.amount;
   end if;
   raise notice 'PASS both plans are priced by the database';
+
+  -- ============================================================
+  -- 9. a price change invalidates every open attempt
+  --
+  -- The live bug: an attempt made before the prices changed, with no
+  -- checkout_url, was reused after them. A fresh Wayl link was attached
+  -- to the old row, so Wayl was handed the OLD amount while the seller
+  -- had been shown the new one.
+  -- ============================================================
+  set local role none;
+  delete from public.payment_intents where shop_id = v_shop;
+
+  -- An attempt from before the change: current price, wrong amount.
+  insert into public.payment_intents
+    (shop_id, plan, amount, source, reference_id, env, status, created_at)
+  values (v_shop, 'year_1', 0, 'payment', 'BZ-STALE-000001', 'test', 'open', now())
+  returning id into v_swap;
+  -- The trigger priced it at today's number on the way in. Age it back to
+  -- what it held before the price changed, which is exactly how the live
+  -- row got there: written at 90,000, then the price moved to 72,000.
+  update public.payment_intents set amount = 90000 where id = v_swap;
+  set local role authenticated;
+
+  if app.plan_price('year_1') <> 72000 then
+    raise exception 'FAIL fixture assumes year_1 is 72000, got %', app.plan_price('year_1');
+  end if;
+
+  select * into v_a from public.wayl_start_intent(
+    v_shop, 'year_1', 'BZ-AFTER-000001', 'test', repeat('p', 64));
+
+  if v_a.reused then
+    raise exception 'FAIL an attempt priced 90000 was reused at a 72000 price';
+  end if;
+  raise notice 'PASS an attempt at the old price is not reused';
+
+  if v_a.id = v_swap then
+    raise exception 'FAIL the old row was recycled instead of replaced';
+  end if;
+  if v_a.amount <> 72000 then
+    raise exception 'FAIL the fresh attempt is priced %, not 72000', v_a.amount;
+  end if;
+  raise notice 'PASS a fresh attempt is created at the current price';
+
+  set local role none;
+  select status into v_ref from public.payment_intents where id = v_swap;
+  set local role authenticated;
+  if v_ref <> 'cancelled' then
+    raise exception 'FAIL the old attempt is %, not cancelled', v_ref;
+  end if;
+  raise notice 'PASS the old attempt is cancelled, not left open';
+
+  -- The same guard on an attempt that DID get a link: a stale price
+  -- must not be handed back just because a checkout_url exists.
+  set local role none;
+  delete from public.payment_intents where shop_id = v_shop;
+  insert into public.payment_intents
+    (shop_id, plan, amount, source, reference_id, env, status, checkout_url, created_at)
+  values (v_shop, 'year_1', 0, 'payment', 'BZ-STALE-000002', 'test', 'open',
+          'https://checkout.thewayl.test/pay?id=old', now())
+  returning id into v_swap;
+  update public.payment_intents set amount = 90000 where id = v_swap;
+  set local role authenticated;
+
+  select * into v_a from public.wayl_start_intent(
+    v_shop, 'year_1', 'BZ-AFTER-000002', 'test', repeat('q', 64));
+  if v_a.reused or v_a.checkout_url is not null or v_a.amount <> 72000 then
+    raise exception 'FAIL a linked attempt at the old price was handed back';
+  end if;
+  raise notice 'PASS a linked attempt at the old price is not handed back either';
+
+  -- ============================================================
+  -- 10. and a normal same-price retry still reuses one row
+  -- ============================================================
+  set local role none;
+  delete from public.payment_intents where shop_id = v_shop;
+  set local role authenticated;
+
+  select * into v_a from public.wayl_start_intent(
+    v_shop, 'year_1', 'BZ-NORMAL-00001', 'test', repeat('r', 64));
+  for i in 2..12 loop
+    select * into v_b from public.wayl_start_intent(
+      v_shop, 'year_1', 'BZ-NORMAL-' || lpad(i::text, 5, '0'), 'test', repeat('r', 64));
+    if not v_b.reused or v_b.id <> v_a.id then
+      raise exception 'FAIL tap % stopped reusing the attempt', i;
+    end if;
+    if v_b.amount <> 72000 then
+      raise exception 'FAIL tap % is priced %', i, v_b.amount;
+    end if;
+  end loop;
+  select count(*) into v_count from public.payment_intents
+   where shop_id = v_shop and source = 'payment';
+  if v_count <> 1 then
+    raise exception 'FAIL % rows after twelve same-price taps', v_count;
+  end if;
+  raise notice 'PASS twelve same-price taps stay one row and never hit the rate limit';
 
   raise notice 'ALL CHECKOUT RETRY DATABASE CHECKS PASSED';
 end;

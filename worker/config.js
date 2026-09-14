@@ -7,6 +7,38 @@
 export const APP_NAME = 'بازاڕۆ';
 
 /**
+ * The same brand in Latin script.
+ *
+ * Used where a crawler, an app store or an operating system reads the
+ * name rather than a Sorani speaker: og:site_name, the web manifest,
+ * the apple-touch title. The visible UI stays Kurdish.
+ */
+export const APP_NAME_LATIN = 'Bazaro';
+
+/**
+ * The brand assets, generated from public/brand/bazaro-logo.png by
+ * `node scripts/brand-icons.mjs`. Paths only — the generator owns the
+ * sizes, and scripts/brand-assets-test.mjs fails if any is missing.
+ */
+export const BRAND = {
+  logo: '/brand/bazaro-logo.png',
+  icon16: '/brand/favicon-16.png',
+  icon32: '/brand/favicon-32.png',
+  icon48: '/brand/favicon-48.png',
+  ico: '/favicon.ico',
+  appleTouch: '/brand/apple-touch-icon.png',
+  icon192: '/brand/icon-192.png',
+  icon512: '/brand/icon-512.png',
+  manifest: '/site.webmanifest',
+  // The share card for a page that has no image of its own. A seller's
+  // own link never uses this: /@slug prefers their cover, then their
+  // logo, then their first product.
+  ogImage: '/brand/og-default.png',
+  ogWidth: 1200,
+  ogHeight: 630,
+};
+
+/**
  * The one line under the name. Deliberately not a place: Bazaro is not
  * an Erbil-only product, and a city in the tagline tells a seller in
  * Sulaymaniyah or Duhok that it is not for them. It says what the app
@@ -155,6 +187,9 @@ export const PRODUCT = {
   newTitle: 'زیادکردنی بەرهەم',
   editTitle: 'دەستکاری بەرهەم',
   listTitle: 'بەرهەمەکانم',
+  // One list holds everything, so the help line says what a tap does
+  // rather than explaining a filter that no longer exists.
+  listHelp: 'بۆ دەستکاری یان گۆڕینی دۆخی بەرهەم، لەسەری بدە.',
   add: 'زیادکردنی بەرهەم',
 
   photos: 'وێنەکان',
@@ -489,6 +524,14 @@ export const SUBSCRIPTION = {
   errUnavailable: 'پارەدانی ئۆنلاین هێشتا چالاک نەکراوە. هیچ پارەیەک لێت وەرناگیرێت.',
   errCheckout: 'دەستپێکردنی پارەدان سەرکەوتوو نەبوو. تکایە دووبارە هەوڵ بدەوە.',
   errBusy: 'داواکاری زۆر. تکایە چەند خولەکێک چاوەڕێ بکە و دووبارە هەوڵ بدەوە.',
+
+  // Two failures that are not the seller's and are not a reason to
+  // keep tapping. errConfig is ours — something is unset on the server
+  // — and errProvider is Wayl being unreachable. Both say "not your
+  // fault, not now", because telling somebody to try again when
+  // trying again cannot work is its own small cruelty.
+  errConfig: 'پارەدان لە ئێستادا ڕێک نەخراوە. هەڵەکە لای ئێمەیە — پەیوەندیمان پێوە بکە.',
+  errProvider: 'Wayl لە ئێستادا بەردەست نییە. تکایە دوایی هەوڵ بدەوە.',
   errIntent: 'داواکارییەکە دروست نەکرا. تکایە دووبارە هەوڵ بدەوە.',
   errSent: 'تۆمارکردنی ناردنەکە سەرکەوتوو نەبوو. تکایە دووبارە هەوڵ بدەوە.',
 };

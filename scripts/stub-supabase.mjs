@@ -52,6 +52,10 @@ let subPlan = 'free';             // free | month_1 | months_6 | year_1
 let suspended = false;            // the admin's stop button
 let productCount = 0;             // how many products the shop has
 let publicCount = 0;              // how many of them are active
+let shopCover = null;             // shops.cover_key, for the share card ladder
+let shopLogo = null;              // shops.logo_key
+let productImages = [];           // product_images on the public product
+let mixedList = false;            // the manager holding a visible AND a hidden product
 let dismissed = {};               // banner kind -> ISO timestamp
 const telegram = [];              // every call the Worker made to the bot API
 let nextMessageId = 500;
@@ -134,6 +138,18 @@ http.createServer(async (req, res) => {
   // How many are active, for the one rule only an edit can meet: five
   // public at once on Free. A lapsed shop has more products than that
   // and five of them showing.
+  // The share-image ladder: a seller's link must preview the seller.
+  // '-' clears one, so a test can walk cover -> logo -> product -> brand.
+  if (p.startsWith('/__cover/')) { const v = decodeURIComponent(p.slice(9)); shopCover = v === '-' ? null : v; return send({ shopCover }); }
+  if (p.startsWith('/__logo/')) { const v = decodeURIComponent(p.slice(8)); shopLogo = v === '-' ? null : v; return send({ shopLogo }); }
+  if (p.startsWith('/__productimg/')) {
+    const v = decodeURIComponent(p.slice(14));
+    productImages = v === '-' ? [] : [{ r2_key: v, r2_key_full: v, position: 1 }];
+    return send({ productImages });
+  }
+  // One list has to be able to hold both states at once, or "hidden is
+  // still reachable" cannot be proven.
+  if (p.startsWith('/__mixed/')) { mixedList = p.split('/')[2] === '1'; return send({ mixedList }); }
   if (p.startsWith('/__public/')) { publicCount = Number(p.split('/')[2]); return send({ publicCount }); }
   if (p.startsWith('/__dismissed/')) {
     const [, , kind, when] = p.split('/');
@@ -183,16 +199,26 @@ http.createServer(async (req, res) => {
         || !['increase', 'decrease'].includes(line?.type)) {
       return send({ success: false, message: 'Whoops, missing fields' }, 422);
     }
-    // The real envelope: { data, message, success }, with total as a
-    // string and status "Created" at this point.
-    return send({ data: {
+    // The real envelope, captured from api.thewayl.com on 2026-09-12:
+    // HTTP 201, { data, message, success }, total as a string, status
+    // "Created", the link id under `id`, and the checkout under `url`.
+    // Wayl answers 201 and not 200 — worth pinning, because a caller
+    // that checked for 200 would treat a created link as a failure.
+    const linkId = 'cmty' + Math.random().toString(36).slice(2, 12);
+    res.writeHead(201, { 'content-type': 'application/json' });
+    return res.end(JSON.stringify({ data: {
       env: lastBody.env, customParameter: lastBody.customParameter,
-      referenceId: lastBody.referenceId, id: 'lnk_1', code: 'CODE1',
+      referenceId: lastBody.referenceId, id: linkId, code: 'CGA58BF2',
       total: String(lastBody.total), currency: lastBody.currency,
-      paymentMethod: null, status: 'Created', completedAt: null,
-      url: 'https://checkout.thewayl.test/pay/' + lastBody.referenceId,
-      redirectionUrl: lastBody.redirectionUrl, linkExpiresIn: '1h',
-    }, message: 'Done', success: true });
+      paymentMethod: null, type: 'Schrödinger', status: 'Created',
+      completedAt: null,
+      createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
+      url: 'https://checkout.thewayl.test/pay?id=' + linkId,
+      // Wayl rewrites this, appending its own query to whatever we sent.
+      redirectionUrl: lastBody.redirectionUrl
+        + '/?referenceId=' + lastBody.referenceId + '&orderid=' + linkId,
+      linkExpiresIn: '1h',
+    }, message: 'Done', success: true }));
   }
   const waylLink = p.match(/^\/api\/v1\/links\/(.+)$/);
   if (waylLink && req.method === 'GET') {
@@ -391,10 +417,23 @@ http.createServer(async (req, res) => {
       return send({ code: '23514', message: 'category does not belong to this shop' }, 400);
     }
     if (!write) {
+      if (mixedList) {
+        const base = { price: 85000, description: '', shop_id: SHOP.id, sort_order: 0,
+                       platform_category_id: null, category_id: null, product_images: [] };
+        return send([
+          { ...base, id: PRODUCT_ID, title: 'کراسی کوردی', status: 'active' },
+          { ...base, id: 'bbbbbbbb-2222-4222-8222-222222222222',
+            title: 'کراسی شاراوە', status: 'hidden' },
+        ]);
+      }
       return send([{
         id: PRODUCT_ID, title: 'کراسی کوردی', price: 85000, description: '',
         status: 'active', shop_id: SHOP.id, sort_order: 0,
-        platform_category_id: null, category_id: null, product_images: [],
+        platform_category_id: null, category_id: null, product_images: productImages,
+        // getProduct() joins shops!inner and reads the slug off it to
+        // prove the product belongs to the shop in the URL.
+        shops: { id: SHOP.id, name: SHOP.name, slug: SHOP.slug, logo_key: shopLogo,
+                 whatsapp: SHOP.whatsapp, city: SHOP.city, maps_url: null },
       }]);
     }
     return send(rows ? [{ id: PRODUCT_ID }] : []);
@@ -407,7 +446,7 @@ http.createServer(async (req, res) => {
       ...SHOP, bio: null, phone: null,
       instagram: null, tiktok: null, facebook: null, snapchat: 'nafin-shop',
       maps_url: 'https://maps.app.goo.gl/abc123',
-      cover_key: null, products_visible: true,
+      cover_key: shopCover, logo_key: shopLogo, products_visible: true,
     }]);
   }
   if (table === 'rpc/subscription_state') {

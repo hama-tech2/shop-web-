@@ -26,7 +26,8 @@
     "test:admin-grants": "node scripts/admin-grants-test.mjs",
     "test:wayl": "node scripts/wayl-test.mjs",
     "test:free-plan": "node scripts/free-plan-test.mjs",
-    "test:retry": "node scripts/checkout-retry-test.mjs"
+    "test:retry": "node scripts/checkout-retry-test.mjs",
+    "test:brand": "node scripts/brand-assets-test.mjs"
   },
   "devDependencies": {
     "wrangler": "^4.42.0",

@@ -24,7 +24,8 @@
 
   var planForm = document.getElementById('plan-form');
   if (planForm) {
-    var lines = planForm.querySelectorAll('[data-charge-for]');
+    // The charge lines moved into the dock, outside the form.
+    var lines = document.querySelectorAll('[data-charge-for]');
     var syncCharge = function () {
       var picked = planForm.querySelector('input[name="plan"]:checked');
       var key = picked ? picked.value : null;
@@ -37,6 +38,18 @@
   }
 
   /* ---------- 2. one tap, once ---------- */
+
+  /**
+   * A form's submit button, wherever it is.
+   *
+   * The renewal screen keeps its radios in the form and its button in
+   * the dock, associated by the form attribute. Looking only inside the
+   * form would find nothing and silently drop the busy state.
+   */
+  function submitFor(form) {
+    return form.querySelector('button[type="submit"]')
+      || (form.id && document.querySelector('[form="' + form.id + '"][type="submit"]'));
+  }
 
   var forms = document.querySelectorAll('form[data-checkout]');
 
@@ -52,7 +65,7 @@
       }
       busy = true;
 
-      var button = form.querySelector('button[type="submit"]');
+      var button = submitFor(form);
       if (!button) return;
 
       // Disabling before the post would drop the button's own name and
@@ -69,7 +82,7 @@
     // browser's cache with the button still dead. Give it back.
     window.addEventListener('pageshow', function () {
       busy = false;
-      var button = form.querySelector('button[type="submit"]');
+      var button = submitFor(form);
       if (!button) return;
       button.disabled = false;
       button.removeAttribute('aria-busy');
