@@ -17,6 +17,10 @@
 const APP = process.argv[2] || 'http://127.0.0.1:8810';
 const STUB = process.argv[3] || 'http://127.0.0.1:8899';
 
+// A fresh address per run: ten shops a day is the real limit, and a
+// test that reran eleven times would start failing on its own merits.
+const CLIENT_IP = `203.0.113.${Math.floor(Math.random() * 250) + 1}`;
+
 const results = [];
 const check = (name, got, want) =>
   results.push({ name, got, want, pass: got === want });
@@ -50,6 +54,13 @@ async function step(cookies, path, fields) {
       cookie: cookies.header(),
       origin: APP,
       'content-type': 'application/x-www-form-urlencoded',
+      // Cloudflare sets this on every request that reaches the Worker,
+      // and the shop-creation throttle refuses without it — a request
+      // with no client address cannot be rate limited, so it is not
+      // allowed to create anything. wrangler dev does not add it, so
+      // the harness has to, or it is testing a request production
+      // cannot produce.
+      'cf-connecting-ip': CLIENT_IP,
     },
     body: new URLSearchParams(fields),
   });

@@ -120,6 +120,11 @@ export const AUTH = {
   errCredentials: 'ئیمەیڵ یان وشەی نهێنی هەڵەیە.',
   errTaken: 'ئەم ئیمەیڵە پێشتر تۆمارکراوە.',
   errGeneric: 'هەڵەیەک ڕوویدا. دووبارە هەوڵ بدەرەوە.',
+  // Shown when this address has made too many accounts too quickly, and
+  // when the limiter itself cannot run. Says the same thing either way:
+  // a caller learns nothing about which it was, and a real seller reads
+  // something they can act on.
+  errTooMany: 'داواکاری زۆر لەم ئامێرەوە. تکایە چەند خولەکێک چاوەڕێ بکە و دووبارە هەوڵ بدەرەوە.',
   errSession: 'دانیشتنەکەت بەسەرچووە. دووبارە بچۆ ژوورەوە.',
 };
 
@@ -146,6 +151,10 @@ export const ONBOARDING = {
   whatsappLabel: 'ژمارەی واتساپ',
   whatsappPlaceholder: '+9647501234567',
   errWhatsapp: 'ژمارەکە بەم شێوەیە بنووسە: +9647501234567',
+  // The shop is created at the end of this step, so this is where the
+  // second gate speaks. Same wording as signup, and the same silence
+  // about whether the limiter refused or could not run.
+  errTooMany: 'داواکاری زۆر لەم ئامێرەوە. تکایە چەند خولەکێک چاوەڕێ بکە و دووبارە هەوڵ بدەرەوە.',
 
   logoTitle: 'لۆگۆی دوکان',
   logoSub: 'دەتوانیت ئێستا بیکەیت یان دواتر.',

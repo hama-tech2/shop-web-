@@ -10,7 +10,7 @@
 import { APP_NAME, ONBOARDING as T } from '../config.js';
 import { layout } from '../render/layout.js';
 import { completeSlug, stepContact, stepLogo, stepName, stepSlug } from '../render/onboarding.js';
-import { asUser, slugAvailable } from '../supabase.js';
+import { asUser, clientRateKey, rateLimitAllows, slugAvailable } from '../supabase.js';
 import {
   clearDraft, getOwnShop, readCookies, readDraft, resolveSession,
   sameOrigin, setDraft, setSessionCookies,
@@ -130,6 +130,23 @@ export async function contactPost(request, env) {
     return page(stepContact({ draft, error: T.errWhatsapp }), T.contactTitle, g.headers);
   }
   if (!draft.name || !draft.slug) return redirect('/onboarding', g.headers);
+
+  // The second gate. shops.owner_id is unique, so one account can only
+  // ever make one shop and this is not the main defence — but an
+  // attacker who got past the signup throttle should not be able to
+  // turn every account they did get into a public page in one burst.
+  // Fails closed, for the same reason signup does.
+  const key = await clientRateKey(request, env);
+  if (!key || !await rateLimitAllows(env, 'rate_limit_shop', key)) {
+    if (!key) {
+      console.log(
+        env.VIEW_SALT
+          ? 'shop creation refused: no cf-connecting-ip on the request'
+          : 'shop creation refused: VIEW_SALT is not set, so it cannot be rate limited',
+      );
+    }
+    return page(stepContact({ draft, error: T.errTooMany }), T.contactTitle, g.headers);
+  }
 
   const res = await asUser(env, g.token, 'shops', {
     method: 'POST',

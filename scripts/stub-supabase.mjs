@@ -41,6 +41,7 @@ const CAT_NEW = 'dddddddd-3333-4333-8333-333333333333';
 /** app.plan_price(): the only prices this app bills. */
 const PRICE = { year_1: 72000, months_6: 38000 };
 
+const rateEvents = {};            // bucket -> key -> timestamps, for the throttle
 let rows = 1;                     // how many rows a write reports
 let mode = 'shop';                // shop | noshop
 let created = null;               // a shop made through onboarding
@@ -549,6 +550,31 @@ http.createServer(async (req, res) => {
                    payment_method: lastBody.p_method ?? waylIntent.payment_method };
     return send([{ activated: true, already_active: false, expires_at: waylExpiry }]);
   }
+  // app.take_rate_token(), in miniature: the same contract the real one
+  // keeps — a refusal records nothing, and each bucket counts its own
+  // attempts. Real limits, so a test that loops past them sees what a
+  // spammer would.
+  if (table === 'rpc/rate_limit_signup' || table === 'rpc/rate_limit_shop') {
+    if (!(req.headers.authorization || '').includes(SERVICE_KEY)) return send({ code: '42501' }, 403);
+    const key = lastBody?.p_key;
+    if (typeof key !== 'string' || !key) return send({ code: '22023' }, 400);
+
+    const signup = table.endsWith('signup');
+    const bucket = signup ? 'signup' : 'shop_day';
+    const now = Date.now();
+    const hits = (rateEvents[bucket] ||= new Map());
+    const mine = (hits.get(key) || []).filter((t) => now - t < 86400000);
+
+    const overHour = signup && mine.filter((t) => now - t < 3600000).length >= 10;
+    const overDay = mine.length >= (signup ? 30 : 10);
+    if (overHour || overDay) {
+      hits.set(key, mine);
+      return send(false);
+    }
+    hits.set(key, [...mine, now]);
+    return send(true);
+  }
+
   if (table === 'rpc/wayl_record_event') {
     if (!(req.headers.authorization || '').includes(SERVICE_KEY)) return send({ code: '42501' }, 403);
     if (waylEvents.has(lastBody.p_event_id)) return send(false);
