@@ -10,7 +10,7 @@
 import { APP_NAME, ONBOARDING as T } from '../config.js';
 import { layout } from '../render/layout.js';
 import { completeSlug, stepContact, stepLogo, stepName, stepSlug } from '../render/onboarding.js';
-import { asUser, slugAvailable } from '../supabase.js';
+import { asUser, clientRateKey, rateLimitAllows, slugAvailable } from '../supabase.js';
 import {
   clearDraft, getOwnShop, readCookies, readDraft, resolveSession,
   sameOrigin, setDraft, setSessionCookies,
@@ -20,12 +20,20 @@ import { form, redirect } from './auth.js';
 const MAX_LOGO_BYTES = 5 * 1024 * 1024;
 const LOGO_TYPES = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' };
 
-function page(body, title, headers) {
+function page(body, title, headers, scripts = ['/js/app.js']) {
   const h = new Headers(headers || undefined);
   h.set('content-type', 'text/html; charset=utf-8');
   h.set('cache-control', 'no-store');
-  return new Response(layout({ title, description: APP_NAME, body, scripts: ['/js/app.js'] }), { headers: h });
+  return new Response(layout({ title, description: APP_NAME, body, scripts }), { headers: h });
 }
+
+/**
+ * The logo step, and only that step, also loads the cropper — the same
+ * one /app/profile uses for the same image. The other three steps have
+ * no image on them and should not carry it.
+ */
+const logoPage = (body, headers) =>
+  page(body, T.logoTitle, headers, ['/js/app.js', '/js/crop.js', '/js/onboarding-logo.js']);
 
 /**
  * Every wizard route needs a signed-in seller. `needsShop` flips the
@@ -131,6 +139,23 @@ export async function contactPost(request, env) {
   }
   if (!draft.name || !draft.slug) return redirect('/onboarding', g.headers);
 
+  // The second gate. shops.owner_id is unique, so one account can only
+  // ever make one shop and this is not the main defence — but an
+  // attacker who got past the signup throttle should not be able to
+  // turn every account they did get into a public page in one burst.
+  // Fails closed, for the same reason signup does.
+  const key = await clientRateKey(request, env);
+  if (!key || !await rateLimitAllows(env, 'rate_limit_shop', key)) {
+    if (!key) {
+      console.log(
+        env.VIEW_SALT
+          ? 'shop creation refused: no cf-connecting-ip on the request'
+          : 'shop creation refused: VIEW_SALT is not set, so it cannot be rate limited',
+      );
+    }
+    return page(stepContact({ draft, error: T.errTooMany }), T.contactTitle, g.headers);
+  }
+
   const res = await asUser(env, g.token, 'shops', {
     method: 'POST',
     prefer: 'return=representation',
@@ -158,7 +183,7 @@ export async function contactPost(request, env) {
 export async function logoGet(request, env) {
   const g = await guard(request, env, { needsShop: true });
   if (g.redirect) return g.redirect;
-  return page(stepLogo({ shop: g.shop }), T.logoTitle, g.headers);
+  return logoPage(stepLogo({ shop: g.shop }), g.headers);
 }
 
 export async function logoPost(request, env) {
@@ -170,7 +195,7 @@ export async function logoPost(request, env) {
   try {
     file = (await request.formData()).get('logo');
   } catch {
-    return page(stepLogo({ shop: g.shop, error: T.errLogoType }), T.logoTitle, g.headers);
+    return logoPage(stepLogo({ shop: g.shop, error: T.errLogoType }), g.headers);
   }
 
   // Skipping is a normal outcome, not an error.
@@ -179,9 +204,9 @@ export async function logoPost(request, env) {
   }
 
   const ext = LOGO_TYPES[file.type];
-  if (!ext) return page(stepLogo({ shop: g.shop, error: T.errLogoType }), T.logoTitle, g.headers);
+  if (!ext) return logoPage(stepLogo({ shop: g.shop, error: T.errLogoType }), g.headers);
   if (file.size > MAX_LOGO_BYTES) {
-    return page(stepLogo({ shop: g.shop, error: T.errLogoSize }), T.logoTitle, g.headers);
+    return logoPage(stepLogo({ shop: g.shop, error: T.errLogoSize }), g.headers);
   }
 
   // The key must sit under this shop's prefix or the CHECK rejects it.
@@ -198,7 +223,7 @@ export async function logoPost(request, env) {
 
   if (!res.ok) {
     await env.IMAGES.delete(key).catch(() => {});
-    return page(stepLogo({ shop: g.shop, error: T.errLogoType }), T.logoTitle, g.headers);
+    return logoPage(stepLogo({ shop: g.shop, error: T.errLogoType }), g.headers);
   }
 
   return redirect('/app', g.headers);

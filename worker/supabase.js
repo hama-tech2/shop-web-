@@ -307,6 +307,65 @@ export async function viewToken(request, env) {
 }
 
 /**
+ * The key a rate limit counts against: one client, opaquely.
+ *
+ * Deliberately stricter than viewToken above, because this one is a
+ * security control rather than a counter:
+ *
+ *   * cf-connecting-ip ONLY. viewToken also accepts x-forwarded-for,
+ *     which the caller sets — harmless when miscounting a page view,
+ *     useless in a limiter, because an attacker would simply send a
+ *     fresh one per request and get a fresh allowance with it.
+ *   * VIEW_SALT is required. Falling back to SUPABASE_URL would salt
+ *     with a value that is printed in the page source, so anyone could
+ *     compute another address's key. The caller decides what to do when
+ *     this returns null; it does not quietly carry on.
+ *
+ * What comes back is a SHA-256 hash. The address itself never leaves
+ * the Worker and is never stored.
+ */
+export async function clientRateKey(request, env) {
+  const ip = request.headers.get('cf-connecting-ip') || '';
+  const salt = env.VIEW_SALT || '';
+  if (!ip || !salt) return null;
+
+  const digest = await crypto.subtle.digest(
+    'SHA-256',
+    new TextEncoder().encode(`rate|${ip}|${salt}`),
+  );
+  return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, '0')).join('');
+}
+
+/**
+ * Ask the database whether this client may do the thing.
+ *
+ * Fails closed: no key, no service credential, or an unreachable
+ * database all mean "no". A limiter that opens when it breaks is not a
+ * limiter, and the one moment it is most likely to break is the one
+ * when somebody is hammering it.
+ */
+export async function rateLimitAllows(env, rpc, key) {
+  if (!key) return false;
+  const service = env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!service) return false;
+  try {
+    const res = await fetch(`${env.SUPABASE_URL}/rest/v1/rpc/${rpc}`, {
+      method: 'POST',
+      headers: {
+        apikey: service,
+        authorization: `Bearer ${service}`,
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({ p_key: key }),
+    });
+    if (!res.ok) return false;
+    return (await res.json()) === true;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Count one page view. Fire-and-forget: a counter is never a reason to
  * make a seller's page slower, or to fail it.
  *

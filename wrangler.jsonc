@@ -43,23 +43,27 @@
   // exact string "true" turns it on; with it off the Pay button lands
   // back on the plans screen and no charge can be created.
   //
-  // It is "true" for the controlled test-mode run. WAYL_ENV stays
-  // "test", which is what keeps the money fake: Wayl's test environment
-  // takes no real payment whatever this switch says. Turning WAYL_ENV to
-  // "live" is a separate, deliberate decision and is NOT part of this
-  // configuration.
+  // WAYL_ENV is "live". Real money moves: a seller who taps pay reaches
+  // Wayl's real checkout and their real FIB or SuperQi account is
+  // charged. It says so here because a deploy REPLACES the Worker's
+  // vars with this block — leaving "test" in the file would silently
+  // put production back into the environment where nothing is real,
+  // whatever the dashboard says.
   //
   // WAYL_API_TOKEN is a SECRET — `wrangler secret put WAYL_API_TOKEN`.
   // WAYL_RETURN_URL is required once payments are on: the public https
   // URL of /app/subscription/result. Wayl's webhook URL is built from
-  // its origin. It is deliberately never taken from the request, whose
-  // Host header the caller controls. Missing it means no checkout.
+  // its origin, so this one value decides both where a paying seller
+  // lands and where Wayl calls us — https://bazarnow.xyz/webhooks/wayl/…
+  // Both must reach this Worker. It is deliberately never taken from the
+  // request, whose Host header the caller controls. Missing it means no
+  // checkout at all.
   "vars": {
     "SUPABASE_URL": "https://kvwgiobnpwrjwyevadvc.supabase.co",
     "SUPABASE_PUBLISHABLE_KEY": "sb_publishable_j6YHgYneV4Bfox79hrxH7g_0r28MsBg",
     "R2_BUCKET": "shop-web-images",
     "PAYMENTS_ENABLED": "true",
-    "WAYL_ENV": "test",
-    "WAYL_RETURN_URL": "https://shop-web.mahmadmajed149.workers.dev/app/subscription/result"
+    "WAYL_ENV": "live",
+    "WAYL_RETURN_URL": "https://bazarnow.xyz/app/subscription/result"
   }
 }

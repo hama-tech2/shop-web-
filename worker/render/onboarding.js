@@ -1,6 +1,7 @@
-import { APP_NAME, CITIES, ONBOARDING as T } from '../config.js';
+import { APP_NAME, CITIES, ONBOARDING as T, PROFILE_VARIANTS } from '../config.js';
 import { esc } from './html.js';
 import { alert, button, field, select } from './forms.js';
+import { cropSheet } from './crop-sheet.js';
 
 const TOTAL = 4;
 
@@ -85,10 +86,25 @@ export const stepContact = ({ draft = {}, error }) =>
     button(T.back, { kind: 'ghost', href: '/onboarding/slug' }) +
     `</div></form>`);
 
+/**
+ * The logo step, with the same cropper the profile editor uses.
+ *
+ * It used to upload whatever came out of the file picker. A phone
+ * camera hands back a rectangle two thousand pixels wide, so a seller
+ * choosing their logo here got it squashed into a square by the browser
+ * with no say in which part survived — while the very same seller
+ * editing that logo later, from /app/profile, got to place it.
+ *
+ * The settings are PROFILE_VARIANTS.logo, read here rather than written
+ * out again, so the two screens cannot drift into cropping the same
+ * logo to different sizes.
+ */
 export const stepLogo = ({ error, shop }) =>
   frame(4, T.logoTitle, T.logoSub,
     alert(error) +
-    `<form method="post" action="/onboarding/logo" enctype="multipart/form-data" id="logo-form">` +
+    `<form method="post" action="/onboarding/logo" enctype="multipart/form-data" id="logo-form"` +
+    ` data-logo-w="${PROFILE_VARIANTS.logo.width}" data-logo-q="${PROFILE_VARIANTS.logo.quality}"` +
+    ` data-logo-ratio="${PROFILE_VARIANTS.logo.ratio}" data-msg-type="${esc(T.errLogoType)}">` +
     `<label class="logo-pick" for="f-logo">` +
     (shop?.logo_key
       ? `<img class="logo-pick__preview" id="logo-preview" src="/img/${esc(shop.logo_key)}" alt="" width="96" height="96">`
@@ -100,4 +116,5 @@ export const stepLogo = ({ error, shop }) =>
     `<div class="wizard__actions">` +
     button(T.finish) +
     button(T.skip, { kind: 'ghost', href: '/app' }) +
-    `</div></form>`);
+    `</div></form>` +
+    cropSheet());

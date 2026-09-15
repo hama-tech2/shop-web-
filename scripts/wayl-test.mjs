@@ -228,7 +228,11 @@ check('the line item is the shape Wayl requires',
 check('the line item is labelled with the plan and the shop',
   typeof link?.lineItem?.[0]?.label === 'string' && link.lineItem[0].label.length > 0);
 check('IQD', link?.currency, 'IQD');
-check('the test environment', link?.env, 'test');
+// The environment the Worker is configured with, not a fixed word.
+// What is being pinned is that WAYL_ENV reaches Wayl unchanged, and
+// that has to keep holding once it says live.
+check('the configured Wayl environment is the one sent',
+  link?.env, process.env.WAYL_ENV === 'live' ? 'live' : 'test');
 check('a fresh reference', /^BZ-[0-9A-Z]+-[0-9A-F]+$/.test(link?.referenceId || ''));
 check('the webhook is per payment',
   link?.webhookUrl?.endsWith(`/webhooks/wayl/${state.intent.id}`));

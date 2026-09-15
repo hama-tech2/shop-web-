@@ -126,7 +126,7 @@ begin
   set local role none;
   delete from public.payment_intents where shop_id = v_shop;
   insert into public.payment_intents (shop_id, plan, amount, source, status)
-    values (v_shop, 'months_6', 38000, 'payment', 'pending');
+    values (v_shop, 'months_6', app.plan_price('months_6'), 'payment', 'pending');
   set local role authenticated;
   begin
     perform public.wayl_start_intent(
@@ -159,8 +159,8 @@ begin
   end if;
   select * into v_b from public.wayl_start_intent(
     v_shop, 'months_6', 'BZ-RETRY-000050', 'test', repeat('h', 64));
-  if v_b.amount <> 38000 then
-    raise exception 'FAIL six months is priced %, not 38000', v_b.amount;
+  if v_b.amount <> app.plan_price('months_6') then
+    raise exception 'FAIL six months is priced %, not %', v_b.amount, app.plan_price('months_6');
   end if;
   raise notice 'PASS both plans are priced by the database';
 

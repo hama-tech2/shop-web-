@@ -12,6 +12,7 @@ import {
   RECOVERY_VERIFIER_AGE, resolveSession, sameOrigin, sendRecovery, setSessionCookies,
   setVerifierCookie, signInPassword, signOut, signUp, updateUser,
 } from '../auth.js';
+import { clientRateKey, rateLimitAllows } from '../supabase.js';
 
 const html = (body, title, extraHeaders) =>
   new Response(layout({ title, description: APP_NAME, body, scripts: ['/js/app.js'] }), {
@@ -123,6 +124,28 @@ export async function signupPost(request, env) {
   }
   if (!password || password.length < 8) {
     return html(signupPage({ error: AUTH.errPassword, email, next }), AUTH.signupTitle);
+  }
+
+  // The throttle, before Supabase is touched at all. Ten an hour and
+  // thirty a day from one address; the count lives in the database
+  // because a Worker remembers nothing between requests.
+  //
+  // Fails closed. A missing VIEW_SALT, a missing service key or an
+  // unreachable database all refuse the signup rather than waving it
+  // through — the moment a limiter is most likely to be broken is the
+  // moment somebody is hammering it. The log line says which, once, in
+  // the Worker log; the seller is told the same thing either way.
+  const key = await clientRateKey(request, env);
+  if (!key) {
+    console.log(
+      env.VIEW_SALT
+        ? 'signup refused: no cf-connecting-ip on the request'
+        : 'signup refused: VIEW_SALT is not set, so signups cannot be rate limited',
+    );
+    return html(signupPage({ error: AUTH.errTooMany, email, next }), AUTH.signupTitle);
+  }
+  if (!await rateLimitAllows(env, 'rate_limit_signup', key)) {
+    return html(signupPage({ error: AUTH.errTooMany, email, next }), AUTH.signupTitle);
   }
 
   const res = await signUp(env, email, password);
