@@ -111,6 +111,111 @@
 .price-row .field__input { background: none; direction: ltr; text-align: right; }
 .price-row__unit { color: var(--muted); font-size: var(--fs-sm); flex: none; }
 
+/* ---------- the currency the price is in ----------
+
+   Two options, both visible, directly under the input they describe.
+   A <select> would hide one of them behind a tap and say nothing about
+   what the choice is between; with exactly two, showing both costs one
+   row and answers the question on sight.
+
+   These are real radios, visually hidden behind their own labels: the
+   browser keeps "exactly one" true, the keyboard and a screen reader
+   get a proper group, and the form still posts a currency with no
+   JavaScript running at all. */
+
+.seg {
+  display: flex;
+  gap: var(--s-2);
+  margin: var(--s-2) 0 0;
+  padding: 0;
+  border: 0;
+}
+
+.seg__legend { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+
+.seg__option { flex: 1 1 0; min-width: 0; }
+
+/* Hidden, not removed: focus still lands on it, and :checked / :focus-visible
+   below are what draw the state. */
+.seg__option input {
+  position: absolute;
+  width: 1px; height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.seg__face {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 46px;
+  padding: 8px var(--s-3);
+  border: 1px solid #DEDAD2;
+  border-radius: var(--r-field);
+  background: var(--surface);
+  color: var(--muted);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  text-align: center;
+  cursor: pointer;
+  transition: background var(--t-fast), color var(--t-fast), border-color var(--t-fast);
+}
+
+.seg__label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* The symbol reads left-to-right even inside the RTL label: $ belongs
+   before its number in every language, including this one. */
+.seg__symbol { direction: ltr; unicode-bidi: isolate; flex: none; opacity: 0.75; }
+
+/* Selected. Filled rather than outlined, so which one is on is obvious
+   at a glance on a phone in daylight, not a one-pixel border difference. */
+.seg__option input:checked + .seg__face {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+
+.seg__option input:checked + .seg__face .seg__symbol { opacity: 1; }
+
+.seg__option input:focus-visible + .seg__face {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Narrow phones: the two labels are long in Sorani, so let the symbol
+   carry the meaning rather than truncating both names to nothing. */
+@media (max-width: 359px) {
+  .seg__face { flex-direction: column; gap: 2px; min-height: 52px; font-size: 12px; }
+}
+
+/* Where the symbol goes changes the spacing, so the spacing is set from
+   the same fact the server rendered from.
+
+   `25,000 د.ع` wants the gap. `$25` does not — a dollar sign with a
+   space after it reads as two things, and the price rows are laid out
+   `direction: ltr`, so the symbol is already sitting where it belongs.
+
+   Specificity: these are two classes each, which beats .pdp-price and
+   the .card__commercial .card__price gap they would otherwise inherit. */
+.card__price[data-currency="USD"],
+.pdp-price[data-currency="USD"],
+.row__price[data-currency="USD"] { gap: 0; }
+
+/* And the symbol is part of the number, not a note about it.
+   .card__currency is 12px next to a 19px amount, which is right for
+   `د.ع` — a separate word after the price — and wrong for `$`, where
+   it left the dollar sign looking like a footnote marker. */
+.card__price[data-currency="USD"] .card__currency,
+.pdp-price[data-currency="USD"] .card__currency,
+.row__price[data-currency="USD"] .card__currency {
+  font-size: inherit;
+  font-weight: inherit;
+}
+
+.card__price[data-currency="USD"] .card__currency { font-size: 19px; font-weight: var(--fw-bold); }
+.pdp-price[data-currency="USD"] .card__currency { font-size: 28px; font-weight: 700; }
+
 /* ---------- inline chips (category, filters) ---------- */
 
 .chips--inline {
@@ -257,6 +362,7 @@
 }
 
 .row__price { display: flex; direction: ltr; justify-content: flex-end; gap: 4px; margin-top: 2px; }
+.row__amount { font-weight: 700; }
 
 .row__meta { display: grid; gap: var(--s-1); justify-items: center; flex: none; }
 

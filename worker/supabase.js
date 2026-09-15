@@ -8,7 +8,7 @@
  */
 
 const SELECT_CARD =
-  'id,title,price,created_at,platform_category_id,category_id,' +
+  'id,title,price,currency,created_at,platform_category_id,category_id,' +
   'shops!inner(name,slug,logo_key,whatsapp,phone,maps_url),' +
   'product_images(r2_key,position)';
 
@@ -84,6 +84,9 @@ function toCard(row) {
     id: row.id,
     title: row.title,
     price: Number(row.price),
+    // Read beside the price, always. A number on its own does not say
+    // what it is, and every view that shows one has to render both.
+    currency: row.currency,
     categoryId: row.platform_category_id ?? null,
     ownCategoryId: row.category_id ?? null,
     images: images.length ? images : [null],
@@ -184,7 +187,7 @@ export async function getShopProducts(env, shopId, categoryId, ownCategoryId) {
 export async function getProduct(env, id) {
   const rows = await get(env, 'products', {
     select:
-      'id,title,price,description,status,shop_id,platform_category_id,' +
+      'id,title,price,currency,description,status,shop_id,platform_category_id,' +
       'shops!inner(id,name,slug,logo_key,whatsapp,city,maps_url),' +
       'product_images(r2_key,r2_key_full,position)',
     id: `eq.${id}`,
@@ -203,6 +206,7 @@ export async function getProduct(env, id) {
     id: row.id,
     title: row.title,
     price: Number(row.price),
+    currency: row.currency,
     description: row.description ?? '',
     categoryId: row.platform_category_id,
     images: images.map((i) => ({ card: i.r2_key, full: i.r2_key_full || i.r2_key })),

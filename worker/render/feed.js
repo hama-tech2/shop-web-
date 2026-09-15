@@ -1,5 +1,6 @@
 import { APP_NAME, APP_TAGLINE, CHIPS, LOCALES, SLIDE_MS, UI } from '../config.js';
-import { attr, esc, price } from './html.js';
+import { attr, esc } from './html.js';
+import { moneyHtml } from './money.js';
 import { iconGlobe, iconHeart, iconPin, iconSearch, iconShare, iconWhatsapp } from './icons.js';
 import { bottomNav } from './appshell.js';
 
@@ -95,10 +96,12 @@ export function cardHtml(product, index, { linked = true, saved = false } = {}) 
     `</div>` +
     `<div class="card__body">` +
     `<h2 class="card__title">${esc(product.title)}</h2>` +
-    `<div class="card__commercial"><p class="card__price">` +
-    `<span class="card__amount">${esc(price(product.price))}</span>` +
-    `<span class="card__currency">${esc(UI.currency === 'IQD' ? 'د.ع' : UI.currency)}</span>` +
-    `</p>${cardActions(product, href)}</div>` +
+    `<div class="card__commercial">` +
+    moneyHtml(product.price, product.currency, {
+      tag: 'p', cls: 'card__price',
+      amountClass: 'card__amount', currencyClass: 'card__currency',
+    }) +
+    `${cardActions(product, href)}</div>` +
     `<div class="card__shop">${avatar}` +
     `<span class="card__shop-name">${esc(product.shopName)}</span></div>` +
     `</div>` +

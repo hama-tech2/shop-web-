@@ -1,5 +1,6 @@
-import { PRODUCT as T, PRODUCT_FILTERS, UI } from '../config.js';
-import { esc, price } from './html.js';
+import { PRODUCT as T, PRODUCT_FILTERS } from '../config.js';
+import { esc } from './html.js';
+import { moneyHtml } from './money.js';
 import { alert } from './forms.js';
 import { bottomNav } from './appshell.js';
 import { iconTrash } from './icons.js';
@@ -47,8 +48,9 @@ function rowHtml(product) {
       : `<span class="row__img row__img--empty"></span>`) +
     `<span class="row__body">` +
     `<span class="row__title">${esc(product.title)}</span>` +
-    `<span class="row__price"><b>${esc(price(product.price))}</b> ` +
-    `<span class="card__currency">${esc(UI.currency === 'IQD' ? 'د.ع' : UI.currency)}</span></span>` +
+    moneyHtml(product.price, product.currency, {
+      cls: 'row__price', amountClass: 'row__amount', currencyClass: 'card__currency',
+    }) +
     `<span class="pill pill--${esc(product.status)}">` +
     `${esc(STATUS_LABEL[product.status] ?? product.status)}</span>` +
     `</span></a>` +

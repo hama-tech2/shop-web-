@@ -10,6 +10,7 @@ import {
   ADMIN as A, CITY_LABEL, GRANT_PLANS, PLAN_LABEL, REPORT_REASONS, UI,
 } from '../config.js';
 import { esc, price } from './html.js';
+import { moneyText } from './money.js';
 
 /** Latin dates and numbers flip inside an RTL page without this. */
 const ltr = (value) => `<span dir="ltr" class="ltr">${esc(value)}</span>`;
@@ -270,7 +271,10 @@ function productRow(p, shop) {
     (p.status === 'active'
       ? ''
       : `<span class="adm-pill adm-pill--off">${esc(A.statusHidden)}</span>`) +
-    `<p class="adm-row__days ltr" dir="ltr">${esc(price(p.price))} ${esc(UI.currency)}</p>` +
+    // The product's own currency, not the platform's. This row used to
+    // print UI.currency, which was right only while every product was
+    // in dinars — it would now label a $25 product "25 IQD".
+    `<p class="adm-row__days ltr" dir="ltr">${esc(moneyText(p.price, p.currency))}</p>` +
     `</div></a>`
   );
 }

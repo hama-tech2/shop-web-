@@ -8,8 +8,8 @@
  */
 
 import {
-  APP_NAME, FREE_IMAGE_LIMIT, FREE_PRODUCT_LIMIT, MAX_IMAGES, MAX_UPLOAD_BYTES,
-  PRODUCT as T, SUBSCRIPTION as S,
+  APP_NAME, DEFAULT_CURRENCY, FREE_IMAGE_LIMIT, FREE_PRODUCT_LIMIT, MAX_IMAGES,
+  MAX_UPLOAD_BYTES, PRODUCT_CURRENCIES, PRODUCT as T, SUBSCRIPTION as S,
 } from '../config.js';
 import { layout } from '../render/layout.js';
 import { productForm, trialLimitPage } from '../render/product-form.js';
@@ -32,7 +32,7 @@ const AFFECTED = 'return=representation';
 const affected = (res) => (res.ok && Array.isArray(res.data) ? res.data.length : 0);
 
 const PRODUCT_SELECT =
-  'id,title,price,description,status,platform_category_id,category_id,created_at,' +
+  'id,title,price,currency,description,status,platform_category_id,category_id,created_at,' +
   'product_images(r2_key,r2_key_full,position)';
 
 function page(body, title, headers, scripts = ['/js/crop.js', '/js/product.js']) {
@@ -165,6 +165,29 @@ export async function uploadPost(request, env) {
  * A price must be a positive number: nothing here is free, and a
  * negative one is a typo, not a discount.
  */
+/**
+ * The currency to store, or null if the browser sent something else.
+ *
+ * The form offers exactly two buttons, so a third value did not come
+ * from a seller pressing anything — it came from a crafted post, and is
+ * refused rather than quietly folded to IQD. Storing the wrong currency
+ * silently is the one failure here that a seller could not see: the
+ * number looks right, and it is the wrong money.
+ *
+ * Absent is not invalid. A form submitted from a page cached before
+ * this shipped has no currency field at all, and that seller meant IQD,
+ * which is what every product was until now. Only a value that is
+ * present AND unrecognised is an error.
+ *
+ * The database repeats this check (products_currency_allowed), so a bug
+ * here cannot write a third currency either.
+ */
+const parseCurrency = (raw) => {
+  if (raw === undefined || raw === null || raw === '') return DEFAULT_CURRENCY;
+  const value = String(raw).trim();
+  return Object.hasOwn(PRODUCT_CURRENCIES, value) ? value : null;
+};
+
 const parsePrice = (raw) => {
   const text = String(raw ?? '')
     .replace(/[\u0660-\u0669]/g, (d) => String(d.charCodeAt(0) - 0x0660))
@@ -297,11 +320,16 @@ async function readForm(request, env, token, shopId, productId) {
   const picked = cleanImages(f.images, shopId, productId);
   const images = picked.images ?? null;
   const price = parsePrice(f.price);
+  const currency = parseCurrency(f.currency);
   const ownCategory = await ownCategoryIdFor(env, token, shopId, f.own_category);
 
   const values = {
     title: (f.title || '').replace(/\s+/g, ' ').trim(),
     price: f.price || '',
+    // Redrawn with what the seller picked, not with the default: being
+    // sent back over a missing image should not silently reset a price
+    // in dollars to one in dinars.
+    currency: currency ?? DEFAULT_CURRENCY,
     description: (f.description || '').trim(),
     category: f.category || '',
     status: f.status === 'hidden' ? 'hidden' : 'active',
@@ -319,12 +347,14 @@ async function readForm(request, env, token, shopId, productId) {
     return { error: T.errTitle, values };
   }
   if (price === null || price > 999999999) return { error: T.errPrice, values };
+  if (currency === null) return { error: T.errCurrency, values };
 
   return {
     values,
     row: {
       title: values.title,
       price,
+      currency,
       description: values.description || null,
       status: values.status,
       // An unknown market slug resolves to null rather than an error:
@@ -507,6 +537,9 @@ const toValues = (product, categories) => ({
   ownCategory: product.category_id ?? '',
   title: product.title,
   price: String(product.price ?? ''),
+  // A product written before the column existed has no currency to
+  // load; it was in dinars, so that is what the form opens on.
+  currency: product.currency ?? DEFAULT_CURRENCY,
   description: product.description ?? '',
   status: product.status === 'hidden' ? 'hidden' : product.status,
   category: categories.find((c) => c.id === product.platform_category_id)?.slug ?? '',
