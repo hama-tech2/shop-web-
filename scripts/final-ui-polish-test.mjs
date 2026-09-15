@@ -6,7 +6,6 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { layout } from '../worker/render/layout.js';
 import { productPage } from '../worker/render/product-page.js';
-import { productList } from '../worker/render/product-list.js';
 import { productForm } from '../worker/render/product-form.js';
 import { getProduct } from '../worker/supabase.js';
 
@@ -19,7 +18,6 @@ const shop={id:'aaaaaaaa-1111-4111-8111-111111111111',name:'دوکانی تاق�
 const title='بەرهەمێکی جوان بە ناوێکی درێژ بۆ تاقیکردنەوەی ڕیزبەندی';
 const images=[{card:'fixture',full:'fixture'}];
 const product={id,title,price:999999999,description:'وردەکارییەکانی بەرهەم',shop,images};
-const inventory=['active','hidden'].map((status,i)=>({id:i? 'cccccccc-1111-4111-8111-111111111111':id,title,price:999999999,status,product_images:[{r2_key:'fixture',position:0}]}));
 const more=[{id:'related',title,price:72000,shopName:shop.name,shopSlug:shop.slug,shopWhatsapp:shop.whatsapp,shopMapsUrl:shop.maps_url,images:['fixture']}];
 const realFetch=globalThis.fetch;let selected='';
 try {
@@ -42,29 +40,12 @@ try {
     const url=new URL(route.request().url());
     const screen=url.pathname.split('/').pop(), state=url.searchParams.get('state');
     const body=screen==='product' ? productPage({product:{...product,shop:{...shop,maps_url:state==='missing'?null:state==='unsafe'?'javascript:alert(1)':shop.maps_url}},more,origin:APP})
-      : screen==='manager' ? productList({products:state==='empty'?[]:inventory})
       : productForm({mode:'edit',draftId:id,categories:[],imageLimit:1,values:{title,price:999999999,status:state || 'hidden',images:state==='kept'?[...images,{card:'old-2',full:'old-2'},{card:'old-3',full:'old-3'}]:images},error:state==='error'?'هەڵەی پاشەکەوتکردن':null});
     return route.fulfill({contentType:'text/html',body:layout({title:'UI fixture',body,scripts:screen==='product'?['/js/shop.js','/js/favorites.js']:['/js/product.js']})});
   });
   const overflow=()=>page.evaluate(()=>document.documentElement.scrollWidth>innerWidth);
   for(const width of [320,360,390,430]) {
     await page.setViewportSize({width,height:844});
-    for(const state of ['all','hidden','empty']) {
-      await page.goto(APP+'/_fixture/manager?state='+state);await page.evaluate(()=>document.fonts.ready);
-      check('compact inventory RTL/overflow '+width+state,!await overflow()&&await page.locator('html').getAttribute('dir')==='rtl');
-      // One list now: hidden products are marked, not filed elsewhere.
-      check('no filter navigation at all '+width+state,await page.locator('.manager-filters').count()===0);
-      check('Add Product retained '+width+state,await page.locator('.shell__head a[href="/app/new"]').count()===1);
-      check('valid management HTML '+width+state,await page.locator('a button,a a,a form').count()===0);
-      if(state==='hidden') {
-        // The filter-specific help is gone with the filters. What has to
-        // survive is that a hidden product is still in this one list and
-        // still says it is hidden.
-        check('a hidden product is still listed and still marked '+width,(await page.locator('.rows').innerText()).includes('شاراوەیە'));
-        check('compact rows with accessible delete '+width,await page.locator('.manager-row').evaluateAll(els=>els.every(el=>el.offsetHeight<125&&el.querySelector('button').offsetWidth>=44&&el.querySelector('button').offsetHeight>=44)));
-        await page.screenshot({path:join(out,'manager-'+width+'.png'),fullPage:true});
-      }
-    }
     for(const state of ['hidden','active','error','kept']) {
       await page.goto(APP+'/_fixture/edit?state='+state);
       check('edit status control and values retained '+width+state,await page.locator('#status-field option').count()===2&&await page.locator('#f-title').inputValue()===title);
@@ -90,13 +71,22 @@ try {
   await page.waitForFunction(()=>copied.length===1);
   check('PDP copy confirms without navigation',await page.evaluate(url=>copied[0]===url,canonical)&&await page.locator('.card-share-status').isVisible()&&new URL(page.url()).pathname==='/_fixture/product');
   check('PDP location opens safely',await page.locator('.pdp-secondary a').getAttribute('href')===shop.maps_url&&await page.locator('.pdp-secondary a').getAttribute('rel')==='noopener noreferrer');
-  await page.goto(APP+'/_fixture/manager?state=hidden');
+  // Deleting a product used to be tested on the manager list, which is
+  // retired. The seller deletes from /app now — the same endpoint, from
+  // a card rather than a row — and scripts/manager-retired-test.mjs
+  // covers where that endpoint sends them. The confirm-before-delete
+  // behaviour is checked here, on the edit form's delete button, which
+  // is the other place a seller can remove a product.
+  await page.goto(APP+'/_fixture/edit?state=hidden');
   let posts=0;
   await page.route(APP+'/app/products/*/delete',route=>{posts++;return route.fulfill({status:204});});
-  page.once('dialog',dialog=>dialog.dismiss());await page.locator('.manager-delete').first().click();
+  const deleteBtn=page.locator('form[action$="/delete"] button');
+  check('the edit form offers a delete',await deleteBtn.count()===1);
+  page.once('dialog',dialog=>dialog.dismiss());await deleteBtn.click();
   check('delete cancellation sends nothing',posts===0);
-  page.once('dialog',dialog=>dialog.accept());await page.locator('.manager-delete').first().click();
-  check('confirmed delete uses existing endpoint once',posts===1);
+  page.once('dialog',dialog=>dialog.accept());
+  await Promise.all([page.waitForRequest(r=>r.method()==='POST'&&/\/delete$/.test(r.url())),deleteBtn.click()]);
+  check('confirmed delete uses the existing endpoint once',posts===1);
   await page.goto(APP+'/_fixture/edit?state=kept');
   let editFields;
   await page.route(APP+'/app/products/'+id,route=>{editFields=new URLSearchParams(route.request().postData());return route.fulfill({status:204});});

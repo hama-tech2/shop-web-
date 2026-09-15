@@ -257,10 +257,14 @@ check('and posting a new product is refused',
 // the shop's, and its profile is still public. What changed is how many
 // of them are up — the database hid the extras, and hidden is a state
 // the seller already knows how to undo.
-const stillThere = await page('/app/products');
+// The seller's own list is /app now, and its grid is fetched from the
+// public shop by public/js/owner-profile.js — so "still listed" is a
+// property of the shop page, which /app shows the owner's copy of.
+const stillThere = await page('/@nafin-boutique');
 check('the products already posted are still listed', stillThere.includes('کراسی کوردی'));
-check('and the public profile still renders',
-  (await page('/@nafin-boutique')).includes('بۆتیکی نافین'));
+check('and the public profile still renders', stillThere.includes('بۆتیکی نافین'));
+check('the seller\u2019s own home still opens',
+  (await page('/app')).includes('owner-products'));
 check('a hidden product is still the seller\'s to open',
   (await page(`/app/products/${PRODUCT_ID}`)).includes('publish-page'));
 
@@ -276,12 +280,12 @@ check('with the reason, on the form, and no claim that anything was deleted',
 
 // Hiding one is always allowed: that is how a seller makes room.
 check('hiding one of the five is allowed',
-  (await setVisibility('hidden')).location, '/app/products');
+  (await setVisibility('hidden')).location, '/app');
 
 // And once there is room, the swap goes through.
 await control(`/__public/${FREE_PRODUCT_LIMIT - 1}`);
 check('and then the other one can go up in its place',
-  (await setVisibility('active')).location, '/app/products');
+  (await setVisibility('active')).location, '/app');
 
 // Paying again lifts it, with no re-posting and nothing restored.
 await paid(FREE_PRODUCT_LIMIT + 3, 20);
@@ -289,7 +293,7 @@ check('paying again reaches the form immediately',
   (await page('/app/new')).includes('publish-page'));
 await control(`/__public/${FREE_PRODUCT_LIMIT}`);
 check('and a paid seller may have more than five public',
-  (await setVisibility('active')).location, '/app/products');
+  (await setVisibility('active')).location, '/app');
 
 // A shop that lapses with room to spare loses nothing at all.
 await paid(3, -1);
@@ -298,7 +302,7 @@ check('a lapsed shop under the limit still reaches the form',
   (await page('/app/new?plan=free')).includes('publish-page'));
 check('and can still publish', (await publish(1)).location === '/app', true);
 check('and its products stay public',
-  (await setVisibility('active')).location, '/app/products');
+  (await setVisibility('active')).location, '/app');
 
 /* ============================================================
    7. the admin's stop button outranks all of it

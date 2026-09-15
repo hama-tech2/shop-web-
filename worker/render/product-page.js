@@ -1,5 +1,6 @@
-import { CITY_LABEL, SHOP as T, UI } from '../config.js';
-import { esc, price } from './html.js';
+import { CITY_LABEL, SHOP as T } from '../config.js';
+import { esc } from './html.js';
+import { moneyHtml, moneyText } from './money.js';
 import { cardHtml, mapsUrl } from './feed.js';
 import { iconBack, iconHeart, iconPin, iconShare, iconWhatsapp } from './icons.js';
 
@@ -71,9 +72,10 @@ export function productPage({ product, more, origin }) {
 
     `<div class="pdp-body">` +
     `<div class="pdp-heading"><h1 class="pdp-title">${esc(product.title)}</h1>` +
-    `<p class="pdp-price">` +
-    `<span class="pdp-amount">${esc(price(product.price))}</span>` +
-    `<span class="card__currency">${esc(UI.currency === 'IQD' ? 'د.ع' : UI.currency)}</span></p></div>` +
+    moneyHtml(product.price, product.currency, {
+      tag: 'p', cls: 'pdp-price',
+      amountClass: 'pdp-amount', currencyClass: 'card__currency',
+    }) + `</div>` +
     (product.description
       ? `<section class="pdp-description"><h2>دەربارەی بەرهەم</h2><p class="pdp-desc">${esc(product.description)}</p></section>`
       : '') +
@@ -104,4 +106,4 @@ export function productPage({ product, more, origin }) {
 /** OG description for a product: its own text, else name and price. */
 export const productDescription = (product) =>
   (product.description && product.description.trim().slice(0, 200)) ||
-  `${product.title} — ${price(product.price)} ${UI.currency}`;
+  `${product.title} — ${moneyText(product.price, product.currency)}`;

@@ -253,7 +253,11 @@
         method: 'POST', credentials: 'same-origin', body: new URLSearchParams()
       });
       var result = new URL(response.url);
-      if (!response.ok || result.pathname !== '/app/products' || result.searchParams.has('e')) throw new Error('Delete failed');
+      // The endpoint answers with a redirect, and where it lands is how
+      // it reports the outcome: /app for a delete that removed a row,
+      // /app?e=… for one that removed nothing. It used to land on the
+      // manager list, which no longer exists.
+      if (!response.ok || result.pathname !== '/app' || result.searchParams.has('e')) throw new Error('Delete failed');
       var next = card.nextElementSibling || card.previousElementSibling;
       card.remove();
       if (next) next.querySelector('.card__hit').focus();

@@ -135,6 +135,23 @@
     return value.replace(/[٠-٩]/g, function (c) { return c.charCodeAt(0) - 1632; }).replace(/[۰-۹]/g, function (c) { return c.charCodeAt(0) - 1776; }).replace(/\D/g, '');
   }
   price.addEventListener('input', function () { var value = digits(price.value).slice(0, 9); price.value = value ? Number(value).toLocaleString('en-US') : ''; });
+
+  /* The unit beside the price follows the currency the seller picked.
+     The server already rendered the right one for the stored value, so
+     this only keeps it in step while they are looking at it — and it
+     deliberately never touches price.value: there is no rate in this
+     app, and changing the number under somebody because they pressed a
+     button is not a conversion, it is a new price they did not set. */
+  var unit = document.getElementById('price-unit');
+  var seg = document.getElementById('currency-seg');
+  if (unit && seg) {
+    seg.addEventListener('change', function (event) {
+      var picked = event.target;
+      if (picked && picked.name === 'currency' && picked.dataset.symbol) {
+        unit.textContent = picked.dataset.symbol;
+      }
+    });
+  }
   var categoryKey = 'shopweb:last-market-category';
   if (D.restoreCategory === 'true') {
     try { var last = localStorage.getItem(categoryKey); if (last !== null && Array.from(category.options).some(function (option) { return option.value === last; })) category.value = last; } catch (e) { /* Storage is optional. */ }

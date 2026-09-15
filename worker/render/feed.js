@@ -1,5 +1,6 @@
 import { APP_NAME, APP_TAGLINE, CHIPS, LOCALES, SLIDE_MS, UI } from '../config.js';
-import { attr, esc, price } from './html.js';
+import { attr, esc } from './html.js';
+import { moneyHtml } from './money.js';
 import { iconGlobe, iconHeart, iconPin, iconSearch, iconShare, iconWhatsapp } from './icons.js';
 import { bottomNav } from './appshell.js';
 
@@ -95,10 +96,12 @@ export function cardHtml(product, index, { linked = true, saved = false } = {}) 
     `</div>` +
     `<div class="card__body">` +
     `<h2 class="card__title">${esc(product.title)}</h2>` +
-    `<div class="card__commercial"><p class="card__price">` +
-    `<span class="card__amount">${esc(price(product.price))}</span>` +
-    `<span class="card__currency">${esc(UI.currency === 'IQD' ? 'د.ع' : UI.currency)}</span>` +
-    `</p>${cardActions(product, href)}</div>` +
+    `<div class="card__commercial">` +
+    moneyHtml(product.price, product.currency, {
+      tag: 'p', cls: 'card__price',
+      amountClass: 'card__amount', currencyClass: 'card__currency',
+    }) +
+    `${cardActions(product, href)}</div>` +
     `<div class="card__shop">${avatar}` +
     `<span class="card__shop-name">${esc(product.shopName)}</span></div>` +
     `</div>` +
@@ -191,6 +194,27 @@ function loadMoreHtml({ category, query, nextOffset, hasMore }) {
 }
 
 /** The whole feed page body. */
+/**
+ * One slim row telling a shopkeeper the app is for them too.
+ *
+ * Deliberately not a banner: no sticky bar, no fade, no timer, no close
+ * button to have to design. It sits in the scroll under the category
+ * chips, above the first row of cards, and leaves with them. A customer
+ * reads it once on their first visit and scrolls past it forever after,
+ * which is the most an advert on somebody's shopping feed should ask.
+ *
+ * It cannot be hidden for sellers who are already signed in: the feed is
+ * served `public, s-maxage=60` to everybody, so varying it per visitor
+ * would mean giving up the shared cache on the busiest page in the app.
+ * A line about making a shop is a small thing to show somebody who has
+ * one; a slow feed is not.
+ */
+const sellerPromptHtml = () =>
+  `<aside class="seller-prompt">` +
+  `<p class="seller-prompt__text">${esc(UI.sellerPrompt)}</p>` +
+  `<a class="seller-prompt__cta" href="/signup">${esc(UI.sellerCta)}</a>` +
+  `</aside>`;
+
 export function feedHtml({ products, hasMore, category, query, offset, pageSize }) {
   const grid = products.length
     ? `<div class="grid" id="grid">${cardsFragment(products, offset)}</div>`
@@ -201,6 +225,10 @@ export function feedHtml({ products, hasMore, category, query, offset, pageSize 
     `<div class="page" data-slide-ms="${SLIDE_MS}">` +
     headerHtml({ query }) +
     chipsHtml({ category, query }) +
+    // Only on the unfiltered feed. Somebody who has typed a search or
+    // picked a category is looking for a thing, and is the worst moment
+    // to talk to them about something else.
+    (query || category ? '' : sellerPromptHtml()) +
     grid +
     loadMoreHtml({ category, query, nextOffset: offset + pageSize, hasMore }) +
     `</div>` +

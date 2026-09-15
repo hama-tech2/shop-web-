@@ -8,13 +8,12 @@
  */
 
 import {
-  APP_NAME, FREE_IMAGE_LIMIT, FREE_PRODUCT_LIMIT, MAX_IMAGES, MAX_UPLOAD_BYTES,
-  PRODUCT as T, SUBSCRIPTION as S,
+  APP_NAME, DEFAULT_CURRENCY, FREE_IMAGE_LIMIT, FREE_PRODUCT_LIMIT, MAX_IMAGES,
+  MAX_UPLOAD_BYTES, PRODUCT_CURRENCIES, PRODUCT as T, SUBSCRIPTION as S,
 } from '../config.js';
 import { layout } from '../render/layout.js';
 import { productForm, trialLimitPage } from '../render/product-form.js';
 import { accessGatePage } from '../render/subscription.js';
-import { productList } from '../render/product-list.js';
 import { asUser, getCategories, subscriptionState } from '../supabase.js';
 import { getOwnShop, resolveSession, sameOrigin, setSessionCookies } from '../auth.js';
 import { redirect } from './auth.js';
@@ -32,7 +31,7 @@ const AFFECTED = 'return=representation';
 const affected = (res) => (res.ok && Array.isArray(res.data) ? res.data.length : 0);
 
 const PRODUCT_SELECT =
-  'id,title,price,description,status,platform_category_id,category_id,created_at,' +
+  'id,title,price,currency,description,status,platform_category_id,category_id,created_at,' +
   'product_images(r2_key,r2_key_full,position)';
 
 function page(body, title, headers, scripts = ['/js/crop.js', '/js/product.js']) {
@@ -58,7 +57,10 @@ async function guard(request, env) {
   const headers = new Headers();
   if (refreshed) setSessionCookies(headers, refreshed);
 
-  if (!user) return { redirect: redirect('/login?next=/app/products', headers) };
+  // Every route in this file shares this guard, so this one name is the
+  // destination a stranger is sent back to after logging in. /app is the
+  // seller's home now, and it is where all of them end up anyway.
+  if (!user) return { redirect: redirect('/login?next=/app', headers) };
   const shop = await getOwnShop(env, token, user.id);
   if (!shop) return { redirect: redirect('/onboarding', headers) };
 
@@ -165,6 +167,29 @@ export async function uploadPost(request, env) {
  * A price must be a positive number: nothing here is free, and a
  * negative one is a typo, not a discount.
  */
+/**
+ * The currency to store, or null if the browser sent something else.
+ *
+ * The form offers exactly two buttons, so a third value did not come
+ * from a seller pressing anything — it came from a crafted post, and is
+ * refused rather than quietly folded to IQD. Storing the wrong currency
+ * silently is the one failure here that a seller could not see: the
+ * number looks right, and it is the wrong money.
+ *
+ * Absent is not invalid. A form submitted from a page cached before
+ * this shipped has no currency field at all, and that seller meant IQD,
+ * which is what every product was until now. Only a value that is
+ * present AND unrecognised is an error.
+ *
+ * The database repeats this check (products_currency_allowed), so a bug
+ * here cannot write a third currency either.
+ */
+const parseCurrency = (raw) => {
+  if (raw === undefined || raw === null || raw === '') return DEFAULT_CURRENCY;
+  const value = String(raw).trim();
+  return Object.hasOwn(PRODUCT_CURRENCIES, value) ? value : null;
+};
+
 const parsePrice = (raw) => {
   const text = String(raw ?? '')
     .replace(/[\u0660-\u0669]/g, (d) => String(d.charCodeAt(0) - 0x0660))
@@ -297,11 +322,16 @@ async function readForm(request, env, token, shopId, productId) {
   const picked = cleanImages(f.images, shopId, productId);
   const images = picked.images ?? null;
   const price = parsePrice(f.price);
+  const currency = parseCurrency(f.currency);
   const ownCategory = await ownCategoryIdFor(env, token, shopId, f.own_category);
 
   const values = {
     title: (f.title || '').replace(/\s+/g, ' ').trim(),
     price: f.price || '',
+    // Redrawn with what the seller picked, not with the default: being
+    // sent back over a missing image should not silently reset a price
+    // in dollars to one in dinars.
+    currency: currency ?? DEFAULT_CURRENCY,
     description: (f.description || '').trim(),
     category: f.category || '',
     status: f.status === 'hidden' ? 'hidden' : 'active',
@@ -319,12 +349,14 @@ async function readForm(request, env, token, shopId, productId) {
     return { error: T.errTitle, values };
   }
   if (price === null || price > 999999999) return { error: T.errPrice, values };
+  if (currency === null) return { error: T.errCurrency, values };
 
   return {
     values,
     row: {
       title: values.title,
       price,
+      currency,
       description: values.description || null,
       status: values.status,
       // An unknown market slug resolves to null rather than an error:
@@ -486,9 +518,9 @@ export async function newPost(request, env) {
   // rather than somewhere they land by accident and cannot tell apart
   // from being logged out.
   //
-  // Not /app/products: that is the management list, which is a place to
-  // administer stock rather than to look at the shop you have just
-  // added to. It is unchanged and still reachable.
+  // There is no longer a separate management list to choose instead:
+  // /app is the only seller-facing list of these products, and this is
+  // it.
   return redirect('/app', g.headers);
 }
 
@@ -507,6 +539,9 @@ const toValues = (product, categories) => ({
   ownCategory: product.category_id ?? '',
   title: product.title,
   price: String(product.price ?? ''),
+  // A product written before the column existed has no currency to
+  // load; it was in dinars, so that is what the form opens on.
+  currency: product.currency ?? DEFAULT_CURRENCY,
   description: product.description ?? '',
   status: product.status === 'hidden' ? 'hidden' : product.status,
   category: categories.find((c) => c.id === product.platform_category_id)?.slug ?? '',
@@ -519,10 +554,13 @@ const toValues = (product, categories) => ({
 export async function editGet(request, env, id) {
   const g = await guard(request, env);
   if (g.redirect) return g.redirect;
-  if (!UUID.test(id)) return redirect('/app/products', g.headers);
+  // A malformed id, or one that is gone or belongs to somebody else.
+  // Both land on /app: the seller's own shop, where they can see what
+  // they do have rather than an error about what they do not.
+  if (!UUID.test(id)) return redirect('/app', g.headers);
 
   const product = await loadProduct(env, g.token, id);
-  if (!product) return redirect('/app/products', g.headers);
+  if (!product) return redirect('/app', g.headers);
 
   const categories = await getCategories(env);
   const { tier } = await entitlement(env, g.token, g.shop.id);
@@ -538,7 +576,7 @@ export async function editPost(request, env, id) {
   if (!sameOrigin(request)) return new Response('bad origin', { status: 403 });
   const g = await guard(request, env);
   if (g.redirect) return g.redirect;
-  if (!UUID.test(id)) return redirect('/app/products', g.headers);
+  if (!UUID.test(id)) return redirect('/app', g.headers);
 
   const parsed = await readForm(request, env, g.token, g.shop.id, id);
   const categories = await getCategories(env);
@@ -587,7 +625,9 @@ export async function editPost(request, env, id) {
     body: { p_product: id, p_images: parsed.images },
   });
 
-  return redirect('/app/products', g.headers);
+  // Saved. Back to the shop the edit was made to, in owner mode —
+  // the same destination publishing uses, for the same reason.
+  return redirect('/app', g.headers);
 }
 
 /* ============================================================
@@ -598,7 +638,7 @@ export async function deletePost(request, env, id) {
   if (!sameOrigin(request)) return new Response('bad origin', { status: 403 });
   const g = await guard(request, env);
   if (g.redirect) return g.redirect;
-  if (!UUID.test(id)) return redirect('/app/products', g.headers);
+  if (!UUID.test(id)) return redirect('/app', g.headers);
 
   const removed = await asUser(env, g.token, 'products', {
     method: 'DELETE',
@@ -606,37 +646,25 @@ export async function deletePost(request, env, id) {
     prefer: AFFECTED,
   });
 
+  // Nothing was removed: already deleted in another tab, or not this
+  // seller's to delete. Either way say so on /app rather than silently
+  // reporting success — public/js/owner-profile.js reads the ?e back
+  // off the redirect to decide whether to take the card off the screen.
   if (!removed.ok || affected(removed) === 0) {
-    return redirect('/app/products?e=errGone', g.headers);
+    return redirect('/app?e=errGone', g.headers);
   }
-  return redirect('/app/products', g.headers);
+  return redirect('/app', g.headers);
 }
 
 /* ============================================================
-   /app/products — the list
+   /app/products is retired
+
+   It listed the seller's products on a screen of its own, which /app
+   already does — with the same products, the same add button and the
+   same per-product delete. Two screens over one list is one too many
+   to keep in step, and the second one was where a seller got stranded:
+   every "back" in this file used to point at it.
+
+   worker/index.js answers the address with a redirect to /app. Only
+   /app/products/<id> survives, as the edit form's own URL.
    ============================================================ */
-
-export async function listGet(request, env, url) {
-  const g = await guard(request, env);
-  if (g.redirect) return g.redirect;
-
-  // One list, every product, visible and hidden together. Each row
-  // carries its own status badge, so nothing is hidden from the seller
-  // and there is no filter to get lost in.
-  const res = await asUser(env, g.token, 'products', {
-    search: {
-      select: PRODUCT_SELECT,
-      shop_id: `eq.${g.shop.id}`,
-      order: 'created_at.desc',
-      limit: '100',
-    },
-  });
-
-  const errorKey = url.searchParams.get('e');
-  const error = errorKey && T[errorKey] ? T[errorKey] : null;
-
-  return page(
-    productList({ products: res.ok ? res.data ?? [] : [], error }),
-    T.listTitle, g.headers,
-  );
-}

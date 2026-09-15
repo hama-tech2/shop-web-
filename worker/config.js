@@ -79,12 +79,76 @@ export const UI = {
   loading: 'چاوەڕێ بکە…',
   emptyTitle: 'هیچ کاڵایەک نەدۆزرایەوە',
   emptyBody: 'هەوڵ بدە جۆرێکی تر هەڵبژێریت.',
+  /**
+   * The PLATFORM currency: what a shop pays us, through Wayl. Always
+   * IQD, and not the same thing as what a shop charges a customer —
+   * that is per product now, and lives in PRODUCT_CURRENCIES below.
+   */
   currency: 'IQD',
   language: 'زمان',
   soon: 'بەم زووانە',
   save: 'پاشەکەوتکردن',
   tabFeed: 'بۆ تۆ',
   tabAccount: 'هەژمارم',
+
+  /**
+   * The one line on the feed that tells a shopkeeper this is for them.
+   *
+   * It sits in the scroll and scrolls away: no sticky bar, no fade, no
+   * timer. A customer reads it once and never thinks about it again,
+   * which is the most an advert on somebody's shopping feed should ask.
+   */
+  sellerPrompt: 'دوکانداریت هەیە؟ دوکانەکەت دروست بکە و بەرهەمەکانت بڵاو بکەوە',
+  sellerCta: 'دوکان دروست بکە',
+};
+
+/**
+ * The Account tab, for somebody who is not signed in.
+ *
+ * Tapping it used to drop a shopper straight into a login form, which
+ * says, wrongly, that they need an account to be here. They do not:
+ * browsing and messaging a shop over WhatsApp need nothing. An account
+ * is for the other kind of visitor — the one with something to sell.
+ */
+export const VISITOR = {
+  title: 'هەژمار',
+  back: 'گەڕانەوە',
+  noAccountNeeded: 'بۆ کڕین و گەڕان پێویست بە هەژمار نییە',
+  sellerBody: 'ئەگەر دوکانت هەیە، بە هەژمار بەرهەمەکانت بڵاو بکەرەوە.',
+  google: 'بەردەوام بە Google',
+  forgot: 'وشەی نهێنیت لەبیر کردووە؟',
+  showPassword: 'پیشاندانی وشەی نهێنی',
+};
+
+/**
+ * The two currencies a product can be priced in.
+ *
+ * A seller in Erbil quotes clothes in dinars and a phone in dollars,
+ * and before this the form only offered dinars — so the ones who meant
+ * dollars wrote "$" into the product title to say so.
+ *
+ * `lead` is which side the symbol goes: `$25`, but `25,000 د.ع`. It is
+ * the whole reason this is a table rather than a map of symbols, since
+ * the two currencies do not agree on where the symbol belongs.
+ *
+ * Nothing here converts. A price is the number the seller typed in the
+ * currency they picked; the app never holds a rate, and switching the
+ * selector leaves the number exactly as it was.
+ *
+ * Unrelated to UI.currency above, which is what a shop pays us.
+ */
+export const PRODUCT_CURRENCIES = {
+  IQD: { code: 'IQD', symbol: 'د.ع', label: 'دیناری عێراقی', lead: false, decimals: 0 },
+  USD: { code: 'USD', symbol: '$',   label: 'دۆلار',         lead: true,  decimals: 0 },
+};
+
+/** The default, and what every product created before this was. */
+export const DEFAULT_CURRENCY = 'IQD';
+
+/** The currency selector on the product form. */
+export const CURRENCY_UI = {
+  legend: 'دراو',
+  hint: 'دراوەکە هەڵبژێرە. گۆڕینی دراو نرخەکە ناگۆڕێت.',
 };
 
 /** Auth, onboarding and app-shell strings. */
@@ -238,6 +302,7 @@ export const PRODUCT = {
   errNoImage: 'لانیکەم یەک وێنە زیاد بکە.',
   errTitle: 'ناوی بەرهەم دەبێت لانیکەم ٢ پیت بێت.',
   errPrice: 'نرخێکی دروست بنووسە.',
+  errCurrency: 'دراوێکی دروست هەڵبژێرە.',
   errUpload: 'ناردنی وێنە سەرکەوتوو نەبوو. دووبارە هەوڵ بدەرەوە.',
   errType: 'تەنها JPG، PNG یان WebP.',
   errSave: 'پاشەکەوتکردن سەرکەوتوو نەبوو.',

@@ -1,7 +1,8 @@
 import {
-  CATEGORIES_UI as C, PLAN_BANNER, PRODUCT, PROFILE, SAVED, UI,
-} from '../config.js';
+  CATEGORIES_UI as C, PLAN_BANNER, PRODUCT, PROFILE, SAVED, UI } from '../config.js';
+import { loginPage } from './auth.js';
 import { esc } from './html.js';
+import { alert } from './forms.js';
 import { shopHeader } from './shop.js';
 import { settingsPanel } from './settings.js';
 import { iconHeart, iconHome, iconPlus, iconTrash, iconUser } from './icons.js';
@@ -91,7 +92,7 @@ export function planBannerHtml(banner) {
 }
 
 /** Owner controls stay inside the existing authenticated seller area. */
-export function appShell({ shop, origin, banner = null, subscription = null }) {
+export function appShell({ shop, origin, banner = null, subscription = null, error = null }) {
   const controls =
     `<nav class="owner-controls" aria-label="بەڕێوەبردنی دوکان">` +
     `<a class="owner-control owner-control--primary" href="/app/profile">دەستکاری پرۆفایل</a>` +
@@ -101,6 +102,11 @@ export function appShell({ shop, origin, banner = null, subscription = null }) {
   return (
     `<div class="page page--shop page--owner">` +
     planBannerHtml(subscription?.state?.tier === 'free' ? null : banner) +
+    // A delete that removed nothing says so here. The card-by-card
+    // delete on this page reads the outcome off its own fetch and never
+    // reaches this, but the plain form post from the edit screen does,
+    // and used to be answered by the manager page that is now gone.
+    alert(error) +
     shopHeader({ shop, origin, controls }) +
     `<section id="owner-products" class="shop-products" data-shop-url="${esc('/@' + shop.slug)}"` +
     ` data-cat-ui="${esc(CATEGORY_UI)}" aria-label="${esc(PRODUCT.listTitle)}">` +
@@ -113,4 +119,15 @@ export function appShell({ shop, origin, banner = null, subscription = null }) {
     `<script src="/js/settings.js" defer></script>` +
     `<script src="/js/owner-profile.js" defer></script>`
   );
+}
+
+/**
+ * The Account tab, for somebody who is not signed in.
+ *
+ * Share the login presentation and its existing endpoints. Customers
+ * see the no-account explanation first; returning sellers can sign in
+ * immediately. Session checks and owner rendering stay in the route.
+ */
+export function visitorPage() {
+  return loginPage();
 }

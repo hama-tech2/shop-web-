@@ -162,29 +162,31 @@ check('no shop: publish redirects to onboarding', r.location, '/onboarding');
 await setMode('shop');
 
 /* ============================================================
-   after publishing, and the one list behind it
+   after publishing
    ============================================================
 
-   Publishing lands the seller in their own manager, in owner mode,
-   whatever the product's visibility. The manager is one list: hidden
-   products are marked, not filed somewhere else.
+   Publishing lands the seller in their own shop, in owner mode,
+   whatever the product's visibility.
+
+   There used to be a second screen here — /app/products, a manager
+   list of its own — and this section checked it. It is retired:
+   /app is the one list of a seller's products now, and the address
+   redirects to it. scripts/manager-retired-test.mjs pins that.
    ============================================================ */
 
-await control('/__mixed/1');
-const manager = await fetch(`${APP}/app/products`, { headers: { cookie: COOKIE } })
-  .then((res) => res.text());
+const manager = await fetch(`${APP}/app/products`, {
+  headers: { cookie: COOKIE }, redirect: 'manual',
+});
+check('the old manager address no longer renders a list', manager.status, 303);
+check('it sends the seller to their shop', manager.headers.get('location'), OWNER);
 
-check('the manager has no All / Visible / Hidden navigation', /manager-filters/.test(manager), false);
-check('and offers no filter links at all', /[?&]filter=/.test(manager), false);
-check('a visible product is in the list', manager.includes('کراسی کوردی'), true);
-check('and a hidden one is in the SAME list', manager.includes('کراسی شاراوە'), true);
-check('each row still says which it is',
-  manager.includes('شاراوەیە') && manager.includes('دیارە'), true);
-check('tapping a row still opens it for editing',
-  manager.includes('href="/app/products/' + DRAFT + '"'), true);
-check('delete is still there', /\/delete"/.test(manager), true);
-check('and Add Product is still there', manager.includes('href="/app/new"'), true);
-await control('/__mixed/0');
+const ownerHome = await fetch(`${APP}${OWNER}`, { headers: { cookie: COOKIE } })
+  .then((res) => res.text());
+check('which is where Add Product lives', ownerHome.includes('href="/app/new"'), true);
+check('and carries the products section itself',
+  ownerHome.includes('id="owner-products"'), true);
+check('with no trace of the retired list',
+  /manager-filters|class="manager-row"/.test(ownerHome), false);
 
 const asHidden = await publish({ ...MINIMUM, status: 'hidden' });
 check('publishing a hidden product goes to the owner view too', asHidden.location, OWNER);
@@ -237,13 +239,32 @@ const cache = landing.headers.get('cache-control') || '';
 check('the landing page is not cacheable', cache.includes('no-store'), true);
 check('and is not marked public', cache.includes('public'), false);
 
-// A signed-out visitor cannot reach it at all, which is the difference
-// between an owner view and a storefront.
+// A signed-out visitor gets none of it, which is the difference between
+// an owner view and a storefront. /app itself answers a stranger with
+// the visitor page rather than a login form — a customer needs no
+// account, and scripts/entry-points-test.mjs pins that screen — but it
+// carries no owner controls, no shop and no products, and every screen
+// a seller actually works on is still gated.
 const signedOut = await fetch(`${APP}${published.location}`, { redirect: 'manual' });
-check('the owner view is closed to anyone not signed in',
-  [302, 303, 307].includes(signedOut.status), true);
-check('and sends them to log in',
-  (signedOut.headers.get('location') || '').startsWith('/login'), true);
+const signedOutHtml = signedOut.status === 200 ? await signedOut.text() : '';
+check('a stranger is answered, not redirected, at /app', signedOut.status, 200);
+check('but sees no owner controls',
+  signedOutHtml.includes('owner-controls'), false);
+check('and no shop products',
+  signedOutHtml.includes('id="owner-products"'), false);
+check('and is offered no seller screen to walk into',
+  /href="\/app\/(new|profile|products)"/.test(signedOutHtml), false);
+check('the stranger\u2019s copy is still never cached',
+  (signedOut.headers.get('cache-control') || '').includes('no-store'), true);
+
+// The screens behind it are unchanged: still seller-only, still login.
+for (const path of ['/app/new', '/app/profile']) {
+  const gated = await fetch(`${APP}${path}`, { redirect: 'manual' });
+  check(`${path} is closed to anyone not signed in`,
+    [302, 303, 307].includes(gated.status), true);
+  check(`${path} sends them to log in`,
+    (gated.headers.get('location') || '').startsWith('/login'), true);
+}
 
 // The storefront is still public and still cacheable — that is correct
 // for a customer, and is exactly why a seller must not be sent there.

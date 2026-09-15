@@ -46,8 +46,14 @@
           ['card__title', 'card__price', 'card__shop-name'].forEach(function (name) {
             var text = card.querySelector('.' + name); if (!text) return;
             var line = document.createElement('span'); line.className = 'srch-suggestion__' + name;
-            // Text nodes preserve the server's single currency, never calculate a second price.
-            line.textContent = name === 'card__price' ? Array.from(text.children).map(function (part) { return part.textContent; }).join(' ') : text.textContent;
+            /* The price is read from data-money, which the server wrote
+               as the finished string. Re-joining the parts here used to
+               put a space between them, which is right for 25,000 د.ع
+               and wrong for $25 — and this is a copy of a price, never
+               a second calculation of one. */
+            line.textContent = name === 'card__price'
+              ? (text.getAttribute('data-money') || text.textContent.trim())
+              : text.textContent;
             body.appendChild(line);
           });
           link.appendChild(body); row.appendChild(link); fragment.appendChild(row);

@@ -221,7 +221,7 @@ check('past grace stays Free without a countdown banner', await banner(-5), null
 
 await setSub(-5);
 html = await page('/app');
-check('expired account shows permanent Free and a management link', html.includes('data-status="free"') && html.includes('href="/app/products"'), true);
+check('expired account shows permanent Free and a management link', html.includes('data-status="free"') && html.includes('href="/app"'), true);
 check('no promise that paying republishes hidden products', html.includes('یەکسەر بگەڕێنەوە'), false);
 check('the red banner has no close button',
       /plan-banner--hidden[\s\S]*?plan-banner__close/.test(html), false);

@@ -14,7 +14,17 @@ Instagram. Customers browse and order over WhatsApp.
 
 ## Locked decisions
 
-- IQD everywhere. One price per product. No discount, no `old_price`, no currency column.
+- One price per product, in one currency: IQD or USD, chosen by the seller,
+  defaulting to IQD. No discount, no `old_price`, no second amount.
+  Nothing converts — there is no exchange rate anywhere in this app, and
+  changing a product's currency leaves the number exactly as the seller
+  typed it. USD is whole dollars for now: `$25`, not `$24.99`.
+  Superseded the IQD-only rule on 2026-09-15; migration 0012 had dropped
+  `products.currency` and `20260922090000_product_currency.sql` puts it
+  back with a CHECK allowing only those two values.
+- Subscriptions, Wayl and everything in `payments` are always IQD, and are
+  not related to the currency a shop charges its own customers.
+  `UI.currency` is the platform's; `PRODUCT_CURRENCIES` is the seller's.
 - Auth: email + password and Continue with Google. No phone OTP, no SMS. `enable_confirmations = false`.
 - Multi-page, not an SPA. `/@slug` must be server-rendered so WhatsApp and
   Facebook show a preview image — that is the whole product.

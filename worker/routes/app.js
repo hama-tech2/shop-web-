@@ -5,9 +5,9 @@
  * going); session but no shop -> the wizard; otherwise the shell.
  */
 
-import { APP_NAME, APP_UI, PLAN_BANNER } from '../config.js';
+import { APP_NAME, APP_UI, PLAN_BANNER, PRODUCT, VISITOR } from '../config.js';
 import { layout } from '../render/layout.js';
-import { appShell } from '../render/appshell.js';
+import { appShell, visitorPage } from '../render/appshell.js';
 import { asUser } from '../supabase.js';
 import { bannerFor, planState } from '../plan-state.js';
 import { getOwnShop, resolveSession, sameOrigin, setSessionCookies } from '../auth.js';
@@ -89,7 +89,24 @@ export async function appGet(request, env, url) {
   const headers = new Headers();
   if (refreshed) setSessionCookies(headers, refreshed);
 
+  // The Account tab itself explains who needs an account, rather than
+  // dropping a shopper into a login form that implies they do. Anywhere
+  // deeper is genuinely seller-only, so that still goes to login with
+  // the destination remembered.
   if (!user) {
+    if (url.pathname === '/app') {
+      headers.set('content-type', 'text/html; charset=utf-8');
+      headers.set('cache-control', 'no-store');
+      return new Response(
+        layout({
+          title: `${VISITOR.title} — ${APP_NAME}`,
+          description: APP_NAME,
+          body: visitorPage(),
+          scripts: [],
+        }),
+        { headers },
+      );
+    }
     const next = encodeURIComponent(url.pathname + url.search);
     return redirect(`/login?next=${next}`, headers);
   }
@@ -99,6 +116,12 @@ export async function appGet(request, env, url) {
 
   const { banner, subscription } = await planBanner(env, token, shop.id);
 
+  // A delete that removed nothing redirects here with ?e=errGone. The
+  // key is looked up rather than shown, so the URL cannot put arbitrary
+  // text on the seller's screen.
+  const errorKey = url.searchParams.get('e');
+  const error = errorKey && PRODUCT[errorKey] ? PRODUCT[errorKey] : null;
+
   headers.set('content-type', 'text/html; charset=utf-8');
   headers.set('cache-control', 'no-store');
 
@@ -106,7 +129,7 @@ export async function appGet(request, env, url) {
     layout({
       title: `${APP_UI.title} — ${APP_NAME}`,
       description: APP_NAME,
-      body: appShell({ shop, origin: url.origin, banner, subscription }),
+      body: appShell({ shop, origin: url.origin, banner, subscription, error }),
       scripts: ['/js/app.js'],
     }),
     { headers },

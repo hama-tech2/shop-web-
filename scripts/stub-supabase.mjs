@@ -43,6 +43,7 @@ const PRICE = { year_1: 72000, months_6: 38000 };
 
 const rateEvents = {};            // bucket -> key -> timestamps, for the throttle
 let rows = 1;                     // how many rows a write reports
+let noProduct = false;            // product reads come back empty
 let mode = 'shop';                // shop | noshop
 let created = null;               // a shop made through onboarding
 let isAdmin = false;              // does the session own an admins row
@@ -57,6 +58,17 @@ let shopCover = null;             // shops.cover_key, for the share card ladder
 let shopLogo = null;              // shops.logo_key
 let productImages = [];           // product_images on the public product
 let mixedList = false;            // the manager holding a visible AND a hidden product
+// IQD unless a test says otherwise; null models a pre-migration row.
+let productCurrency = 'IQD';
+/**
+ * The currency key as PostgREST would return it.
+ *
+ * A row written before the column existed comes back with no currency
+ * key at all — not null, absent — so the fixture has to be able to omit
+ * it rather than send a null the views would treat differently.
+ */
+const withCurrency = () => (productCurrency === null ? {} : { currency: productCurrency });
+
 let dismissed = {};               // banner kind -> ISO timestamp
 const telegram = [];              // every call the Worker made to the bot API
 let nextMessageId = 500;
@@ -113,6 +125,13 @@ http.createServer(async (req, res) => {
   };
 
   if (p.startsWith('/__rows/')) { rows = Number(p.split('/')[2]); return send({ rows }); }
+  // No such product: a read of the products table comes back empty, the
+  // way it does for an id that was deleted or belongs to another shop.
+  // Without this the "product is gone" branch of editGet cannot be run.
+  if (p.startsWith('/__noproduct/')) {
+    noProduct = p.split('/')[2] === '1';
+    return send({ noProduct });
+  }
   if (p.startsWith('/__mode/')) { mode = p.split('/')[2]; created = null; return send({ mode }); }
   if (p === '/__created') return send(created ? [created] : []);
   if (p === '/__calls') return send(calls);
@@ -151,6 +170,15 @@ http.createServer(async (req, res) => {
   // One list has to be able to hold both states at once, or "hidden is
   // still reachable" cannot be proven.
   if (p.startsWith('/__mixed/')) { mixedList = p.split('/')[2] === '1'; return send({ mixedList }); }
+  // The currency the fixture product is priced in. '-' returns a row
+  // with NO currency key at all, which is what a product written before
+  // the column existed looks like coming back from PostgREST — the case
+  // every view has to render as dinars rather than as undefined.
+  if (p.startsWith('/__currency/')) {
+    const v = decodeURIComponent(p.slice(12));
+    productCurrency = v === '-' ? null : v;
+    return send({ productCurrency });
+  }
   if (p.startsWith('/__public/')) { publicCount = Number(p.split('/')[2]); return send({ publicCount }); }
   if (p.startsWith('/__dismissed/')) {
     const [, , kind, when] = p.split('/');
@@ -417,10 +445,21 @@ http.createServer(async (req, res) => {
     if (write && lastBody.category_id && ![CAT_A, CAT_B].includes(lastBody.category_id)) {
       return send({ code: '23514', message: 'category does not belong to this shop' }, 400);
     }
+    // products_currency_allowed. The Worker refuses a third currency
+    // before it gets here, and so does the database — modelling it means
+    // a test can prove the second lock holds even if the first were
+    // removed, which is the only reason to have two.
+    if (write && lastBody.currency !== undefined
+        && !['IQD', 'USD'].includes(lastBody.currency)) {
+      return send({ code: '23514',
+                    message: 'new row violates check constraint "products_currency_allowed"' }, 400);
+    }
     if (!write) {
+      if (noProduct) return send([]);
       if (mixedList) {
         const base = { price: 85000, description: '', shop_id: SHOP.id, sort_order: 0,
-                       platform_category_id: null, category_id: null, product_images: [] };
+                       platform_category_id: null, category_id: null, product_images: [],
+                       ...withCurrency() };
         return send([
           { ...base, id: PRODUCT_ID, title: 'کراسی کوردی', status: 'active' },
           { ...base, id: 'bbbbbbbb-2222-4222-8222-222222222222',
@@ -429,6 +468,7 @@ http.createServer(async (req, res) => {
       }
       return send([{
         id: PRODUCT_ID, title: 'کراسی کوردی', price: 85000, description: '',
+        ...withCurrency(),
         status: 'active', shop_id: SHOP.id, sort_order: 0,
         platform_category_id: null, category_id: null, product_images: productImages,
         // getProduct() joins shops!inner and reads the slug off it to
@@ -438,6 +478,31 @@ http.createServer(async (req, res) => {
       }]);
     }
     return send(rows ? [{ id: PRODUCT_ID }] : []);
+  }
+
+  // search_products returns SETOF products, so a caller gets the same
+  // row shape the products table gives — including the currency column.
+  // Without this the stub answered null and /search threw, which is why
+  // no suite had ever rendered a search result.
+  if (table === 'rpc/search_products') {
+    return send([{
+      id: PRODUCT_ID, title: 'کراسی کوردی', price: 85000, description: '',
+      ...withCurrency(),
+      status: 'active', shop_id: SHOP.id, sort_order: 0,
+      created_at: new Date().toISOString(),
+      platform_category_id: null, category_id: null,
+      product_images: productImages,
+      shops: { id: SHOP.id, name: SHOP.name, slug: SHOP.slug, logo_key: shopLogo,
+               whatsapp: SHOP.whatsapp, phone: null, maps_url: null },
+    }]);
+  }
+
+  // The shops tab of the same search page. /search fetches both tabs in
+  // one go, so without this the route threw before it could render a
+  // single product card.
+  if (table === 'rpc/search_shops') {
+    return send([{ id: SHOP.id, name: SHOP.name, slug: SHOP.slug,
+                   city: SHOP.city, logo_key: shopLogo }]);
   }
 
   if (table === 'rpc/shop_public_profile') {

@@ -190,7 +190,7 @@ async function loadShop(env, token, id) {
     }),
     asUser(env, token, 'products', {
       search: {
-        select: 'id,title,price,status,created_at',
+        select: 'id,title,price,currency,status,created_at',
         shop_id: `eq.${id}`, order: 'created_at.desc', limit: '200',
       },
     }),
