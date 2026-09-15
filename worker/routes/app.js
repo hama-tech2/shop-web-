@@ -5,9 +5,9 @@
  * going); session but no shop -> the wizard; otherwise the shell.
  */
 
-import { APP_NAME, APP_UI, PLAN_BANNER } from '../config.js';
+import { APP_NAME, APP_UI, PLAN_BANNER, VISITOR } from '../config.js';
 import { layout } from '../render/layout.js';
-import { appShell } from '../render/appshell.js';
+import { appShell, visitorPage } from '../render/appshell.js';
 import { asUser } from '../supabase.js';
 import { bannerFor, planState } from '../plan-state.js';
 import { getOwnShop, resolveSession, sameOrigin, setSessionCookies } from '../auth.js';
@@ -89,7 +89,24 @@ export async function appGet(request, env, url) {
   const headers = new Headers();
   if (refreshed) setSessionCookies(headers, refreshed);
 
+  // The Account tab itself explains who needs an account, rather than
+  // dropping a shopper into a login form that implies they do. Anywhere
+  // deeper is genuinely seller-only, so that still goes to login with
+  // the destination remembered.
   if (!user) {
+    if (url.pathname === '/app') {
+      headers.set('content-type', 'text/html; charset=utf-8');
+      headers.set('cache-control', 'no-store');
+      return new Response(
+        layout({
+          title: `${VISITOR.title} — ${APP_NAME}`,
+          description: APP_NAME,
+          body: visitorPage(),
+          scripts: [],
+        }),
+        { headers },
+      );
+    }
     const next = encodeURIComponent(url.pathname + url.search);
     return redirect(`/login?next=${next}`, headers);
   }

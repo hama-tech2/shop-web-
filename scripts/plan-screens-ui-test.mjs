@@ -205,8 +205,19 @@ try {
   check('Public Profile opens directly', new URL(view.url()).pathname === publicLink);
   await view.goto(APP + '/app#account-settings');
   await view.locator('.settings-logout button').click();
-  const protectedPage = await ui.request.get(APP + '/app', { maxRedirects:0 });
-  check('logout still clears the authenticated session', protectedPage.status() === 303 && protectedPage.headers().location.startsWith('/login'));
+  // /app itself now answers a signed-out visitor with the visitor page
+  // rather than a login form — a customer needs no account, and
+  // scripts/entry-points-test.mjs pins that screen. So the proof that
+  // logout worked is that the owner view is gone from it and the gated
+  // seller screens send this browser back to log in.
+  const afterLogout = await ui.request.get(APP + '/app', { maxRedirects:0 });
+  const afterLogoutHtml = afterLogout.status() === 200 ? await afterLogout.text() : '';
+  const gated = await ui.request.get(APP + '/app/products', { maxRedirects:0 });
+  check('logout still clears the authenticated session',
+    !afterLogoutHtml.includes('settings-logout')
+    && !afterLogoutHtml.includes('owner-controls')
+    && gated.status() === 303
+    && gated.headers().location.startsWith('/login'));
   check('no browser script errors', errors.length === 0);
   await ui.close();
   // Exercise server-controlled form rendering without enabling payments anywhere.

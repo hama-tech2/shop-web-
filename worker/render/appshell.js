@@ -1,6 +1,5 @@
 import {
-  CATEGORIES_UI as C, PLAN_BANNER, PRODUCT, PROFILE, SAVED, UI,
-} from '../config.js';
+  CATEGORIES_UI as C, PLAN_BANNER, PRODUCT, PROFILE, SAVED, UI, VISITOR } from '../config.js';
 import { esc } from './html.js';
 import { shopHeader } from './shop.js';
 import { settingsPanel } from './settings.js';
@@ -112,5 +111,37 @@ export function appShell({ shop, origin, banner = null, subscription = null }) {
     `<script src="/js/shop.js" defer></script>` +
     `<script src="/js/settings.js" defer></script>` +
     `<script src="/js/owner-profile.js" defer></script>`
+  );
+}
+
+/**
+ * The Account tab, for somebody who is not signed in.
+ *
+ * It used to redirect straight to the login form, which tells a shopper
+ * — wrongly, and at the moment they are most likely to give up — that
+ * they need an account to be here. They do not. Browsing costs nothing
+ * and ordering happens on WhatsApp; an account is for the other kind of
+ * visitor, the one with something to sell.
+ *
+ * So the page says that first, in one sentence, and then gives the
+ * seller the prominent path. Logging in is still one tap away for
+ * somebody who already has an account and simply wants back in.
+ */
+export function visitorPage() {
+  return (
+    `<main class="shell visitor">` +
+    `<h1 class="visitor__title">${esc(VISITOR.title)}</h1>` +
+    // Said first and plainly: nothing on this screen is a wall.
+    `<p class="visitor__reassure">${esc(VISITOR.noAccountNeeded)}</p>` +
+    `<a class="btn btn--quiet visitor__browse" href="/">${esc(VISITOR.browseCta)}</a>` +
+    `<section class="visitor__seller">` +
+    `<h2 class="visitor__seller-title">${esc(VISITOR.sellerTitle)}</h2>` +
+    `<p class="visitor__seller-body">${esc(VISITOR.sellerBody)}</p>` +
+    `<a class="btn btn--primary visitor__cta" href="/signup">${esc(VISITOR.sellerCta)}</a>` +
+    `</section>` +
+    `<p class="visitor__foot">${esc(VISITOR.haveAccount)} ` +
+    `<a href="/login">${esc(VISITOR.loginCta)}</a></p>` +
+    `</main>` +
+    bottomNav('account')
   );
 }

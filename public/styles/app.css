@@ -422,3 +422,100 @@ button[data-fav] svg { width: 18px; height: 18px; fill: none; }
 button[data-fav][aria-pressed="true"] { color: #D62F45; }
 button[data-fav][aria-pressed="true"] svg { fill: currentColor; }
 .fav-status { position: fixed; z-index: 50; inset-inline: 16px; bottom: calc(var(--nav-h) + 16px + env(safe-area-inset-bottom)); max-width: 440px; margin: 0 auto; padding: 10px 14px; border-radius: 12px; background: var(--text); color: var(--surface); font-size: 13px; text-align: center; }
+
+/* ------------------------------------------------------------------
+   the seller prompt on the feed, and the signed-out account tab
+
+   One slim row, in the scroll, on the page background rather than on a
+   card — so it reads as a line of text with an action, not as an advert
+   sitting on top of the products. Nothing here animates: a shopping
+   feed is somebody else's screen, and a thing that moves on it is a
+   thing they have to dismiss.
+   ------------------------------------------------------------------ */
+
+.seller-prompt {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  margin: 0 var(--s-4) var(--s-4);
+  padding: 10px var(--s-3);
+  border: 1px solid var(--surface-2);
+  border-radius: var(--r-field);
+  background: var(--surface);
+}
+
+.seller-prompt__text {
+  flex: 1;
+  margin: 0;
+  font-size: var(--fs-sm);
+  line-height: 1.45;
+  color: var(--muted);
+}
+
+.seller-prompt__cta {
+  flex: none;
+  padding: 8px var(--s-3);
+  border-radius: var(--r-pill);
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-family: var(--font-head);
+  font-size: var(--fs-sm);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+/* Narrow phones: the line wraps above the button rather than squeezing
+   both into a strip too tight to read or to tap. */
+@media (max-width: 359px) {
+  .seller-prompt { flex-wrap: wrap; }
+  .seller-prompt__cta { width: 100%; text-align: center; }
+}
+
+.visitor { padding: var(--s-4); }
+
+.visitor__title {
+  margin: 0 0 var(--s-2);
+  font-family: var(--font-head);
+  font-size: var(--fs-xl);
+}
+
+.visitor__reassure {
+  margin: 0 0 var(--s-3);
+  font-size: var(--fs-md);
+  line-height: 1.5;
+  color: var(--muted);
+}
+
+.visitor__browse { margin-bottom: var(--s-5, 24px); }
+
+/* The seller path is the one thing on this screen with a surface under
+   it, which is what makes it the primary action without a banner. */
+.visitor__seller {
+  margin-bottom: var(--s-4);
+  padding: var(--s-4);
+  border-radius: var(--r-card);
+  background: var(--surface);
+  border: 1px solid var(--surface-2);
+}
+
+.visitor__seller-title {
+  margin: 0 0 var(--s-2);
+  font-family: var(--font-head);
+  font-size: var(--fs-lg);
+}
+
+.visitor__seller-body {
+  margin: 0 0 var(--s-3);
+  font-size: var(--fs-base);
+  line-height: 1.6;
+  color: var(--muted);
+}
+
+.visitor__cta { width: 100%; }
+
+.visitor__foot {
+  margin: 0;
+  text-align: center;
+  font-size: var(--fs-base);
+  color: var(--muted);
+}

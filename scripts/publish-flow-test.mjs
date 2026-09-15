@@ -237,13 +237,32 @@ const cache = landing.headers.get('cache-control') || '';
 check('the landing page is not cacheable', cache.includes('no-store'), true);
 check('and is not marked public', cache.includes('public'), false);
 
-// A signed-out visitor cannot reach it at all, which is the difference
-// between an owner view and a storefront.
+// A signed-out visitor gets none of it, which is the difference between
+// an owner view and a storefront. /app itself answers a stranger with
+// the visitor page rather than a login form — a customer needs no
+// account, and scripts/entry-points-test.mjs pins that screen — but it
+// carries no owner controls, no shop and no products, and every screen
+// a seller actually works on is still gated.
 const signedOut = await fetch(`${APP}${published.location}`, { redirect: 'manual' });
-check('the owner view is closed to anyone not signed in',
-  [302, 303, 307].includes(signedOut.status), true);
-check('and sends them to log in',
-  (signedOut.headers.get('location') || '').startsWith('/login'), true);
+const signedOutHtml = signedOut.status === 200 ? await signedOut.text() : '';
+check('a stranger is answered, not redirected, at /app', signedOut.status, 200);
+check('but sees no owner controls',
+  signedOutHtml.includes('owner-controls'), false);
+check('and no shop products',
+  signedOutHtml.includes('id="owner-products"'), false);
+check('and is offered no seller screen to walk into',
+  /href="\/app\/(new|profile|products)"/.test(signedOutHtml), false);
+check('the stranger\u2019s copy is still never cached',
+  (signedOut.headers.get('cache-control') || '').includes('no-store'), true);
+
+// The screens behind it are unchanged: still seller-only, still login.
+for (const path of ['/app/products', '/app/new', '/app/profile']) {
+  const gated = await fetch(`${APP}${path}`, { redirect: 'manual' });
+  check(`${path} is closed to anyone not signed in`,
+    [302, 303, 307].includes(gated.status), true);
+  check(`${path} sends them to log in`,
+    (gated.headers.get('location') || '').startsWith('/login'), true);
+}
 
 // The storefront is still public and still cacheable — that is correct
 // for a customer, and is exactly why a seller must not be sent there.

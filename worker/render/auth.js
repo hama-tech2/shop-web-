@@ -23,6 +23,11 @@ export function signupPage({ error, email = '', next }) {
       `<h1 class="auth__title">${esc(AUTH.signupTitle)}</h1>` +
       `<p class="auth__sub">${esc(AUTH.signupSub)}</p>` +
       alert(error) +
+      // Google first. It is one tap on a phone, it is how most sellers
+      // here already sign in, and burying it under a divider made the
+      // slow path look like the intended one.
+      googleButton(next) +
+      divider(AUTH.or) +
       `<form method="post" action="/signup">` +
       nextInput(next) +
       field({
@@ -35,8 +40,6 @@ export function signupPage({ error, email = '', next }) {
       }) +
       button(AUTH.signupBtn) +
       `</form>` +
-      divider(AUTH.or) +
-      googleButton(next) +
       `<p class="auth__foot">${esc(AUTH.haveAccount)} ` +
       `<a href="${esc(withNext('/login', next))}">${esc(AUTH.goLogin)}</a></p>`,
   );
@@ -49,6 +52,8 @@ export function loginPage({ error, notice, email = '', next }) {
       `<p class="auth__sub">${esc(AUTH.loginSub)}</p>` +
       alert(error) +
       alert(notice, 'ok') +
+      googleButton(next) +
+      divider(AUTH.or) +
       `<form method="post" action="/login">` +
       nextInput(next) +
       field({
@@ -62,8 +67,6 @@ export function loginPage({ error, notice, email = '', next }) {
       button(AUTH.loginBtn) +
       `</form>` +
       `<p class="auth__foot"><a href="/forgot">${esc(AUTH.forgot)}</a></p>` +
-      divider(AUTH.or) +
-      googleButton(next) +
       `<p class="auth__foot">${esc(AUTH.noAccount)} ` +
       `<a href="${esc(withNext('/signup', next))}">${esc(AUTH.goSignup)}</a></p>`,
   );

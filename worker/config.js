@@ -85,6 +85,35 @@ export const UI = {
   save: 'پاشەکەوتکردن',
   tabFeed: 'بۆ تۆ',
   tabAccount: 'هەژمارم',
+
+  /**
+   * The one line on the feed that tells a shopkeeper this is for them.
+   *
+   * It sits in the scroll and scrolls away: no sticky bar, no fade, no
+   * timer. A customer reads it once and never thinks about it again,
+   * which is the most an advert on somebody's shopping feed should ask.
+   */
+  sellerPrompt: 'دوکانداریت هەیە؟ دوکانەکەت دروست بکە و بەرهەمەکانت بڵاو بکەوە',
+  sellerCta: 'دوکان دروست بکە',
+};
+
+/**
+ * The Account tab, for somebody who is not signed in.
+ *
+ * Tapping it used to drop a shopper straight into a login form, which
+ * says, wrongly, that they need an account to be here. They do not:
+ * browsing and messaging a shop over WhatsApp need nothing. An account
+ * is for the other kind of visitor — the one with something to sell.
+ */
+export const VISITOR = {
+  title: 'هەژمار',
+  noAccountNeeded: 'بۆ کڕین و گەڕان پێویست بە هەژمار نییە.',
+  browseCta: 'گەڕان بە بەردەوامی',
+  sellerTitle: 'دوکانداری؟',
+  sellerBody: 'ئەگەر دوکانداریت هەیە، هەژمار دروست بکە و بەرهەمەکانت بڵاو بکەوە.',
+  sellerCta: 'دروستکردنی هەژماری دوکان',
+  haveAccount: 'هەژمارت هەیە؟',
+  loginCta: 'چوونە ژوورەوە',
 };
 
 /** Auth, onboarding and app-shell strings. */
