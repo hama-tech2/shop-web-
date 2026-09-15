@@ -83,36 +83,27 @@ const visitor = await tab.text();
 check('it says an account is not needed to browse or buy',
   visitor.includes(VISITOR.noAccountNeeded));
 check('and offers a way straight back to the products',
-  /<a[^>]*href="\/"[^>]*>[^<]*گەڕان/.test(visitor) || visitor.includes(VISITOR.browseCta));
+  /class="login__back" href="\/"/.test(visitor) && visitor.includes(VISITOR.back));
 
-// The business path is the prominent one.
+// Approved login mockup: explain both roles, then offer Google and the
+// existing password form directly. The old signup card is retired.
 check('it explains the business case', visitor.includes(VISITOR.sellerBody));
-check('and makes creating a shop account the primary action',
-  visitor.includes(VISITOR.sellerCta));
-check('which goes to signup',
-  /<a[^>]*class="[^"]*visitor__cta[^"]*"[^>]*href="\/signup"/.test(visitor));
-
-// Primary means filled. .btn on its own is an unstyled shape — the
-// colour comes from .btn--primary, so a CTA without it reads as text
-// sitting in a card, which is what "prominent" is not.
-check('and is the filled button on the screen',
-  /<a[^>]*class="[^"]*btn--primary[^"]*visitor__cta/.test(visitor));
-check('while carrying on browsing is the quiet one',
-  /<a[^>]*class="[^"]*btn--quiet[^"]*visitor__browse/.test(visitor));
-
-// Somebody who already has an account still has one clear way in.
-check('an existing user still has a login link',
-  /<a[^>]*href="\/login"/.test(visitor));
-check('and it is secondary to creating a shop',
-  visitor.indexOf(VISITOR.sellerCta) < visitor.indexOf('href="/login"'));
+check('the customer explanation precedes sign-in',
+  visitor.indexOf(VISITOR.noAccountNeeded) < visitor.indexOf('/auth/google'));
+check('Google is immediately available', visitor.includes('href="/auth/google"'));
+check('Google precedes the email form', visitor.indexOf('/auth/google') < visitor.indexOf('<form'));
+check('password login posts directly to the existing endpoint',
+  /<form method="post" action="\/login">/.test(visitor));
+check('no separate registration panel', /visitor__seller|visitor__cta/.test(visitor), false);
+check('no owner controls leak to a visitor',
+  /owner-controls|owner-products|account-settings/.test(visitor), false);
 
 // Nothing about this screen is a nag.
 check('no popup or dialog', /role="dialog"|<dialog/.test(visitor), false);
 check('the visitor page is never cached', tab.headers.get('cache-control'), 'no-store');
 
-// It is the Account tab, so the tab bar is still there to leave by.
-check('the bottom navigation is still present',
-  visitor.includes('class="nav"') && visitor.includes('nav__tab'));
+// The approved standalone screen uses its small Back action to leave.
+check('no fixed bottom navigation crowds the login form', visitor.includes('class="nav"'), false);
 
 /* ---------- deeper seller pages are still login-gated ---------- */
 
@@ -172,9 +163,10 @@ for (const [name, path] of [['signup', '/signup'], ['login', '/login']]) {
   check(`${name}: the divider separates the two`, page.includes(AUTH.or));
 }
 
-// The link between them, both ways, still works.
+// Signup keeps its existing route and login link. The approved login
+// screen omits the registration CTA; the home seller prompt still links it.
 check('signup offers a way to log in', (await html('/signup')).includes('/login'));
-check('login offers a way to sign up', (await html('/login')).includes('/signup'));
+check('login has no extra signup CTA', (await html('/login')).includes('href="/signup'), false);
 
 // A deep link survives a detour through either screen.
 const deep = await html('/login?next=%2Fapp%2Fproducts');
