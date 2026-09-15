@@ -46,6 +46,40 @@ function jar() {
   };
 }
 
+/**
+ * The logo step is the one multipart post in the wizard, so it needs a
+ * poster of its own. Built by hand rather than with FormData so the
+ * bytes and the declared type can be set independently — which is what
+ * makes "a .webp that is not an image" testable.
+ */
+async function postFile(cookies, path, { bytes, type, filename = 'logo.webp' }) {
+  const boundary = '----bazaro' + Math.random().toString(16).slice(2);
+  const head = Buffer.from(
+    `--${boundary}\r\n` +
+    `content-disposition: form-data; name="logo"; filename="${filename}"\r\n` +
+    `content-type: ${type}\r\n\r\n`,
+  );
+  const tail = Buffer.from(`\r\n--${boundary}--\r\n`);
+  const res = await fetch(`${APP}${path}`, {
+    method: 'POST',
+    redirect: 'manual',
+    headers: {
+      cookie: cookies.header(),
+      origin: APP,
+      'content-type': `multipart/form-data; boundary=${boundary}`,
+      'cf-connecting-ip': CLIENT_IP,
+    },
+    body: Buffer.concat([head, Buffer.from(bytes), tail]),
+  });
+  cookies.absorb(res);
+  return { status: res.status, location: res.headers.get('location'),
+           html: res.status === 200 ? await res.text() : '' };
+}
+
+/** A real, tiny WebP — what ShopCrop hands back after a confirmed crop. */
+const WEBP = Buffer.from(
+  'UklGRiQAAABXRUJQVlA4IBgAAAAwAQCdASoBAAEAAQAcJaQAA3AA/vuUAAA=', 'base64');
+
 async function step(cookies, path, fields) {
   const res = await fetch(`${APP}${path}`, {
     method: 'POST',
@@ -164,11 +198,75 @@ const published = await step(w.cookies, '/app/new', {
   price: '85000',
 });
 // Publishing lands in the seller's own manager, in owner mode. It used
-// to land on the customer's copy of the product page, which has no
-// owner controls and is publicly cacheable — scripts/publish-flow-test.mjs
+// to land on the customer's copy of the product page, which has no owner
+// controls and is publicly cacheable — scripts/publish-flow-test.mjs
 // pins that in full.
-      check('first product publishes into the owner manager',
-      published.location === '/app', true);
+check('first product publishes into the owner view',
+  published.location === '/app', true);
+
+/* ============================================================
+   the logo step, and the cropper on it
+   ============================================================
+
+   The step used to post whatever came out of the file picker, so a
+   phone camera's rectangle was squashed into a square with no say in
+   which part survived — while the same seller editing the same logo
+   from /app/profile got to place it. It now opens the same ShopCrop,
+   with the same PROFILE_VARIANTS.logo settings.
+
+   What the server sees is unchanged: still a multipart post to
+   /onboarding/logo, still the same type and size checks. So these
+   check the page carries the cropper, and that the upload path still
+   accepts what the cropper produces and still refuses what it should.
+   ============================================================ */
+
+const logoStep = await fetch(`${APP}/onboarding/logo`, {
+  headers: { cookie: w.cookies.header() },
+}).then((r) => r.text());
+
+check('the logo step loads the shared cropper',
+  logoStep.includes('/js/crop.js'), true);
+check('and the wiring that opens it',
+  logoStep.includes('/js/onboarding-logo.js'), true);
+check('the crop sheet is on the page',
+  logoStep.includes('id="crop"'), true);
+check('with its stage, done and cancel controls',
+  logoStep.includes('id="crop-stage"') && logoStep.includes('id="crop-done"')
+  && logoStep.includes('id="crop-cancel"'), true);
+check('and the rotate control', logoStep.includes('id="crop-rotate"'), true);
+
+// The same numbers the profile editor uses, read from the same place.
+// If these drift, one screen crops the logo differently from the other.
+check('a square crop', /data-logo-ratio="1"/.test(logoStep), true);
+check('at the profile editor\u2019s logo width', /data-logo-w="400"/.test(logoStep), true);
+check('and its quality', /data-logo-q="0\.85"/.test(logoStep), true);
+
+// Not a second cropper: the page pulls in the shared one and nothing else.
+check('no second crop implementation is shipped',
+  /onboarding-crop|logo-crop\.js|crop2/.test(logoStep), false);
+
+/* ---------- what the server accepts ---------- */
+
+const cropped = await postFile(w.cookies, '/onboarding/logo',
+  { bytes: WEBP, type: 'image/webp' });
+check('a cropped WebP is accepted', cropped.status, 303);
+check('and finishes onboarding at /app', cropped.location, '/app');
+
+// The server cannot tell a cropped file from any other, which is the
+// point: every check it ran before still runs.
+const badType = await postFile(w.cookies, '/onboarding/logo',
+  { bytes: Buffer.from('<svg xmlns="http://www.w3.org/2000/svg"/>'),
+    type: 'image/svg+xml', filename: 'logo.svg' });
+check('a type the server does not allow is still refused', badType.status, 200);
+check('and the seller is sent back to the logo step, not onward',
+  badType.location, null);
+check('with the type message', badType.html.includes('JPG'), true);
+
+// An empty part is how "Skip" arrives when the form posts with no file.
+const emptyPart = await postFile(w.cookies, '/onboarding/logo',
+  { bytes: Buffer.alloc(0), type: 'image/webp' });
+check('an empty file is treated as skipping, not as an error',
+  emptyPart.location, '/app');
 
 /* ============================================================ */
 
