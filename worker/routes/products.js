@@ -14,7 +14,6 @@ import {
 import { layout } from '../render/layout.js';
 import { productForm, trialLimitPage } from '../render/product-form.js';
 import { accessGatePage } from '../render/subscription.js';
-import { productList } from '../render/product-list.js';
 import { asUser, getCategories, subscriptionState } from '../supabase.js';
 import { getOwnShop, resolveSession, sameOrigin, setSessionCookies } from '../auth.js';
 import { redirect } from './auth.js';
@@ -58,7 +57,10 @@ async function guard(request, env) {
   const headers = new Headers();
   if (refreshed) setSessionCookies(headers, refreshed);
 
-  if (!user) return { redirect: redirect('/login?next=/app/products', headers) };
+  // Every route in this file shares this guard, so this one name is the
+  // destination a stranger is sent back to after logging in. /app is the
+  // seller's home now, and it is where all of them end up anyway.
+  if (!user) return { redirect: redirect('/login?next=/app', headers) };
   const shop = await getOwnShop(env, token, user.id);
   if (!shop) return { redirect: redirect('/onboarding', headers) };
 
@@ -516,9 +518,9 @@ export async function newPost(request, env) {
   // rather than somewhere they land by accident and cannot tell apart
   // from being logged out.
   //
-  // Not /app/products: that is the management list, which is a place to
-  // administer stock rather than to look at the shop you have just
-  // added to. It is unchanged and still reachable.
+  // There is no longer a separate management list to choose instead:
+  // /app is the only seller-facing list of these products, and this is
+  // it.
   return redirect('/app', g.headers);
 }
 
@@ -552,10 +554,13 @@ const toValues = (product, categories) => ({
 export async function editGet(request, env, id) {
   const g = await guard(request, env);
   if (g.redirect) return g.redirect;
-  if (!UUID.test(id)) return redirect('/app/products', g.headers);
+  // A malformed id, or one that is gone or belongs to somebody else.
+  // Both land on /app: the seller's own shop, where they can see what
+  // they do have rather than an error about what they do not.
+  if (!UUID.test(id)) return redirect('/app', g.headers);
 
   const product = await loadProduct(env, g.token, id);
-  if (!product) return redirect('/app/products', g.headers);
+  if (!product) return redirect('/app', g.headers);
 
   const categories = await getCategories(env);
   const { tier } = await entitlement(env, g.token, g.shop.id);
@@ -571,7 +576,7 @@ export async function editPost(request, env, id) {
   if (!sameOrigin(request)) return new Response('bad origin', { status: 403 });
   const g = await guard(request, env);
   if (g.redirect) return g.redirect;
-  if (!UUID.test(id)) return redirect('/app/products', g.headers);
+  if (!UUID.test(id)) return redirect('/app', g.headers);
 
   const parsed = await readForm(request, env, g.token, g.shop.id, id);
   const categories = await getCategories(env);
@@ -620,7 +625,9 @@ export async function editPost(request, env, id) {
     body: { p_product: id, p_images: parsed.images },
   });
 
-  return redirect('/app/products', g.headers);
+  // Saved. Back to the shop the edit was made to, in owner mode —
+  // the same destination publishing uses, for the same reason.
+  return redirect('/app', g.headers);
 }
 
 /* ============================================================
@@ -631,7 +638,7 @@ export async function deletePost(request, env, id) {
   if (!sameOrigin(request)) return new Response('bad origin', { status: 403 });
   const g = await guard(request, env);
   if (g.redirect) return g.redirect;
-  if (!UUID.test(id)) return redirect('/app/products', g.headers);
+  if (!UUID.test(id)) return redirect('/app', g.headers);
 
   const removed = await asUser(env, g.token, 'products', {
     method: 'DELETE',
@@ -639,37 +646,25 @@ export async function deletePost(request, env, id) {
     prefer: AFFECTED,
   });
 
+  // Nothing was removed: already deleted in another tab, or not this
+  // seller's to delete. Either way say so on /app rather than silently
+  // reporting success — public/js/owner-profile.js reads the ?e back
+  // off the redirect to decide whether to take the card off the screen.
   if (!removed.ok || affected(removed) === 0) {
-    return redirect('/app/products?e=errGone', g.headers);
+    return redirect('/app?e=errGone', g.headers);
   }
-  return redirect('/app/products', g.headers);
+  return redirect('/app', g.headers);
 }
 
 /* ============================================================
-   /app/products — the list
+   /app/products is retired
+
+   It listed the seller's products on a screen of its own, which /app
+   already does — with the same products, the same add button and the
+   same per-product delete. Two screens over one list is one too many
+   to keep in step, and the second one was where a seller got stranded:
+   every "back" in this file used to point at it.
+
+   worker/index.js answers the address with a redirect to /app. Only
+   /app/products/<id> survives, as the edit form's own URL.
    ============================================================ */
-
-export async function listGet(request, env, url) {
-  const g = await guard(request, env);
-  if (g.redirect) return g.redirect;
-
-  // One list, every product, visible and hidden together. Each row
-  // carries its own status badge, so nothing is hidden from the seller
-  // and there is no filter to get lost in.
-  const res = await asUser(env, g.token, 'products', {
-    search: {
-      select: PRODUCT_SELECT,
-      shop_id: `eq.${g.shop.id}`,
-      order: 'created_at.desc',
-      limit: '100',
-    },
-  });
-
-  const errorKey = url.searchParams.get('e');
-  const error = errorKey && T[errorKey] ? T[errorKey] : null;
-
-  return page(
-    productList({ products: res.ok ? res.data ?? [] : [], error }),
-    T.listTitle, g.headers,
-  );
-}

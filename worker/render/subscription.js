@@ -150,7 +150,7 @@ function planCard(plan, selected, gate = false) {
  * choosing Free continues without starting a subscription or writing data.
  * Keep the legacy argument name while the routes share this renderer.
  */
-export function accessGatePage({ trialAvailable: freeAvailable = false, slotsLeft = null, error = null, back = '/app/products' }) {
+export function accessGatePage({ trialAvailable: freeAvailable = false, slotsLeft = null, error = null, back = '/app' }) {
   const chosen = freeAvailable ? 'free' : defaultPlan();
   const free =
       `<label class="billing-choice billing-plan gate-plan gate-free" data-plan="free">` +
@@ -168,7 +168,7 @@ export function accessGatePage({ trialAvailable: freeAvailable = false, slotsLef
     (error ? `<p class="alert alert--error" role="alert">${esc(error)}</p>` : '') +
     `<fieldset class="billing-options" id="gate-options"><legend class="visually-hidden">پلانێک هەڵبژێرە</legend>` +
     free + paidOptions().map((p) => planCard(p, chosen, true)).join('') + `</fieldset>` +
-    (!freeAvailable ? `<p class="billing-availability"><a href="/app/products">بەڕێوەبردن و سڕینەوەی بەرهەمەکان</a></p>` : '') +
+    (!freeAvailable ? `<p class="billing-availability"><a href="/app">بەڕێوەبردن و سڕینەوەی بەرهەمەکان</a></p>` : '') +
     `<section class="billing-features" aria-labelledby="billing-features-title"><h2 id="billing-features-title">لە هەموو پلانەکاندا</h2><ul>` +
     features.map(([label, icon]) => `<li><span class="billing-feature-icon">${icon}</span><span>${label}</span></li>`).join('') + `</ul></section>` +
     // Said once, in the scroll, rather than under every paid button. The

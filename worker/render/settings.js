@@ -96,7 +96,10 @@ export function settingsPanel({ shop, subscription = null }) {
     subscriptionCard(subscription) +
     `<h2 class="settings-heading">هەژمار و دوکان</h2><div class="settings-group">` +
     row('دەستکاری پرۆفایلی دوکان', iconStore(), '/app/profile') +
-    row('بەڕێوەبردنی بەرهەمەکان', iconStore(), '/app/products') +
+    // "Manage products" used to be a row here, pointing at a screen of
+    // its own. That screen is gone: this panel only ever opens on top of
+    // /app, which IS the product list, so the row would have been a link
+    // to the page behind it.
     row('بینینی پرۆفایلی گشتی', iconExternal(), '/@' + shop.slug) + `</div>` +
     `<h2 class="settings-heading">پشتیوانی و یاسایی</h2><div class="settings-group">` +
     row('یارمەتی و پشتیوانی', iconWhatsapp(22), supportHref, true) +

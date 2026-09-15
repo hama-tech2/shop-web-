@@ -19,13 +19,13 @@ import { productCover } from './product-cover.js';
 export function trialLimitPage() {
   return (
     `<div class="shell publish-page">` +
-    `<header class="publish-head"><a class="icon-btn" href="/app/products" aria-label="گەڕانەوە">${iconBack()}</a>` +
+    `<header class="publish-head"><a class="icon-btn" href="/app" aria-label="گەڕانەوە">${iconBack()}</a>` +
     `<h1>${esc(T.trialLimitTitle)}</h1><span></span></header>` +
     `<div class="notice notice--tall trial-limit">` +
     `<p class="notice__title">${esc(T.trialLimitTitle)}</p>` +
     `<p>${esc(T.trialLimitBody(FREE_PRODUCT_LIMIT))}</p>` +
     `<a class="btn btn--primary" href="/app/subscription">${esc(T.trialLimitAction)}</a>` +
-    `<a class="btn btn--ghost" href="/app/products">${esc(T.listTitle)}</a>` +
+    `<a class="btn btn--ghost" href="/app">${esc(T.listTitle)}</a>` +
     `</div></div>`
   );
 }

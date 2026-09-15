@@ -5,7 +5,7 @@
  * going); session but no shop -> the wizard; otherwise the shell.
  */
 
-import { APP_NAME, APP_UI, PLAN_BANNER, VISITOR } from '../config.js';
+import { APP_NAME, APP_UI, PLAN_BANNER, PRODUCT, VISITOR } from '../config.js';
 import { layout } from '../render/layout.js';
 import { appShell, visitorPage } from '../render/appshell.js';
 import { asUser } from '../supabase.js';
@@ -116,6 +116,12 @@ export async function appGet(request, env, url) {
 
   const { banner, subscription } = await planBanner(env, token, shop.id);
 
+  // A delete that removed nothing redirects here with ?e=errGone. The
+  // key is looked up rather than shown, so the URL cannot put arbitrary
+  // text on the seller's screen.
+  const errorKey = url.searchParams.get('e');
+  const error = errorKey && PRODUCT[errorKey] ? PRODUCT[errorKey] : null;
+
   headers.set('content-type', 'text/html; charset=utf-8');
   headers.set('cache-control', 'no-store');
 
@@ -123,7 +129,7 @@ export async function appGet(request, env, url) {
     layout({
       title: `${APP_UI.title} — ${APP_NAME}`,
       description: APP_NAME,
-      body: appShell({ shop, origin: url.origin, banner, subscription }),
+      body: appShell({ shop, origin: url.origin, banner, subscription, error }),
       scripts: ['/js/app.js'],
     }),
     { headers },

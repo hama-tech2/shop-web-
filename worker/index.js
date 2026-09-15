@@ -211,7 +211,16 @@ export default {
           ? products.newPost(request, env)
           : products.newGet(request, env, url);
       }
-      if (path === '/app/products') return products.listGet(request, env, url);
+      // The standalone manager is gone. /app is the seller's management
+      // home: it is the owner view of the shop, and it already carries
+      // the products, the add button and per-product delete. A second
+      // screen listing the same products was one place too many to keep
+      // in step, and the one a seller could get stranded on.
+      //
+      // A 303 that is never cached, like every other redirect here: the
+      // address is retired, but a permanent redirect would sit in every
+      // seller's browser and make the decision hard to walk back.
+      if (path === '/app/products') return redirectTo('/app');
 
       const product = path.match(/^\/app\/products\/([0-9a-f-]{36})(\/delete)?$/i);
       if (product) {
@@ -219,7 +228,7 @@ export default {
         if (product[2]) {
           return method === 'POST'
             ? products.deletePost(request, env, id)
-            : redirectTo('/app/products');
+            : redirectTo('/app');
         }
         return method === 'POST'
           ? products.editPost(request, env, id)

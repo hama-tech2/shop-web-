@@ -119,7 +119,7 @@ check('the bottom navigation is still present',
 // Only /app itself explains. Anywhere a shopkeeper actually works is
 // seller-only, and still sends a stranger to log in with the
 // destination remembered.
-for (const path of ['/app/products', '/app/new', '/app/profile', '/app/subscription']) {
+for (const path of ['/app/new', '/app/profile', '/app/subscription']) {
   const res = await get(path);
   check(`${path} still redirects a stranger`, [302, 303, 307].includes(res.status), true);
   const to = res.headers.get('location') || '';
@@ -127,17 +127,24 @@ for (const path of ['/app/products', '/app/new', '/app/profile', '/app/subscript
   check(`${path} remembers a seller destination`, /next=/.test(to), true);
 }
 
-// Where each one remembers, exactly. /app/new points at /app/products
-// rather than at itself: every route in worker/routes/products.js shares
-// one guard, and that guard names the list. Pinned as it is rather than
-// as it might ideally be — this task was about the way in, not that.
+// /app/products is not in that list any more: it is a retired address
+// that redirects to /app for everybody, signed in or not, and /app does
+// the gating. scripts/manager-retired-test.mjs pins it in full.
+const retired = await get('/app/products');
+check('/app/products is retired, not gated',
+  retired.headers.get('location'), '/app');
+
+// Where each one remembers, exactly. /app/new points at /app rather
+// than at itself: every route in worker/routes/products.js shares one
+// guard, and that guard names the seller's home — which is now where
+// publishing, editing and deleting all end up anyway.
 const remembered = {};
-for (const path of ['/app/products', '/app/new', '/app/profile', '/app/subscription']) {
+for (const path of ['/app/new', '/app/profile', '/app/subscription']) {
   const to = (await get(path)).headers.get('location') || '';
   remembered[path] = decodeURIComponent(to.split('next=')[1] || '');
 }
-check('the products list remembers itself', remembered['/app/products'], '/app/products');
-check('add-product shares the products guard', remembered['/app/new'], '/app/products');
+check('add-product shares the products guard, which names /app',
+  remembered['/app/new'], '/app');
 check('the profile remembers itself', remembered['/app/profile'], '/app/profile');
 check('the plan screen remembers itself',
   remembered['/app/subscription'], '/app/subscription');

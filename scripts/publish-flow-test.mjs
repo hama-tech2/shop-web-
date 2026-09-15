@@ -162,29 +162,31 @@ check('no shop: publish redirects to onboarding', r.location, '/onboarding');
 await setMode('shop');
 
 /* ============================================================
-   after publishing, and the one list behind it
+   after publishing
    ============================================================
 
-   Publishing lands the seller in their own manager, in owner mode,
-   whatever the product's visibility. The manager is one list: hidden
-   products are marked, not filed somewhere else.
+   Publishing lands the seller in their own shop, in owner mode,
+   whatever the product's visibility.
+
+   There used to be a second screen here — /app/products, a manager
+   list of its own — and this section checked it. It is retired:
+   /app is the one list of a seller's products now, and the address
+   redirects to it. scripts/manager-retired-test.mjs pins that.
    ============================================================ */
 
-await control('/__mixed/1');
-const manager = await fetch(`${APP}/app/products`, { headers: { cookie: COOKIE } })
-  .then((res) => res.text());
+const manager = await fetch(`${APP}/app/products`, {
+  headers: { cookie: COOKIE }, redirect: 'manual',
+});
+check('the old manager address no longer renders a list', manager.status, 303);
+check('it sends the seller to their shop', manager.headers.get('location'), OWNER);
 
-check('the manager has no All / Visible / Hidden navigation', /manager-filters/.test(manager), false);
-check('and offers no filter links at all', /[?&]filter=/.test(manager), false);
-check('a visible product is in the list', manager.includes('کراسی کوردی'), true);
-check('and a hidden one is in the SAME list', manager.includes('کراسی شاراوە'), true);
-check('each row still says which it is',
-  manager.includes('شاراوەیە') && manager.includes('دیارە'), true);
-check('tapping a row still opens it for editing',
-  manager.includes('href="/app/products/' + DRAFT + '"'), true);
-check('delete is still there', /\/delete"/.test(manager), true);
-check('and Add Product is still there', manager.includes('href="/app/new"'), true);
-await control('/__mixed/0');
+const ownerHome = await fetch(`${APP}${OWNER}`, { headers: { cookie: COOKIE } })
+  .then((res) => res.text());
+check('which is where Add Product lives', ownerHome.includes('href="/app/new"'), true);
+check('and carries the products section itself',
+  ownerHome.includes('id="owner-products"'), true);
+check('with no trace of the retired list',
+  /manager-filters|class="manager-row"/.test(ownerHome), false);
 
 const asHidden = await publish({ ...MINIMUM, status: 'hidden' });
 check('publishing a hidden product goes to the owner view too', asHidden.location, OWNER);
@@ -256,7 +258,7 @@ check('the stranger\u2019s copy is still never cached',
   (signedOut.headers.get('cache-control') || '').includes('no-store'), true);
 
 // The screens behind it are unchanged: still seller-only, still login.
-for (const path of ['/app/products', '/app/new', '/app/profile']) {
+for (const path of ['/app/new', '/app/profile']) {
   const gated = await fetch(`${APP}${path}`, { redirect: 'manual' });
   check(`${path} is closed to anyone not signed in`,
     [302, 303, 307].includes(gated.status), true);

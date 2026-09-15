@@ -212,7 +212,10 @@ try {
   // seller screens send this browser back to log in.
   const afterLogout = await ui.request.get(APP + '/app', { maxRedirects:0 });
   const afterLogoutHtml = afterLogout.status() === 200 ? await afterLogout.text() : '';
-  const gated = await ui.request.get(APP + '/app/products', { maxRedirects:0 });
+  // /app/products is retired and redirects to /app for everybody, so
+  // it no longer proves anything about a session. /app/profile is
+  // still genuinely seller-only.
+  const gated = await ui.request.get(APP + '/app/profile', { maxRedirects:0 });
   check('logout still clears the authenticated session',
     !afterLogoutHtml.includes('settings-logout')
     && !afterLogoutHtml.includes('owner-controls')

@@ -66,7 +66,7 @@ const PRODUCT_FORM = {
 
 await setRows(1);
 let r = await post(`/app/products/${PRODUCT}`, PRODUCT_FORM);
-check('edit, 1 row: redirects to the list', r.location, '/app/products');
+check('edit, 1 row: redirects to the owner home', r.location, '/app');
 check('edit, 1 row: no error page', r.status, 303);
 
 await setRows(0);
@@ -78,11 +78,11 @@ check('edit, 0 rows: shows the gone error', r.html.includes(GONE), true);
 
 await setRows(1);
 r = await post(`/app/products/${PRODUCT}/delete`, {});
-check('delete, 1 row: clean redirect', r.location, '/app/products');
+check('delete, 1 row: clean redirect', r.location, '/app');
 
 await setRows(0);
 r = await post(`/app/products/${PRODUCT}/delete`, {});
-check('delete, 0 rows: redirect carries the error', r.location, '/app/products?e=errGone');
+check('delete, 0 rows: redirect carries the error', r.location, '/app?e=errGone');
 
 /* ---------- category rename ---------- */
 
@@ -117,7 +117,7 @@ check('move, 0 rows: redirect carries the error', r.location, '/app/categories?e
 /* ---------- the error actually reaches the seller's screen ---------- */
 
 for (const [name, path] of [
-  ['products list renders the error', '/app/products?e=errGone'],
+  ['the owner home renders the error', '/app?e=errGone'],
   ['categories page renders the error', '/app/categories?e=errGone'],
 ]) {
   const res = await fetch(`${APP}${path}`, { headers: { cookie: COOKIE } });

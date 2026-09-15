@@ -199,16 +199,14 @@
    Specificity: these are two classes each, which beats .pdp-price and
    the .card__commercial .card__price gap they would otherwise inherit. */
 .card__price[data-currency="USD"],
-.pdp-price[data-currency="USD"],
-.row__price[data-currency="USD"] { gap: 0; }
+.pdp-price[data-currency="USD"] { gap: 0; }
 
 /* And the symbol is part of the number, not a note about it.
    .card__currency is 12px next to a 19px amount, which is right for
    `د.ع` — a separate word after the price — and wrong for `$`, where
    it left the dollar sign looking like a footnote marker. */
 .card__price[data-currency="USD"] .card__currency,
-.pdp-price[data-currency="USD"] .card__currency,
-.row__price[data-currency="USD"] .card__currency {
+.pdp-price[data-currency="USD"] .card__currency {
   font-size: inherit;
   font-weight: inherit;
 }
@@ -333,71 +331,10 @@
 .crop__hint { color: var(--muted); font-size: var(--fs-sm); margin: 0; }
 .crop__tools .btn { width: auto; min-height: 46px; padding-inline: var(--s-5); }
 
-/* ---------- products list ---------- */
-
-.rows { display: flex; flex-direction: column; gap: var(--s-2); }
-
-.row {
-  display: flex;
-  align-items: center;
-  gap: var(--s-3);
-  background: var(--surface);
-  border-radius: var(--r-card);
-  padding: var(--s-3);
-}
-
-.row__img { width: 56px; height: 70px; border-radius: 10px; object-fit: cover; flex: none; }
-.row__img--empty { background: var(--surface-2); display: block; }
-
-.row__body { flex: 1; min-width: 0; }
-
-.row__title {
-  display: block;
-  font-family: var(--font-head);
-  font-weight: var(--fw-bold);
-  font-size: var(--fs-base);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.row__price { display: flex; direction: ltr; justify-content: flex-end; gap: 4px; margin-top: 2px; }
-.row__amount { font-weight: 700; }
-
-.row__meta { display: grid; gap: var(--s-1); justify-items: center; flex: none; }
-
-.pill {
-  padding: 3px 9px;
-  border-radius: var(--r-pill);
-  font-size: 10px;
-  font-weight: var(--fw-bold);
-  background: var(--surface-2);
-  color: var(--muted);
-}
-
-.pill--active { background: #E4EFE9; color: var(--accent); }
-.row__count { font-size: var(--fs-xs); color: var(--muted); direction: ltr; }
-
-/* Seller inventory uses compact editable rows, not marketplace cards. */
-.product-manager { padding: 16px 16px calc(var(--nav-h) + 24px + env(safe-area-inset-bottom)); }
-.product-manager .shell__head { gap: 10px; flex-wrap: wrap; }
-.product-manager .shell__title { font: 600 21px/1.6 var(--font-body); }
-.product-manager .shell__head .btn { min-height: 44px; padding: 8px 12px; border-radius: 12px; font-size: 13px; }
-.manager-filters { display: flex; gap: 8px; margin: 14px 0 8px; }
-.manager-filters a { min-height: 44px; display: grid; place-items: center; padding: 6px 14px; border-radius: 12px; background: var(--surface-2); font-size: 13px; }
-.manager-filters [aria-current] { background: var(--accent); color: white; }
-.manager-help { font-size: 12px; color: var(--muted); line-height: 1.8; margin: 8px 0 12px; }
-.manager-help--hidden { background: var(--surface-2); border-radius: 12px; padding: 10px; color: var(--text); }
-.manager-row { padding: 8px; gap: 4px; border-radius: 14px; border: 1px solid var(--surface-2); }
-.manager-row__edit { display: flex; gap: 10px; align-items: center; flex: 1; min-width: 0; border-radius: 8px; }
-.manager-row .row__img { width: 44px; height: 55px; border-radius: 8px; }
-.manager-row .row__title { font: 500 14px/1.6 var(--font-body); }
-.manager-row .row__price { font-size: 13px; overflow-wrap: anywhere; }
-.manager-row .row__price b { min-width: 0; }
-.manager-row .pill { display: inline-block; margin-top: 3px; font-size: 10px; padding: 1px 7px; }
-.manager-delete { width: 44px; height: 44px; display: grid; place-items: center; border-radius: 10px; color: #BD3546; }
-.product-manager :is(a, button):focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-.product-manager .empty { padding: 24px 12px; }
+/* The seller's inventory list lived here: .rows / .row / .manager-*,
+   styling worker/render/product-list.js. Both are gone — /app is the
+   one list of a seller's products now, and it uses the marketplace
+   card the rest of the app uses. */
 
 /* PASS 2 — seller publishing only. Existing profile cropper/list styles stay intact. */
 .publish-page { max-width: var(--page-max); padding: 18px 16px 24px; }

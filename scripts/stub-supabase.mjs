@@ -43,6 +43,7 @@ const PRICE = { year_1: 72000, months_6: 38000 };
 
 const rateEvents = {};            // bucket -> key -> timestamps, for the throttle
 let rows = 1;                     // how many rows a write reports
+let noProduct = false;            // product reads come back empty
 let mode = 'shop';                // shop | noshop
 let created = null;               // a shop made through onboarding
 let isAdmin = false;              // does the session own an admins row
@@ -124,6 +125,13 @@ http.createServer(async (req, res) => {
   };
 
   if (p.startsWith('/__rows/')) { rows = Number(p.split('/')[2]); return send({ rows }); }
+  // No such product: a read of the products table comes back empty, the
+  // way it does for an id that was deleted or belongs to another shop.
+  // Without this the "product is gone" branch of editGet cannot be run.
+  if (p.startsWith('/__noproduct/')) {
+    noProduct = p.split('/')[2] === '1';
+    return send({ noProduct });
+  }
   if (p.startsWith('/__mode/')) { mode = p.split('/')[2]; created = null; return send({ mode }); }
   if (p === '/__created') return send(created ? [created] : []);
   if (p === '/__calls') return send(calls);
@@ -447,6 +455,7 @@ http.createServer(async (req, res) => {
                     message: 'new row violates check constraint "products_currency_allowed"' }, 400);
     }
     if (!write) {
+      if (noProduct) return send([]);
       if (mixedList) {
         const base = { price: 85000, description: '', shop_id: SHOP.id, sort_order: 0,
                        platform_category_id: null, category_id: null, product_images: [],
