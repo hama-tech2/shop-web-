@@ -3,7 +3,7 @@
   'use strict';
   var form = document.getElementById('product-form');
   if (!form) return;
-  var D = form.dataset, max = Number(D.max) || 5;
+  var D = form.dataset, max = Number(D.max) || 5, storageMax = Number(D.storageMax) || max, coverOnly = D.coverOnly === 'true';
   var thumbs = document.getElementById('thumbs');
   var add = document.getElementById('add-photo');
   var input = document.getElementById('photo-input');
@@ -36,7 +36,7 @@
     document.getElementById('photo-count').textContent = items.length > max ? items.length + ' وێنەی پارێزراو' : items.length + ' / ' + max;
     thumbs.querySelectorAll('.publish-photo, .thumb:not(.thumb--add)').forEach(function (el) { el.remove(); });
     items.forEach(function (item, i) {
-      var wrap = document.createElement('div'); wrap.className = 'publish-photo'; wrap.dataset.id = item.id; wrap.draggable = !item.loading;
+      var wrap = document.createElement('div'); wrap.className = 'publish-photo'; wrap.dataset.id = item.id; wrap.draggable = !coverOnly && !item.loading;
       var photo = document.createElement('div'); photo.className = 'thumb' + (i === 0 ? ' is-cover' : '');
       var select = button('هەڵبژاردنی وێنەی ' + (i + 1) + ' بۆ کاڤەر', 'thumb__select', ''); select.disabled = !!item.loading;
       if (item.preview) { var img = document.createElement('img'); img.onload = function () { item.previewRatio = img.naturalHeight / img.naturalWidth; }; img.src = item.preview; img.alt = ''; img.draggable = false; select.appendChild(img); }
@@ -44,14 +44,17 @@
       photo.appendChild(select);
       var number = document.createElement('span'); number.className = 'thumb__number'; number.textContent = i + 1; photo.appendChild(number);
       if (!i) { var badge = document.createElement('span'); badge.className = 'thumb__badge'; badge.textContent = 'کاڤەر'; photo.appendChild(badge); }
-      var remove = button('لابردنی وێنەی ' + (i + 1), 'thumb__x', '×'); remove.disabled = !!item.loading; photo.appendChild(remove);
+      if (!coverOnly) { var remove = button('لابردنی وێنەی ' + (i + 1), 'thumb__x', '×'); remove.disabled = !!item.loading; photo.appendChild(remove); }
       wrap.appendChild(photo);
-      var order = document.createElement('div'); order.className = 'photo-order';
-      var earlier = button('بردنی وێنە بۆ پێشەوە', 'photo-earlier', '→'); earlier.disabled = i === 0 || !!preparing;
-      var later = button('بردنی وێنە بۆ دواوە', 'photo-later', '←'); later.disabled = i === items.length - 1 || !!preparing;
-      order.append(earlier, later); wrap.appendChild(order); thumbs.insertBefore(wrap, add);
+      if (!coverOnly) {
+        var order = document.createElement('div'); order.className = 'photo-order';
+        var earlier = button('بردنی وێنە بۆ پێشەوە', 'photo-earlier', '→'); earlier.disabled = i === 0 || !!preparing;
+        var later = button('بردنی وێنە بۆ دواوە', 'photo-later', '←'); later.disabled = i === items.length - 1 || !!preparing;
+        order.append(earlier, later); wrap.appendChild(order);
+      }
+      thumbs.insertBefore(wrap, add);
     });
-    add.hidden = items.length >= max;
+    add.hidden = !coverOnly && items.length >= max;
     save.disabled = busy || preparing > 0;
   }
   function move(id, to) {
@@ -95,9 +98,36 @@
       return { full: await toBlob(full, +D.fullQ), card: await toBlob(card, +D.cardQ) };
     } finally { bitmap.close(); }
   }
-  add.addEventListener('click', function () { if (!busy && items.length < max) { input.value = ''; input.click(); } });
+  add.addEventListener('click', function () { if (!busy && (coverOnly || items.length < max)) { input.value = ''; input.click(); } });
   input.addEventListener('change', async function () {
     var files = Array.from(input.files || []); if (!files.length) return;
+    if (coverOnly) {
+      var previous = items[0];
+      var replacement = { id: String(++serial), loading: true };
+      if (items.length) items[0] = replacement; else items.push(replacement);
+      preparing++; sync();
+      try {
+        if (!/^image\/(jpeg|png|webp)$/.test(files[0].type)) throw new Error(D.msgType);
+        var coverBlobs = await prepare(files[0]);
+        replacement.source = coverBlobs.full;
+        replacement.fullBlob = coverBlobs.full;
+        replacement.cardBlob = coverBlobs.card;
+        replacement.preview = localUrl(coverBlobs.card);
+        replacement.loading = false;
+        preparing--; sync();
+        if (!await editCover(replacement.id)) {
+          releasePreview(replacement);
+          if (previous) items[0] = previous; else items.shift();
+          sync();
+        }
+      } catch (e) {
+        if (replacement.loading) preparing--;
+        releasePreview(replacement);
+        if (previous) items[0] = previous; else items.shift();
+        say(D.msgType); sync();
+      }
+      return;
+    }
     var available = max - items.length;
     say(files.length > available ? D.msgLimit : ''); files = files.slice(0, available);
     var batch = files.map(function (file) { var item = { id: String(++serial), loading: true }; items.push(item); return { file: file, item: item }; });
@@ -119,22 +149,22 @@
     item.source = await response.blob(); return item.source;
   }
   async function editCover(id) {
-    if (!window.ProductCover) { say('تکایە لاپەڕەکە نوێ بکەرەوە.'); return; }
-    var result = await window.ProductCover.open({ items: items, id: id, source: source, title: document.getElementById('f-title').value, price: price.value, width: +D.cardW, quality: +D.cardQ });
-    if (!result) return;
+    if (!window.ProductCover) { say('تکایە لاپەڕەکە نوێ بکەرەوە.'); return false; }
+    var result = await window.ProductCover.open({ items: items, id: id, source: source, title: document.getElementById('f-title').value, price: price ? price.value : D.price, width: +D.cardW, quality: +D.cardQ });
+    if (!result) return false;
     var item = items.find(function (entry) { return entry.id === result.id; });
     if (result.changed) {
       var needed = items.filter(function (entry) { return !entry.card || entry.cardBlob; }).length + (item.card && !item.cardBlob ? 1 : 0);
-      if (storedSlots + needed > max) { say('سنووری ناردنی وێنە پڕە؛ گۆڕینی بڕینی وێنەی پاشەکەوتکراو پێویستی بە شوێنی بەتاڵ هەیە. دەتوانیت تەنها کاڤەر هەڵبژێریت.'); return; }
+      if (storedSlots + needed > storageMax) { say('سنووری ناردنی وێنە پڕە؛ گۆڕینی بڕینی وێنەی پاشەکەوتکراو پێویستی بە شوێنی بەتاڵ هەیە. دەتوانیت تەنها کاڤەر هەڵبژێریت.'); return false; }
       item.cardBlob = result.blob; item.fullBlob = await source(item); releasePreview(item); item.preview = localUrl(result.blob); item.cropState = result.state;
     }
-    move(result.id, 0); say('کاڤەر هەڵبژێردرا.');
+    move(result.id, 0); say('کاڤەر هەڵبژێردرا.'); return true;
   }
 
   function digits(value) {
     return value.replace(/[٠-٩]/g, function (c) { return c.charCodeAt(0) - 1632; }).replace(/[۰-۹]/g, function (c) { return c.charCodeAt(0) - 1776; }).replace(/\D/g, '');
   }
-  price.addEventListener('input', function () { var value = digits(price.value).slice(0, 9); price.value = value ? Number(value).toLocaleString('en-US') : ''; });
+  if (price) price.addEventListener('input', function () { var value = digits(price.value).slice(0, 9); price.value = value ? Number(value).toLocaleString('en-US') : ''; });
 
   /* The unit beside the price follows the currency the seller picked.
      The server already rendered the right one for the stored value, so
@@ -171,45 +201,47 @@
   var catCancel = document.getElementById('category-add-cancel');
   var catError = document.getElementById('category-add-error');
 
-  function catSay(text) { catError.textContent = text || ''; catError.hidden = !text; }
-  function catShow(open) {
-    catForm.hidden = !open;
-    catOpen.hidden = open;
-    if (open) { catName.value = ''; catSay(''); catName.focus(); }
-    else { catOpen.focus(); }
+  if (own && catOpen && catForm && catName && catSave && catCancel && catError) {
+    function catSay(text) { catError.textContent = text || ''; catError.hidden = !text; }
+    function catShow(open) {
+      catForm.hidden = !open;
+      catOpen.hidden = open;
+      if (open) { catName.value = ''; catSay(''); catName.focus(); }
+      else { catOpen.focus(); }
+    }
+    async function createCategory() {
+      var name = catName.value.replace(/\s+/g, ' ').trim();
+      if (!name) { catSay(D.msgCatName); catName.focus(); return; }
+      catSave.disabled = catName.disabled = true;
+      catSay('');
+      try {
+        var body = new URLSearchParams(); body.append('name', name);
+        var response = await fetch('/api/categories', { method: 'POST', credentials: 'same-origin', body: body });
+        var data = await response.json().catch(function () { return null; });
+        if (!response.ok || !data || !data.id) throw new Error(data && data.error);
+        var option = Array.from(own.options).find(function (o) { return o.value === data.id; });
+        if (option) option.textContent = data.name;
+        else { option = document.createElement('option'); option.value = data.id; option.textContent = data.name; own.appendChild(option); }
+        own.value = data.id;
+        catShow(false);
+      } catch (error) {
+        catSay(error.message || D.msgCatCreate);
+        catName.focus();
+      } finally { catSave.disabled = catName.disabled = false; }
+    }
+    catOpen.addEventListener('click', function () { catShow(true); });
+    catCancel.addEventListener('click', function () { catShow(false); });
+    catSave.addEventListener('click', createCategory);
+    catName.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') { e.preventDefault(); createCategory(); }
+      else if (e.key === 'Escape') { e.preventDefault(); catShow(false); }
+    });
   }
-  async function createCategory() {
-    var name = catName.value.replace(/\s+/g, ' ').trim();
-    if (!name) { catSay(D.msgCatName); catName.focus(); return; }
-    catSave.disabled = catName.disabled = true;
-    catSay('');
-    try {
-      var body = new URLSearchParams(); body.append('name', name);
-      var response = await fetch('/api/categories', { method: 'POST', credentials: 'same-origin', body: body });
-      var data = await response.json().catch(function () { return null; });
-      if (!response.ok || !data || !data.id) throw new Error(data && data.error);
-      var option = Array.from(own.options).find(function (o) { return o.value === data.id; });
-      if (option) option.textContent = data.name;
-      else { option = document.createElement('option'); option.value = data.id; option.textContent = data.name; own.appendChild(option); }
-      own.value = data.id;
-      catShow(false);
-    } catch (error) {
-      catSay(error.message || D.msgCatCreate);
-      catName.focus();
-    } finally { catSave.disabled = catName.disabled = false; }
-  }
-  catOpen.addEventListener('click', function () { catShow(true); });
-  catCancel.addEventListener('click', function () { catShow(false); });
-  catSave.addEventListener('click', createCategory);
-  catName.addEventListener('keydown', function (e) {
-    // Enter inside a form submits it. Here it means "create this category",
-    // and publishing a half-typed product is the last thing it should do.
-    if (e.key === 'Enter') { e.preventDefault(); createCategory(); }
-    else if (e.key === 'Escape') { e.preventDefault(); catShow(false); }
-  });
   var description = document.getElementById('f-description');
-  function countDescription() { document.getElementById('description-count').textContent = Array.from(description.value).length + ' پیت'; }
-  description.addEventListener('input', countDescription); countDescription();
+  if (description) {
+    function countDescription() { document.getElementById('description-count').textContent = Array.from(description.value).length + ' پیت'; }
+    description.addEventListener('input', countDescription); countDescription();
+  }
 
   function upload(item, index, total) {
     return new Promise(function (resolve, reject) {
@@ -228,7 +260,7 @@
     if (!items.length) { say('لانیکەم یەک وێنە زیاد بکە.'); add.focus(); return; }
     if (!form.reportValidity()) return;
     var pending = items.filter(function (item) { return !item.card || item.cardBlob; });
-    if (pending.length && storedSlots + pending.length > max) { say('سنووری ناردنی وێنە پڕە. ڕێکخستنی وێنە پاشەکەوتکراوەکان پێویستی بە شوێنی بەتاڵ هەیە.'); return; }
+    if (pending.length && storedSlots + pending.length > storageMax) { say('سنووری ناردنی وێنە پڕە. ڕێکخستنی وێنە پاشەکەوتکراوەکان پێویستی بە شوێنی بەتاڵ هەیە.'); return; }
     busy = true; form.inert = true; save.disabled = true; save.textContent = save.dataset.saving;
     try {
       for (var i = 0; i < pending.length; i++) await upload(pending[i], i + 1, pending.length);

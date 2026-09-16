@@ -388,6 +388,14 @@
 .publish-save p { margin: 5px 0 0; font-size: 11px; text-align: center; color: var(--muted); }
 .publish-message { background: var(--surface-2); color: var(--text); border-radius: 8px; padding: 10px 12px; font-size: 13px; overflow-wrap: anywhere; }
 .publish-page [disabled] { cursor: wait; }
+.publish-page--edit .gallery--cover-only { padding: 12px; border: 1px solid #DEDAD2; border-radius: 12px; background: var(--surface); }
+.publish-page--edit .gallery--cover-only .thumbs { padding-block: 3px 6px; }
+.publish-page--edit .gallery--cover-only .publish-photo { flex-basis: 84px; }
+.publish-page--edit .gallery--cover-only .thumb__number { display: none; }
+.publish-page--edit .cover-change { flex-basis: 84px; height: 84px; }
+.edit-price__value { display: flex; min-height: 46px; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 12px; border: 1px solid #DEDAD2; border-radius: 9px; background: var(--surface-2); }
+.edit-price__value > span { direction: ltr; color: var(--accent); font-size: 18px; font-weight: 700; }
+.edit-price__value small { color: var(--muted); font-size: 11px; }
 /* Dedicated product dialog, separate from the profile image cropper. */
 .cover-editor { border: 0; padding: 16px; margin: 0 auto; inset: 0; width: 100%; max-width: var(--page-max); height: 100dvh; max-height: 100dvh; background: var(--bg); color: var(--text); overflow-y: auto; overscroll-behavior: contain; }
 .cover-editor:not([open]) { display: none; }

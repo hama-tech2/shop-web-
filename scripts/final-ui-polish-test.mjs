@@ -48,11 +48,12 @@ try {
     await page.setViewportSize({width,height:844});
     for(const state of ['hidden','active','error','kept']) {
       await page.goto(APP+'/_fixture/edit?state='+state);
-      check('edit status control and values retained '+width+state,await page.locator('#status-field option').count()===2&&await page.locator('#f-title').inputValue()===title);
-      await page.locator('#status-field').selectOption('hidden');
-      check('visibility goes through existing edit form '+width+state,await page.locator('#product-form').getAttribute('action')==='/app/products/'+id&&await page.locator('#status-field').inputValue()==='hidden');
+      check('restricted edit keeps title and category '+width+state,await page.locator('#f-title').inputValue()===title&&await page.locator('#category-field').count()===1);
+      check('restricted edit omits protected fields '+width+state,await page.locator('#product-form').locator('[name="price"],[name="currency"],[name="status"],[name="description"],[name="own_category"]').count()===0);
+      check('price remains visible but locked '+width+state,await page.locator('.edit-price__value').isVisible());
+      check('edit posts to the existing owned URL '+width+state,await page.locator('#product-form').getAttribute('action')==='/app/products/'+id);
       check('edit no overflow '+width+state,!await overflow());
-      check('Free edit uses one-image allowance '+width+state,await page.locator('#product-form').getAttribute('data-max')==='1'&&await page.locator('#add-photo').isHidden());
+      check('cover-only edit offers replacement without gallery mutation controls '+width+state,await page.locator('#product-form').getAttribute('data-cover-only')==='true'&&await page.locator('#add-photo').isVisible()&&await page.locator('#add-photo').getAttribute('aria-label')==='گۆڕینی کاڤەر'&&await page.locator('.thumb__x,.photo-order').count()===0);
     }
     for(const state of ['present','missing','unsafe']) {
       await page.goto(APP+'/_fixture/product?state='+state);await page.evaluate(()=>document.fonts.ready);
@@ -71,28 +72,17 @@ try {
   await page.waitForFunction(()=>copied.length===1);
   check('PDP copy confirms without navigation',await page.evaluate(url=>copied[0]===url,canonical)&&await page.locator('.card-share-status').isVisible()&&new URL(page.url()).pathname==='/_fixture/product');
   check('PDP location opens safely',await page.locator('.pdp-secondary a').getAttribute('href')===shop.maps_url&&await page.locator('.pdp-secondary a').getAttribute('rel')==='noopener noreferrer');
-  // Deleting a product used to be tested on the manager list, which is
-  // retired. The seller deletes from /app now — the same endpoint, from
-  // a card rather than a row — and scripts/manager-retired-test.mjs
-  // covers where that endpoint sends them. The confirm-before-delete
-  // behaviour is checked here, on the edit form's delete button, which
-  // is the other place a seller can remove a product.
+  // Owner Edit/Delete now live only in the card menu. The focused owner
+  // suite drives that menu and its confirmation; the edit screen must
+  // not expose another delete action.
   await page.goto(APP+'/_fixture/edit?state=hidden');
-  let posts=0;
-  await page.route(APP+'/app/products/*/delete',route=>{posts++;return route.fulfill({status:204});});
-  const deleteBtn=page.locator('form[action$="/delete"] button');
-  check('the edit form offers a delete',await deleteBtn.count()===1);
-  page.once('dialog',dialog=>dialog.dismiss());await deleteBtn.click();
-  check('delete cancellation sends nothing',posts===0);
-  page.once('dialog',dialog=>dialog.accept());
-  await Promise.all([page.waitForRequest(r=>r.method()==='POST'&&/\/delete$/.test(r.url())),deleteBtn.click()]);
-  check('confirmed delete uses the existing endpoint once',posts===1);
+  check('edit form has no direct delete action',await page.locator('form[action$="/delete"]').count()===0);
   await page.goto(APP+'/_fixture/edit?state=kept');
   let editFields;
   await page.route(APP+'/app/products/'+id,route=>{editFields=new URLSearchParams(route.request().postData());return route.fulfill({status:204});});
-  await page.locator('#status-field').selectOption('hidden');
   await Promise.all([page.waitForRequest(r=>r.method()==='POST'&&r.url()===APP+'/app/products/'+id),page.locator('#save-btn').click()]);
-  check('Free visibility edit keeps all old paid images',JSON.parse(editFields.get('images')).length===3&&editFields.get('status')==='hidden');
+  check('cover edit keeps every retained image',JSON.parse(editFields.get('images')).length===3);
+  check('edit submits no protected product fields',['price','currency','status','description','own_category'].every(name=>editFields.get(name)===null));
   check('no browser errors',errors.length===0);
   await ctx.close();
 } finally {await browser.close();}

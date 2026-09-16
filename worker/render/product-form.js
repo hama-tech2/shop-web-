@@ -3,7 +3,7 @@ import {
   IMAGE_VARIANTS, MAX_IMAGES, PRODUCT_CURRENCIES, PRODUCT as T,
 } from '../config.js';
 import { esc, price as fmtPrice } from './html.js';
-import { currencyOf, symbolOf } from './money.js';
+import { currencyOf, moneyText, symbolOf } from './money.js';
 import { alert, field } from './forms.js';
 import { iconBack, iconPlus } from './icons.js';
 import { productCover } from './product-cover.js';
@@ -32,6 +32,7 @@ export function trialLimitPage() {
 
 export function productForm({ mode, draftId, categories, shopCategories = [], values, error, trialLeft = null, imageLimit: editImageLimit = MAX_IMAGES }) {
   const isEdit = mode === 'edit';
+  if (isEdit) return editProductForm({ draftId, categories, values, error, imageLimit: editImageLimit });
   const images = values.images ?? [];
   // A numeric slot count is supplied by the server for Free creation only.
   // Editing retains the existing gallery, including images from a paid plan.
@@ -106,6 +107,51 @@ export function productForm({ mode, draftId, categories, shopCategories = [], va
 }
 
 /**
+ * Editing is intentionally narrower than publishing. A seller may pick
+ * and crop the cover, rename the product, or move it to a market
+ * category. Price remains visible for context but is not submitted.
+ * Contact details continue to come from the shop profile.
+ */
+function editProductForm({ draftId, categories, values, error, imageLimit }) {
+  const images = values.images ?? [];
+  return (
+    `<div class="shell publish-page publish-page--edit">` +
+    `<header class="publish-head"><a class="icon-btn" href="/app" aria-label="گەڕانەوە">${iconBack()}</a>` +
+    `<h1>${esc(T.editTitle)}</h1><span></span></header>` +
+    `<p class="publish-sub">کاڤەر، ناو یان پۆلی بەرهەمەکە بگۆڕە.</p>` +
+    alert(error) +
+    `<form method="post" id="product-form" action="/app/products/${esc(draftId)}"` +
+    ` data-mode="edit" data-cover-only="true" data-price="${esc(String(values.price ?? ''))}"` +
+    ` data-restore-category="false" data-draft="${esc(draftId)}" data-max="${imageLimit}" data-storage-max="${MAX_IMAGES}"` +
+    ` data-card-w="${IMAGE_VARIANTS.card.width}" data-card-h="${IMAGE_VARIANTS.card.height}" data-card-q="${IMAGE_VARIANTS.card.quality}"` +
+    ` data-full-w="${IMAGE_VARIANTS.full.width}" data-full-h="${IMAGE_VARIANTS.full.height}" data-full-q="${IMAGE_VARIANTS.full.quality}"` +
+    ` data-msg-limit="تا ${imageLimit} وێنە دەتوانیت زیاد بکەیت." data-msg-type="${esc(T.errType)}" data-msg-upload="${esc(T.errUpload)}"` +
+    ` data-msg-cat-name="${esc(C.errName)}" data-msg-cat-create="${esc(C.errCreate)}">` +
+    `<input type="hidden" name="draft_id" value="${esc(draftId)}">` +
+    `<input type="hidden" name="images" id="images-field" value="${esc(JSON.stringify(images))}">` +
+    `<section class="gallery gallery--cover-only" aria-label="کاڤەری بەرهەم">` +
+    `<div class="gallery__head"><span class="field__label">کاڤەری بەرهەم</span>` +
+    `<span class="gallery__count" id="photo-count" aria-live="polite">${esc(T.counter(images.length, imageLimit))}</span></div>` +
+    `<div class="thumbs" id="thumbs">${images.map((img, i) => editThumbHtml(img, i)).join('')}` +
+    `<button class="thumb thumb--add cover-change" type="button" id="add-photo" aria-label="گۆڕینی کاڤەر">${iconPlus()}<span>گۆڕینی کاڤەر</span></button></div>` +
+    `<input type="file" id="photo-input" accept="image/jpeg,image/png,image/webp" hidden>` +
+    `<p class="gallery-hint">وێنەیەک هەڵبژێرە بۆ کاڤەر؛ دەتوانیت بڕینەکەی ڕێک بخەیت.</p></section>` +
+    `<p id="product-message" class="publish-message" role="status" aria-live="polite" hidden></p>` +
+    field({ name: 'title', label: T.titleLabel, value: values.title ?? '', placeholder: T.titlePlaceholder, extra: ' minlength="2" maxlength="200"' }) +
+    `<div class="field edit-price"><span class="field__label">${esc(T.priceLabel)}</span>` +
+    `<div class="edit-price__value" aria-readonly="true"><span>${esc(moneyText(values.price, values.currency))}</span>` +
+    `<small>گۆڕانکاری ناکرێت</small></div></div>` +
+    `<div class="field"><label class="field__label" for="category-field">پۆلی بازاڕ</label>` +
+    `<select class="field__input" name="category" id="category-field">` +
+    [{ slug: '', name_ckb: T.categoryNone }, ...categories].map(c => `<option value="${esc(c.slug)}"${(values.category ?? '') === c.slug ? ' selected' : ''}>${esc(c.name_ckb)}</option>`).join('') +
+    `</select></div>` +
+    `<div class="publish-save"><button class="btn btn--primary" type="submit" id="save-btn" data-saving="${esc(T.saving)}">${esc(T.save)}</button>` +
+    `<p>تەنها کاڤەر، ناو و پۆل پاشەکەوت دەکرێن.</p></div></form>` +
+    `</div>` + productCover() + `<script src="/js/product-cover.js" defer></script>`
+  );
+}
+
+/**
  * The price, and the currency it is in.
  *
  * One input and one choice, not two inputs. A product has a single
@@ -162,4 +208,12 @@ function thumbHtml(img, index) {
     `<span class="thumb__number">${index + 1}</span>` +
     (index === 0 ? `<span class="thumb__badge">کاڤەر</span>` : '') +
     `<button class="thumb__x" type="button" aria-label="${esc(T.removePhoto)}">×</button></div>`;
+}
+
+function editThumbHtml(img, index) {
+  return `<div class="thumb" data-card="${esc(img.card)}" data-full="${esc(img.full ?? '')}">` +
+    `<button class="thumb__select" type="button" aria-label="هەڵبژاردنی کاڤەر"><img src="/img/${esc(img.card)}" alt="" decoding="async"></button>` +
+    `<span class="thumb__number">${index + 1}</span>` +
+    (index === 0 ? `<span class="thumb__badge">کاڤەر</span>` : '') +
+    `</div>`;
 }

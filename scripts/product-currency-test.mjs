@@ -277,26 +277,24 @@ await setCurrency('IQD');
 
 await setCurrency('USD');
 let edit = await asSeller(`/app/products/${PRODUCT_ID}`);
-check('editing a dollar product opens on USD',
-  /value="USD"[^>]*checked/.test(edit), true);
-check('and not on IQD', /value="IQD"[^>]*checked/.test(edit), false);
-check('with the dollar beside the input', /id="price-unit">\$</.test(edit), true);
-check('and the price it was saved with, untouched',
-  /id="f-price"[^>]*value="85,000"/.test(edit), true);
+check('editing shows the stored dollar price as locked context',
+  /class="edit-price__value"[^>]*>[\s\S]*\$85,000/.test(edit), true);
+check('and does not offer a currency change',
+  /name="currency"|id="currency-seg"/.test(edit), false);
+check('or an editable price input', /name="price"/.test(edit), false);
 
 await setCurrency('IQD');
 edit = await asSeller(`/app/products/${PRODUCT_ID}`);
-check('editing a dinar product opens on IQD',
-  /value="IQD"[^>]*checked/.test(edit), true);
-check('and not on USD', /value="USD"[^>]*checked/.test(edit), false);
+check('editing shows the stored dinar price as locked context',
+  /class="edit-price__value"[^>]*>[\s\S]*85,000 د\.ع/.test(edit), true);
+check('and still has no currency selector', /name="currency"|id="currency-seg"/.test(edit), false);
 
 // The case the whole default exists for.
 await setCurrency('-');
 edit = await asSeller(`/app/products/${PRODUCT_ID}`);
-check('a product from before the column opens on IQD',
-  /value="IQD"[^>]*checked/.test(edit), true);
-check('with no empty or undefined selection',
-  /value="undefined"|value=""[^>]*checked/.test(edit), false);
+check('a product from before the column shows its locked price in IQD',
+  /class="edit-price__value"[^>]*>[\s\S]*85,000 د\.ع/.test(edit), true);
+check('with no empty or undefined money', /edit-price__value[\s\S]{0,160}(undefined|NaN|null)/.test(edit), false);
 await setCurrency('IQD');
 
 /* ---------- a rejected form keeps the choice ---------- */

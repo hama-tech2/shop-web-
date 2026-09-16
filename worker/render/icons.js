@@ -108,6 +108,8 @@ export const iconCopy = (s = 18) =>
   );
 export const iconTrash = (s = 18) =>
   svg('<path d="M5 7h14M9.5 7V5h5v2M6.5 7l.8 12h9.4l.8-12"/>', s);
+export const iconEdit = (s = 18) =>
+  svg('<path d="M4 20h4l11-11-4-4L4 16v4Zm9-13 4 4M14 5l2-2 4 4-2 2"/>', s);
 export const iconArrowUp = (s = 18) => svg('<path d="M12 19V6M6 12l6-6 6 6"/>', s);
 export const iconArrowDown = (s = 18) => svg('<path d="M12 5v13M6 12l6 6 6-6"/>', s);
 
