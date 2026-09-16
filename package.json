@@ -28,7 +28,8 @@
     "test:free-plan": "node scripts/free-plan-test.mjs",
     "test:retry": "node scripts/checkout-retry-test.mjs",
     "test:brand": "node scripts/brand-assets-test.mjs",
-    "test:owner-controls": "node scripts/owner-product-controls-test.mjs"
+    "test:owner-controls": "node scripts/owner-product-controls-test.mjs",
+    "test:admin-access": "node scripts/admin-access-test.mjs"
   },
   "devDependencies": {
     "wrangler": "^4.42.0",
