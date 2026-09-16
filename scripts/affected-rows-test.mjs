@@ -27,6 +27,15 @@ const check = (name, got, want) =>
   results.push({ name, got, want, pass: got === want });
 
 const setRows = (n) => fetch(`${STUB}/__rows/${n}`).then((r) => r.json());
+const control = (path) => fetch(`${STUB}${path}`).then((r) => r.json());
+
+// The stored product carries a cover, the way every real one does: a
+// product cannot be published without an image. The editor compares the
+// posted gallery against the stored one, so a fixture holding no stored
+// image makes an ordinary edit look like an attempt to add one — and
+// this file is about affected rows, not about that check.
+await control(`/__productimg/${encodeURIComponent(
+  `products/aaaaaaaa-1111-4111-8111-111111111111/${PRODUCT}/stored.webp`)}`);
 
 async function post(path, fields) {
   const body = new URLSearchParams(fields);

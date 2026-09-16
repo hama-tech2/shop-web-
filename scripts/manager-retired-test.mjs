@@ -70,6 +70,12 @@ const formFor = (owner) =>
 await setMode('shop');
 await control('/__plan/year_1');
 await control('/__sub/20');
+// The stored product carries a cover, the way every real one does: a
+// product cannot be published without an image. The editor saves the
+// cover, the name and the market category, and compares what the form
+// posts against what is stored — so a fixture holding no stored image
+// makes an ordinary edit look like an attempt to add one.
+await control(`/__productimg/${encodeURIComponent(`products/${SHOP}/${PRODUCT_ID}/stored.webp`)}`);
 
 /* ============================================================
    1. the address itself
