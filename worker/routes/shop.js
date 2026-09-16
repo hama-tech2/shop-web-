@@ -7,7 +7,7 @@
  * JavaScript and follows no redirects it does not have to.
  */
 
-import { APP_NAME, SHOP as T } from '../config.js';
+import { APP_NAME, IMAGE_VARIANTS, PROFILE_VARIANTS, SHOP as T } from '../config.js';
 import { layout } from '../render/layout.js';
 import { shopDescription, shopNotFound, shopPage } from '../render/shop.js';
 import { productDescription, productPage } from '../render/product-page.js';
@@ -92,10 +92,19 @@ export async function shopGet(request, env, url, slug, ctx) {
 
   // The banner is the share image. Fall back to the logo, then to the
   // first product, so a link never previews as a bare text card.
-  const ogKey =
-    shop.cover_key || shop.logo_key || products[0]?.images?.[0] || null;
-
-  const isBanner = ogKey && ogKey === shop.cover_key;
+  //
+  // The declared size travels WITH the key, because a crawler is told
+  // these numbers and then handed the file: a banner is 1200x450, a
+  // logo is a 400 square, a product card is an 800 square. Reading them
+  // off the variant definitions rather than writing them out again is
+  // the point — the sizes used to be hardcoded here, and when the card
+  // variant became a square this line went on claiming 800x1000.
+  const ogSource =
+    (shop.cover_key && { key: shop.cover_key, size: PROFILE_VARIANTS.banner })
+    || (shop.logo_key && { key: shop.logo_key, size: PROFILE_VARIANTS.logo })
+    || (products[0]?.images?.[0]
+        && { key: products[0].images[0], size: IMAGE_VARIANTS.card })
+    || null;
 
   return page({
     body: shopPage({ shop, products, categories, shopCategories,
@@ -103,9 +112,9 @@ export async function shopGet(request, env, url, slug, ctx) {
     title: `${shop.name} — ${APP_NAME}`,
     description: shopDescription(shop, products.length),
     canonical: `${url.origin}/@${shop.slug}`,
-    ogImage: ogKey ? absolute(url.origin, ogKey) : null,
-    ogImageWidth: isBanner ? 1200 : 800,
-    ogImageHeight: isBanner ? 450 : 1000,
+    ogImage: ogSource ? absolute(url.origin, ogSource.key) : null,
+    ogImageWidth: ogSource?.size.width,
+    ogImageHeight: ogSource?.size.height,
     ogType: 'profile',
   });
 }
