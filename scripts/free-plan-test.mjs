@@ -20,7 +20,7 @@
  *   node scripts/free-plan-test.mjs
  */
 
-import { FREE_IMAGE_LIMIT, FREE_PRODUCT_LIMIT, PLANS, PRODUCT as T } from '../worker/config.js';
+import { FREE_IMAGE_LIMIT, FREE_PRODUCT_LIMIT, PLANS } from '../worker/config.js';
 
 const APP = process.argv[2] || 'http://127.0.0.1:8810';
 const STUB = process.argv[3] || 'http://127.0.0.1:8899';
@@ -72,12 +72,16 @@ async function publish(n) {
   });
 }
 
-/** Edit a product the way the form does, with a chosen visibility. */
-async function setVisibility(status) {
-  return post(`/app/products/${PRODUCT_ID}`, {
-    images: gallery(PRODUCT_ID, 1), title: 'کراسی کوردی', price: '25000', status,
-  });
-}
+/**
+ * The stored product carries a cover, the way every real one does.
+ *
+ * A product cannot be created without an image, so a stored gallery of
+ * none is a state the app never reaches. The restricted editor compares
+ * what the form posts against what is stored, so a fixture with no
+ * stored image makes every edit look like an attempt to add one.
+ */
+const STORED_COVER = `products/${SHOP}/${PRODUCT_ID}/stored.webp`;
+await control(`/__productimg/${encodeURIComponent(STORED_COVER)}`);
 
 /** A shop with no payment behind it and `count` products already up. */
 async function free(count = 0) {
@@ -255,8 +259,7 @@ check('and posting a new product is refused',
 
 // Nothing was deleted to get there: the shop's own products are still
 // the shop's, and its profile is still public. What changed is how many
-// of them are up — the database hid the extras, and hidden is a state
-// the seller already knows how to undo.
+// of them are up — the database hid the extras.
 // The seller's own list is /app now, and its grid is fetched from the
 // public shop by public/js/owner-profile.js — so "still listed" is a
 // property of the shop page, which /app shows the owner's copy of.
@@ -265,35 +268,44 @@ check('the products already posted are still listed', stillThere.includes('کر�
 check('and the public profile still renders', stillThere.includes('بۆتیکی نافین'));
 check('the seller\u2019s own home still opens',
   (await page('/app')).includes('owner-products'));
-check('a hidden product is still the seller\'s to open',
+check('a product the limit pushed down is still the seller\'s to open',
   (await page(`/app/products/${PRODUCT_ID}`)).includes('publish-page'));
 
-// Five are public and the rest are hidden, so putting a sixth back up
-// is the one edit the database refuses. The seller is told which rule
-// they met, with their form still filled in.
+// Visibility is not the seller's lever any more. The editor saves the
+// cover, the title and the market category, and nothing else — so the
+// way past the limit is to pay or to delete, which is what the gate and
+// the delete button above already say. These assertions are what used
+// to be driven by hiding and unhiding a product: they pin the rule that
+// replaced it, rather than leaving the ground they covered untested.
+const editor = await page(`/app/products/${PRODUCT_ID}`);
+check('the editor offers no visibility control at all',
+  /name="status"/.test(editor), false);
+check('and no hide or unhide action beside it',
+  /owner-hide|data-hide|\bunhide\b/i.test(editor), false);
+check('what it does offer is the cover, the name and the market category',
+  ['id="images-field"', 'name="title"', 'name="category"']
+    .every((field) => editor.includes(field)));
+
+// A posted `status` is not a way in either: the field is gone from the
+// form, and the route never reads one, so sending it by hand changes
+// nothing and the edit simply saves.
 await control(`/__public/${FREE_PRODUCT_LIMIT}`);
-const sixthPublic = await setVisibility('active');
-check('making a sixth product public is refused', sixthPublic.status, 200);
-check('with the reason, on the form, and no claim that anything was deleted',
-  sixthPublic.body.includes(T.errPublicFull(FREE_PRODUCT_LIMIT))
-  && sixthPublic.body.includes('publish-page'));
+await control('/__calls/reset');
+const smuggled = await post(`/app/products/${PRODUCT_ID}`, {
+  images: gallery(PRODUCT_ID, 1), title: 'کراسی کوردی', price: '999', status: 'active',
+});
+check('a hand-posted status is ignored, not obeyed', smuggled.location, '/app');
+check('and no write carried a status', (await writes())
+  .filter((w) => w.table === 'products')
+  .every((w) => w.body?.status === undefined), true);
+check('nor a price', (await writes())
+  .filter((w) => w.table === 'products')
+  .every((w) => w.body?.price === undefined), true);
 
-// Hiding one is always allowed: that is how a seller makes room.
-check('hiding one of the five is allowed',
-  (await setVisibility('hidden')).location, '/app');
-
-// And once there is room, the swap goes through.
-await control(`/__public/${FREE_PRODUCT_LIMIT - 1}`);
-check('and then the other one can go up in its place',
-  (await setVisibility('active')).location, '/app');
-
-// Paying again lifts it, with no re-posting and nothing restored.
+// Paying again lifts the limit, with no re-posting and nothing restored.
 await paid(FREE_PRODUCT_LIMIT + 3, 20);
 check('paying again reaches the form immediately',
   (await page('/app/new')).includes('publish-page'));
-await control(`/__public/${FREE_PRODUCT_LIMIT}`);
-check('and a paid seller may have more than five public',
-  (await setVisibility('active')).location, '/app');
 
 // A shop that lapses with room to spare loses nothing at all.
 await paid(3, -1);
@@ -301,8 +313,8 @@ await control('/__public/3');
 check('a lapsed shop under the limit still reaches the form',
   (await page('/app/new?plan=free')).includes('publish-page'));
 check('and can still publish', (await publish(1)).location === '/app', true);
-check('and its products stay public',
-  (await setVisibility('active')).location, '/app');
+check('and its products are still public on its own page',
+  (await page('/@nafin-boutique')).includes('کراسی کوردی'));
 
 /* ============================================================
    7. the admin's stop button outranks all of it
