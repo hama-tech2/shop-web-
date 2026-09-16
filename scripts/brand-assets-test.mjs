@@ -18,7 +18,9 @@
  */
 import { existsSync, statSync } from 'node:fs';
 import sharp from 'sharp';
-import { APP_NAME, APP_NAME_LATIN, BRAND } from '../worker/config.js';
+import {
+  APP_NAME, APP_NAME_LATIN, BRAND, IMAGE_VARIANTS, PROFILE_VARIANTS,
+} from '../worker/config.js';
 
 const APP = process.argv[2] || 'http://127.0.0.1:8810';
 const STUB = process.argv[3] || 'http://127.0.0.1:8899';
@@ -112,16 +114,45 @@ check('and is told it is a large card',
 const shopOgFor = async () =>
   meta(await page('/@nafin-boutique'), 'property', 'og:image');
 
+/**
+ * The declared size, as a crawler reads it.
+ *
+ * og:image:width and og:image:height are a promise about the file that
+ * og:image points at. WhatsApp and Facebook lay the card out from these
+ * numbers before the image has finished arriving, so a wrong pair is a
+ * mis-cropped preview on the one link a seller actually shares.
+ */
+const shopOgSizeFor = async () => {
+  const html = await page('/@nafin-boutique');
+  return [
+    Number(meta(html, 'property', 'og:image:width')),
+    Number(meta(html, 'property', 'og:image:height')),
+  ];
+};
+const sizeOf = (v) => [v.width, v.height];
+
 await control('/__cover/' + encodeURIComponent('shops/aaa/cover.webp'));
 await control('/__logo/' + encodeURIComponent('shops/aaa/logo.webp'));
 await control('/__productimg/' + encodeURIComponent('products/aaa/p1.webp'));
 check('the cover wins when there is one', (await shopOgFor())?.endsWith('/img/shops/aaa/cover.webp'));
+check('and a banner is declared 1200x450, the size it is stored at',
+  await shopOgSizeFor(), sizeOf(PROFILE_VARIANTS.banner));
 
 await control('/__cover/-');
 check('then the shop logo', (await shopOgFor())?.endsWith('/img/shops/aaa/logo.webp'));
+// A logo is a 400 square. Declaring the banner's 4:5 here told every
+// crawler to expect a portrait and handed it a square.
+check('and a logo is declared 400x400, not a portrait',
+  await shopOgSizeFor(), sizeOf(PROFILE_VARIANTS.logo));
 
 await control('/__logo/-');
 check('then the first product image', (await shopOgFor())?.endsWith('/img/products/aaa/p1.webp'));
+// The card variant became a square when the feed did. This is the
+// pair that silently went stale with it.
+check('and a product card is declared 800x800, the square it now is',
+  await shopOgSizeFor(), sizeOf(IMAGE_VARIANTS.card));
+check('never the 800x1000 the card variant stopped being',
+  (await shopOgSizeFor())[1] === 1000, false);
 
 await control('/__productimg/-');
 const bare = await shopOgFor();
