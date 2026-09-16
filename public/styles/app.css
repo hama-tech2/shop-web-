@@ -12,7 +12,7 @@
 /* ---------- header ---------- */
 
 .header {
-  padding: var(--s-5) var(--s-4) var(--s-3);
+  padding: 12px var(--s-4) 10px;
 }
 
 .header__top {
@@ -20,14 +20,18 @@
   align-items: center;
   justify-content: space-between;
   gap: var(--s-3);
-  margin-bottom: var(--s-4);
+  margin-bottom: 10px;
+  direction: ltr;
 }
 
 .header__name {
-  font-family: var(--font-head);
-  font-size: var(--fs-xl);
+  font-family: var(--font-body);
+  font-size: 36px;
+  line-height: 1.1;
+  color: var(--accent);
   font-weight: var(--fw-bold);
 }
+.header__tagline { direction: rtl; font-size: 11px; color: var(--muted); margin-top: 3px; }
 
 .icon-btn {
   width: 40px;
@@ -97,33 +101,41 @@
   color: var(--accent-ink);
 }
 
+/* Only the customer feed has the icon rail; shop filters remain pills. */
+.chips--categories { gap: 8px; padding-bottom: 12px; align-items: flex-start; }
+.chips--categories .chip { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 0 2px; background: transparent; font-size: 11px; line-height: 1.5; }
+.chip__icon { display: grid; place-items: center; width: 48px; height: 48px; border-radius: 50%; background: var(--surface-2); }
+.chips--categories .chip[aria-current="true"] { color: var(--accent); font-weight: var(--fw-bold); }
+.chips--categories .chip[aria-current="true"] .chip__icon { background: var(--accent); color: var(--accent-ink); }
+.chips--categories .chip:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 8px; }
+
 /* ---------- product grid ---------- */
 
 .grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--s-3);
-  padding-inline: var(--s-4);
+  gap: 8px;
+  padding-inline: 12px;
 }
 
 .card {
   container-type: inline-size;
   background: var(--surface);
   border: 1px solid var(--surface-2);
-  border-radius: 15px;
+  border-radius: 12px;
   min-width: 0;
   overflow: hidden;
-  padding-bottom: 10px;
+  padding-bottom: 2px;
 }
 
-/* media: fixed 4:5 box so the grid never reflows while images load */
+/* Square cover frame also crops legacy portrait variants without distortion. */
 .card__media {
   position: relative;
-  aspect-ratio: 4 / 5;
+  aspect-ratio: 1;
   background: var(--surface-2);
-  border-radius: 14px 14px 0 0;
+  border-radius: 11px 11px 0 0;
   overflow: hidden;
-  margin: 0 0 9px;
+  margin: 0 0 4px;
 }
 
 .card__img {
@@ -177,12 +189,11 @@
 
 .dot.is-active { opacity: 1; }
 
-.card__body { padding-inline: var(--s-3); }
+.card__body { padding-inline: 8px; direction: rtl; text-align: right; }
 
-/* Use the price row when there is room. Narrow cards keep separate 44px
-   targets on one compact second row, without changing the image or grid. */
-.card__commercial { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; direction: rtl; margin-inline: calc(-1 * var(--s-3)); padding-inline: 2px; }
-.card__commercial .card__price { flex: 0 1 auto; flex-wrap: wrap; min-width: 0; max-width: calc(100% - 20px); margin: 3px 10px 0; white-space: nowrap; }
+/* Keep text rows predictable; small circles retain separate 44px targets. */
+.card__commercial { direction: rtl; }
+.card__commercial .card__price { flex-wrap: wrap; min-width: 0; max-width: 100%; margin: 0; white-space: nowrap; line-height: 1.4; }
 /* Keep the full amount and currency readable, even with enlarged fallback text. */
 .card__commercial .card__amount { min-width: 0; white-space: normal; overflow-wrap: anywhere; }
 .card__commercial .card__currency { flex-shrink: 0; }
@@ -190,7 +201,8 @@
   .card__commercial .card__price { gap: 3px; }
   .card__commercial .card__amount { font-size: 17px; }
 }
-.card__actions { display: flex; flex: 0 0 auto; margin-right: auto; direction: ltr; }
+.card__actions { display: flex; flex: 0 0 auto; direction: ltr; }
+.card .card__actions { margin-inline: -6px; min-height: 44px; }
 .card__actions:empty { display: none; }
 .card__action { position: relative; z-index: 2; display: grid; place-items: center; width: 44px; height: 44px; flex: 0 0 44px; padding: 0; border-radius: 10px; }
 .card__action > span { display: grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; }
@@ -200,6 +212,10 @@
 .card__action--whatsapp > span { background: #EDF6F0; }
 .card__action--location { color: #BD3546; }
 .card__action--location > span { background: #FCF0F2; }
+.card .card__action--share, .card .card__action--location { color: var(--accent); }
+.card .card__action--share > span, .card .card__action--location > span { background: var(--bg); }
+.card .card__action--whatsapp { color: var(--accent-ink); }
+.card .card__action--whatsapp > span { background: var(--accent); }
 .card__action:focus-visible { outline: 2px solid currentColor; outline-offset: -3px; }
 .card__action:active > span { opacity: .7; }
 .card-share-status { position: fixed; z-index: 50; inset-inline: 16px; bottom: calc(var(--nav-h) + 16px + env(safe-area-inset-bottom)); max-width: 440px; margin: 0 auto; padding: 10px 14px; border-radius: 12px; background: var(--text); color: var(--surface); font-size: 13px; text-align: center; pointer-events: none; }
@@ -234,7 +250,7 @@
 
 .card__amount {
   font-family: var(--font-body);
-  font-size: 19px;
+  font-size: 17px;
   font-weight: var(--fw-bold);
 }
 
@@ -244,10 +260,10 @@
 }
 
 .card__shop {
-  margin-top: 5px;
+  margin-top: 2px;
   display: flex;
   align-items: center;
-  gap: var(--s-2);
+  gap: 4px;
   min-width: 0;
 }
 
@@ -273,6 +289,9 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+.card__shop .shop-avatar { width: 16px; height: 16px; font-size: 9px; }
+.card__shop-name { font-size: 11px; line-height: 18px; }
 
 /* ---------- load more ---------- */
 

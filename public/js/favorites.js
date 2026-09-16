@@ -15,6 +15,19 @@
   var KEY = 'shopweb:favorites';
   var MAX = 200;
   var signedIn = false;
+  // Reuse the private favorites session response; feed HTML stays cacheable.
+  var sellerPrompt = document.querySelector('.seller-prompt');
+  if (sellerPrompt) sellerPrompt.hidden = true;
+  function showSellerPrompt(state) {
+    if (sellerPrompt) sellerPrompt.hidden = !!(state && state.signedIn);
+  }
+  window.addEventListener('pageshow', function (event) {
+    if (!event.persisted || !sellerPrompt) return;
+    sellerPrompt.hidden = true;
+    fetch('/api/favorites', { credentials: 'same-origin', cache: 'no-store' })
+      .then(function (res) { return res.ok ? res.json() : null; })
+      .then(showSellerPrompt)['catch'](function () { showSellerPrompt(null); });
+  });
   var initialized = false;
   var currentIds = read();
   var touched = Object.create(null);
@@ -223,6 +236,7 @@
   fetch('/api/favorites', { credentials: 'same-origin' })
     .then(function (res) { return res.ok ? res.json() : null; })
     .then(function (state) {
+      showSellerPrompt(state);
       if (!state) { finish(read()); fillSaved(); return; }
       signedIn = state.signedIn;
 
@@ -243,5 +257,5 @@
           }
         });
     })
-    ['catch'](function () { finish(read()); fillSaved(); });
+    ['catch'](function () { showSellerPrompt({ signedIn: signedIn }); finish(read()); fillSaved(); });
 }());

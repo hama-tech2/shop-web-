@@ -75,8 +75,8 @@ try {
         separated:actions.every((a,i)=>!i||a.left>=actions[i-1].right),
         noPriceOverlap:actions.every(a=>a.top>=price.bottom||a.left>=price.right||a.right<=price.left)};
     }));
-    check('two original-width columns '+width,metrics.every(m=>Math.abs(m.width-(width-44)/2)<1));
-    check('unchanged 4:5 cover '+width,metrics.every(m=>Math.abs(m.ratio-.8)<.01));
+    check('two compact columns '+width,metrics.every(m=>Math.abs(m.width-(width-32)/2)<1));
+    check('square listing cover '+width,metrics.every(m=>Math.abs(m.ratio-1)<.01));
     check('price and actions stay inside card '+width,metrics.every(m=>!m.overflow&&m.priceInside&&m.targets));
     check('independent, non-overlapping action targets '+width,metrics.every(m=>m.separated&&m.noPriceOverlap));
     check('RTL no horizontal overflow '+width,await page.evaluate(()=>document.documentElement.dir==='rtl'&&document.documentElement.scrollWidth<=innerWidth));

@@ -211,7 +211,7 @@
   font-weight: inherit;
 }
 
-.card__price[data-currency="USD"] .card__currency { font-size: 19px; font-weight: var(--fw-bold); }
+.card__price[data-currency="USD"] .card__currency { font-size: 17px; font-weight: var(--fw-bold); }
 .pdp-price[data-currency="USD"] .card__currency { font-size: 28px; font-weight: 700; }
 
 /* ---------- inline chips (category, filters) ---------- */
@@ -352,7 +352,7 @@
 .publish-page .field__label { margin-bottom: 6px; }
 .publish-page .thumbs { display: flex; gap: 8px; overflow-x: auto; padding: 2px 1px 4px; scroll-snap-type: x proximity; margin: 0; }
 .publish-photo { flex: 0 0 91px; min-width: 0; scroll-snap-align: start; }
-.publish-page .thumb { border-radius: 10px; aspect-ratio: 4 / 5; width: 100%; }
+.publish-page .thumb { border-radius: 10px; aspect-ratio: 1; width: 100%; }
 .publish-page .thumb.is-cover { outline: 2px solid var(--accent); outline-offset: -2px; }
 .publish-page .thumb__select { display: block; padding: 0; width: 100%; height: 100%; }
 .publish-page .thumb__select img { width: 100%; height: 100%; object-fit: cover; }
@@ -388,6 +388,14 @@
 .publish-save p { margin: 5px 0 0; font-size: 11px; text-align: center; color: var(--muted); }
 .publish-message { background: var(--surface-2); color: var(--text); border-radius: 8px; padding: 10px 12px; font-size: 13px; overflow-wrap: anywhere; }
 .publish-page [disabled] { cursor: wait; }
+.publish-page--edit .gallery--cover-only { padding: 12px; border: 1px solid #DEDAD2; border-radius: 12px; background: var(--surface); }
+.publish-page--edit .gallery--cover-only .thumbs { padding-block: 3px 6px; }
+.publish-page--edit .gallery--cover-only .publish-photo { flex-basis: 84px; }
+.publish-page--edit .gallery--cover-only .thumb__number { display: none; }
+.publish-page--edit .cover-change { flex-basis: 84px; height: 84px; }
+.edit-price__value { display: flex; min-height: 46px; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 12px; border: 1px solid #DEDAD2; border-radius: 9px; background: var(--surface-2); }
+.edit-price__value > span { direction: ltr; color: var(--accent); font-size: 18px; font-weight: 700; }
+.edit-price__value small { color: var(--muted); font-size: 11px; }
 /* Dedicated product dialog, separate from the profile image cropper. */
 .cover-editor { border: 0; padding: 16px; margin: 0 auto; inset: 0; width: 100%; max-width: var(--page-max); height: 100dvh; max-height: 100dvh; background: var(--bg); color: var(--text); overflow-y: auto; overscroll-behavior: contain; }
 .cover-editor:not([open]) { display: none; }

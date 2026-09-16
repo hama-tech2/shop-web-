@@ -59,11 +59,11 @@ export const SLIDE_MS = 4000;
 export const CHIPS = [
   { slug: null,          label: 'هەموو' },
   { slug: 'clothing',    label: 'جل و بەرگ' },
-  { slug: 'beauty',      label: 'جوانکاری و عەتر' },
-  { slug: 'home',        label: 'ماڵەوە' },
-  { slug: 'electronics', label: 'ئەلیکترۆنی' },
+  { slug: 'beauty',      label: 'جوانکاری و عەتڕ' },
+  { slug: 'home',        label: 'ماڵ و کەلوپەل' },
   { slug: 'food',        label: 'خواردن' },
-  { slug: 'other',       label: 'ئەوانی تر' },
+  { slug: 'electronics', label: 'ئەلیکترۆنی' },
+  { slug: 'other',       label: 'هی تر' },
 ];
 
 /** Language sheet. Only Kurdish is wired up; the rest are placeholders. */
@@ -340,7 +340,7 @@ export const PRODUCT_FILTERS = [
 
 /** Browser-side resize targets. Never upscale past the source. */
 export const IMAGE_VARIANTS = {
-  card: { width: 800,  height: 1000, quality: 0.75 },
+  card: { width: 800,  height: 800, quality: 0.75 },
   full: { width: 1200, height: 1500, quality: 0.82 },
 };
 

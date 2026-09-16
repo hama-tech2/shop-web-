@@ -368,6 +368,49 @@ async function readForm(request, env, token, shopId, productId) {
   };
 }
 
+/**
+ * An edit is deliberately smaller than a publish. Read the stored row
+ * first, then accept only the three approved changes: title, market
+ * category, and which retained image is the cover (with at most one
+ * replacement when that cover is re-cropped).
+ */
+async function readEditForm(request, shopId, productId, product, categories) {
+  const f = await form(request);
+  const picked = cleanImages(f.images, shopId, productId);
+  const images = picked.images ?? null;
+  const original = toValues(product, categories);
+  const values = {
+    ...original,
+    title: (f.title || '').replace(/\s+/g, ' ').trim(),
+    category: f.category || '',
+    images: images || [],
+  };
+
+  if (!images) return { error: picked.error, values };
+  if (values.title.length < 2 || values.title.length > 200) {
+    return { error: T.errTitle, values };
+  }
+
+  // Cover selection may reorder the stored gallery. Re-cropping may
+  // replace one pair of keys, but the restricted editor cannot add or
+  // remove gallery items.
+  const before = original.images.map((image) => `${image.card}\n${image.full || ''}`);
+  const after = images.map((image) => `${image.card}\n${image.full || ''}`);
+  const retained = before.filter((key) => after.includes(key)).length;
+  if (after.length !== before.length || before.length - retained > 1) {
+    return { error: T.errNoImage, values: { ...values, images: original.images } };
+  }
+
+  return {
+    values,
+    row: {
+      title: values.title,
+      platform_category_id: categories.find((c) => c.slug === values.category)?.id ?? null,
+    },
+    images,
+  };
+}
+
 /* ============================================================
    /app/new
    ============================================================ */
@@ -566,7 +609,6 @@ export async function editGet(request, env, id) {
   const { tier } = await entitlement(env, g.token, g.shop.id);
   return page(
     productForm({ mode: 'edit', draftId: id, categories,
-                  shopCategories: await ownCategories(env, g.token, g.shop.id),
                   values: toValues(product, categories), imageLimit: tier === 'paid' ? MAX_IMAGES : FREE_IMAGE_LIMIT }),
     T.editTitle, g.headers,
   );
@@ -578,15 +620,17 @@ export async function editPost(request, env, id) {
   if (g.redirect) return g.redirect;
   if (!UUID.test(id)) return redirect('/app', g.headers);
 
-  const parsed = await readForm(request, env, g.token, g.shop.id, id);
+  const product = await loadProduct(env, g.token, id);
+  if (!product) return redirect('/app', g.headers);
+
   const categories = await getCategories(env);
+  const parsed = await readEditForm(request, g.shop.id, id, product, categories);
   const { tier } = await entitlement(env, g.token, g.shop.id);
   const imageLimit = tier === 'paid' ? MAX_IMAGES : FREE_IMAGE_LIMIT;
 
   if (parsed.error) {
     return page(
       productForm({ mode: 'edit', draftId: id, categories,
-                    shopCategories: await ownCategories(env, g.token, g.shop.id),
                     values: parsed.values, error: parsed.error, imageLimit }),
       T.editTitle, g.headers,
     );
@@ -614,7 +658,6 @@ export async function editPost(request, env, id) {
       : T.errSave;
     return page(
       productForm({ mode: 'edit', draftId: id, categories,
-                    shopCategories: await ownCategories(env, g.token, g.shop.id),
                     values: parsed.values, error, imageLimit }),
       T.editTitle, g.headers,
     );

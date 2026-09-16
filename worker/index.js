@@ -73,6 +73,14 @@ export default {
           ? account.categoryApiDelete(request, env, categoryApi[1])
           : account.categoryApiRename(request, env, categoryApi[1]);
       }
+      // Malformed category writes are API misses, not static assets.
+      // Forwarding their unread POST bodies to ASSETS can trigger a
+      // request-stream failure after the asset response has been sent.
+      if (method === 'POST' && path.startsWith('/api/categories/')) {
+        return Response.json({ error: 'not_found' }, {
+          status: 404, headers: { 'cache-control': 'no-store' },
+        });
+      }
       if (path === '/search') return searchGet(env, url);
       if (path === '/saved') return favorites.savedGet(request, env);
       if (path === '/') return feedPage(env, url);

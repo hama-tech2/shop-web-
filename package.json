@@ -27,7 +27,8 @@
     "test:wayl": "node scripts/wayl-test.mjs",
     "test:free-plan": "node scripts/free-plan-test.mjs",
     "test:retry": "node scripts/checkout-retry-test.mjs",
-    "test:brand": "node scripts/brand-assets-test.mjs"
+    "test:brand": "node scripts/brand-assets-test.mjs",
+    "test:owner-controls": "node scripts/owner-product-controls-test.mjs"
   },
   "devDependencies": {
     "wrangler": "^4.42.0",

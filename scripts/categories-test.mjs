@@ -21,6 +21,9 @@
  *   node scripts/categories-test.mjs
  */
 
+import assert from 'node:assert/strict';
+import worker from '../worker/index.js';
+
 const APP = process.argv[2] || 'http://127.0.0.1:8810';
 const STUB = process.argv[3] || 'http://127.0.0.1:8899';
 
@@ -35,6 +38,23 @@ const COOKIE = 'sb-access=TEST';
 const results = [];
 const check = (name, got, want) =>
   results.push({ name, got, want, pass: JSON.stringify(got) === JSON.stringify(want) });
+
+// Reproduced on clean db73d15: malformed category POSTs fell through to
+// ASSETS with an unread body, terminating Wrangler with a request-stream
+// error. Pin the routing boundary independently of the dev server.
+{
+  let assetCalls = 0;
+  const env = { ASSETS: { fetch: async () => { assetCalls++; return new Response('asset', { status: 404 }); } } };
+  for (const path of ['/api/categories/not-a-uuid', '/api/categories/not-a-uuid/delete', `/api/categories/${CAT_A}/unknown`]) {
+    const response = await worker.fetch(new Request('https://fixture.test' + path, { method: 'POST', body: 'name=x' }), env, {});
+    assert.equal(assetCalls, 0, 'Malformed category POST must never forward its request body to ASSETS');
+    check('invalid category route returns 404: ' + path, response.status, 404);
+    check('invalid category response is not cached: ' + path, response.headers.get('cache-control'), 'no-store');
+    check('invalid category response is JSON: ' + path, (await response.json()).error, 'not_found');
+  }
+  await worker.fetch(new Request('https://fixture.test/styles/app.css'), env, {});
+  check('ordinary asset fallback preserved', assetCalls, 1);
+}
 
 const setRows = (n) => fetch(`${STUB}/__rows/${n}`).then((r) => r.json());
 const resetCalls = () => fetch(`${STUB}/__calls/reset`).then((r) => r.json());
@@ -102,6 +122,13 @@ await setRows(1);
 
 r = await api('/api/categories/not-a-uuid', { name: 'x' });
 check('rename, bad id: 404', r.status, 404);
+check('rename, bad id: JSON error', r.json?.error, 'not_found');
+r = await api('/api/categories/not-a-uuid/delete', { name: 'x' });
+check('delete, bad id: 404', r.status, 404);
+check('delete, bad id: JSON error', r.json?.error, 'not_found');
+const afterInvalid = await fetch(`${APP}/api/categories`, { headers: { cookie: COOKIE } });
+check('server remains usable after invalid category POSTs', afterInvalid.status, 200);
+await afterInvalid.arrayBuffer();
 
 /* ---------- a write still has to come from our own origin ---------- */
 

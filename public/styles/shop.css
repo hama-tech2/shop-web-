@@ -31,14 +31,22 @@
 .page--shop .chips { padding: 0 16px 16px; gap: 8px; }
 .page--shop .chip { display: inline-flex; justify-content: center; align-items: center; min-height: 44px; min-width: 66px; text-align: center; color: var(--muted); }
 .page--shop .chip[aria-current="true"] { color: white; }
-.page--shop .grid { gap: 18px 12px; }
+.page--shop .grid { gap: 8px; }
 .notice { margin: 24px 16px; padding: 24px 20px; border-radius: 16px; background: var(--surface); text-align: center; color: var(--muted); }
 .notice--tall { margin-top: 32px; display: grid; gap: 16px; justify-items: center; }
 .notice__title { font-weight: 700; color: var(--text); margin: 0 0 8px; }
 /* The same profile with three compact controls; management opens on demand. */
 .page--owner { padding-bottom: calc(var(--nav-h) + 24px + env(safe-area-inset-bottom)); }
 .owner-controls { display: flex; align-items: stretch; gap: 8px; padding: 14px 16px 0; }
-.owner-delete { color: var(--text); }
+.owner-product-menu { position: absolute; z-index: 4; inset-block-start: 4px; inset-inline-end: 4px; }
+.owner-product-more { position: static; width: 44px; height: 44px; list-style: none; background: transparent; font-size: 22px; line-height: 1; font-weight: 800; }
+.owner-product-more::-webkit-details-marker { display: none; }
+.owner-product-more::before { content: ''; position: absolute; inset: 8px; border-radius: 50%; background: var(--surface); }
+.owner-product-more span { position: relative; }
+.owner-product-popover { position: absolute; inset-block-start: calc(100% + 6px); inset-inline-end: 0; width: 132px; padding: 5px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); box-shadow: 0 8px 24px rgba(10, 44, 35, .14); }
+.owner-product-action { display: flex; width: 100%; min-height: 42px; align-items: center; gap: 9px; padding: 8px 10px; border-radius: 8px; color: var(--text); font-size: 13px; font-weight: 700; text-decoration: none; text-align: start; }
+.owner-product-action:hover, .owner-product-action:focus-visible { background: var(--surface-2); }
+.owner-delete { color: var(--danger, #a82b2b); }
 .owner-delete:disabled { opacity: .5; cursor: wait; }
 
 /* Categories are edited on the rail that shows them: the chip turns the
@@ -54,7 +62,7 @@
 .cat-edit__status { margin: 10px 0 0; color: var(--accent); font-size: 12px; line-height: 1.8; }
 .cat-edit__status:empty { display: none; }
 .cat-edit :is(button, input):disabled { opacity: .6; cursor: wait; }
-.owner-delete:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.owner-product-more:focus-visible, .owner-product-action:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .owner-control { display: flex; justify-content: center; align-items: center; gap: 5px; min-height: 44px; padding: 8px 12px; border: 1px solid #D5D0C6; border-radius: 999px; font-size: 12px; cursor: pointer; }
 .owner-control--primary { background: var(--accent); color: white; border-color: var(--accent); flex: 1; }
 .owner-manage { position: relative; }

@@ -5,7 +5,7 @@ import { esc } from './html.js';
 import { alert } from './forms.js';
 import { shopHeader } from './shop.js';
 import { settingsPanel } from './settings.js';
-import { iconHeart, iconHome, iconPlus, iconTrash, iconUser } from './icons.js';
+import { iconEdit, iconHeart, iconHome, iconPlus, iconTrash, iconUser } from './icons.js';
 
 /**
  * Bottom nav, shared by the feed, /saved and the seller's area.
@@ -113,7 +113,12 @@ export function appShell({ shop, origin, banner = null, subscription = null, err
     `<div class="notice"><a class="owner-preview-link" href="${esc('/@' + shop.slug)}">${esc(PROFILE.viewShop)} ‹</a></div>` +
     `</section></div>` +
     settingsPanel({ shop, banner, subscription }) +
-    `<template id="owner-delete-control"><button class="card__heart owner-delete" type="button" aria-label="سڕینەوەی بەرهەم">${iconTrash(18)}</button></template>` +
+    `<template id="owner-product-control"><details class="owner-product-menu">` +
+    `<summary class="card__heart owner-product-more" aria-label="بەڕێوەبردنی بەرهەم"><span aria-hidden="true">…</span></summary>` +
+    `<div class="owner-product-popover">` +
+    `<a class="owner-product-action owner-product-edit" href="#">${iconEdit(17)}<span>دەستکاری</span></a>` +
+    `<button class="owner-product-action owner-delete" type="button">${iconTrash(17)}<span>سڕینەوە</span></button>` +
+    `</div></details></template>` +
     bottomNav('account', { accountLabel: 'هەژمار' }) +
     `<script src="/js/shop.js" defer></script>` +
     `<script src="/js/settings.js" defer></script>` +

@@ -40,11 +40,13 @@
         });
         target.replaceChildren.apply(target, Array.from(products.childNodes));
         installCategoryEditing(target.querySelector('.chips'));
-        var template = document.getElementById('owner-delete-control');
+        var template = document.getElementById('owner-product-control');
         target.querySelectorAll('[data-fav]').forEach(function (heart) {
-          var button = template.content.firstElementChild.cloneNode(true);
-          button.dataset.productId = heart.dataset.fav;
-          heart.replaceWith(button);
+          var menu = template.content.firstElementChild.cloneNode(true);
+          var id = heart.dataset.fav;
+          menu.querySelector('.owner-product-edit').href = '/app/products/' + encodeURIComponent(id);
+          menu.querySelector('.owner-delete').dataset.productId = id;
+          heart.replaceWith(menu);
         });
         document.dispatchEvent(new Event('shop:updated'));
       })
@@ -246,6 +248,8 @@
     if (!button || button.disabled) return;
     var card = button.closest('.card');
     var title = card.querySelector('.card__title').textContent;
+    var menu = button.closest('.owner-product-menu');
+    if (menu) menu.open = false;
     if (!window.confirm('دڵنیایت لە سڕینەوەی «' + title + '»؟ ئەم کردارە ناگەڕێتەوە.')) return;
     button.disabled = true;
     try {
@@ -272,6 +276,27 @@
       window.alert('بەرهەمەکە نەسڕایەوە. تکایە دووبارە هەوڵ بدەوە.');
       button.disabled = false;
     }
+  });
+
+  target.addEventListener('toggle', function (event) {
+    var opened = event.target.closest('.owner-product-menu');
+    if (!opened || !opened.open) return;
+    target.querySelectorAll('.owner-product-menu[open]').forEach(function (menu) {
+      if (menu !== opened) menu.open = false;
+    });
+  }, true);
+
+  document.addEventListener('click', function (event) {
+    if (event.target.closest('.owner-product-menu')) return;
+    target.querySelectorAll('.owner-product-menu[open]').forEach(function (menu) { menu.open = false; });
+  });
+
+  document.addEventListener('keydown', function (event) {
+    if (event.key !== 'Escape') return;
+    var opened = target.querySelector('.owner-product-menu[open]');
+    if (!opened) return;
+    opened.open = false;
+    opened.querySelector('.owner-product-more').focus();
   });
 
   load();

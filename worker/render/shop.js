@@ -139,7 +139,7 @@ export function shopPage({ shop, products, categories, shopCategories, activeCat
   } else {
     body =
       `<div class="grid">` +
-      products.map((p, i) => cardHtml(p, i)).join('') +
+      products.map((p, i) => cardHtml(p, i, { showShop: false })).join('') +
       `</div>`;
   }
 
