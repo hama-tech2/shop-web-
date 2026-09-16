@@ -211,7 +211,7 @@
   font-weight: inherit;
 }
 
-.card__price[data-currency="USD"] .card__currency { font-size: 19px; font-weight: var(--fw-bold); }
+.card__price[data-currency="USD"] .card__currency { font-size: 17px; font-weight: var(--fw-bold); }
 .pdp-price[data-currency="USD"] .card__currency { font-size: 28px; font-weight: 700; }
 
 /* ---------- inline chips (category, filters) ---------- */
@@ -352,7 +352,7 @@
 .publish-page .field__label { margin-bottom: 6px; }
 .publish-page .thumbs { display: flex; gap: 8px; overflow-x: auto; padding: 2px 1px 4px; scroll-snap-type: x proximity; margin: 0; }
 .publish-photo { flex: 0 0 91px; min-width: 0; scroll-snap-align: start; }
-.publish-page .thumb { border-radius: 10px; aspect-ratio: 4 / 5; width: 100%; }
+.publish-page .thumb { border-radius: 10px; aspect-ratio: 1; width: 100%; }
 .publish-page .thumb.is-cover { outline: 2px solid var(--accent); outline-offset: -2px; }
 .publish-page .thumb__select { display: block; padding: 0; width: 100%; height: 100%; }
 .publish-page .thumb__select img { width: 100%; height: 100%; object-fit: cover; }

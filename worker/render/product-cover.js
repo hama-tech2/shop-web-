@@ -2,7 +2,7 @@
 export function productCover() {
   return `<dialog class="cover-editor" id="cover-editor" aria-labelledby="cover-title">` +
     `<header class="cover-head"><button type="button" id="cover-back" aria-label="گەڕانەوە">‹</button><h2 id="cover-title">کاڤەری بەرهەم</h2></header>` +
-    `<p class="cover-intro">وێنەکە ڕابکێشە بۆ جووڵاندن؛ بە دوو پەنجە گەورەی بکە. ڕێژەی کاڤەر <bdi>4:5</bdi> ـە.</p>` +
+    `<p class="cover-intro">وێنەکە ڕابکێشە بۆ جووڵاندن؛ بە دوو پەنجە گەورەی بکە. ڕێژەی کاڤەر <bdi>1:1</bdi> ـە.</p>` +
     `<p id="cover-message" class="publish-message" role="status" hidden></p>` +
     `<div class="cover-stage" id="cover-stage" tabindex="0" aria-label="ڕاکێشان بۆ جووڵاندنی وێنە؛ دوگمە تیرەکانیش کار دەکەن"><canvas id="cover-canvas"></canvas></div>` +
     `<div class="cover-controls"><button type="button" id="cover-rotate">↻ سووڕاندن</button>` +

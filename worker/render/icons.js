@@ -11,6 +11,17 @@ const svg = (body, size = 24) =>
 export const iconSearch = (s = 20) =>
   svg('<circle cx="11" cy="11" r="7"/><path d="m20 20-3.2-3.2"/>', s);
 
+/** Feed categories use the existing platform slugs. */
+export const iconCategory = (slug, s = 24) => svg({
+  all: '<rect x="4" y="4" width="6" height="6" rx="2"/><rect x="14" y="4" width="6" height="6" rx="2"/><rect x="4" y="14" width="6" height="6" rx="2"/><rect x="14" y="14" width="6" height="6" rx="2"/>',
+  clothing: '<path d="m8 4-5 3 3 5 2-1v10h8V11l2 1 3-5-5-3a4 4 0 0 1-8 0Z"/>',
+  beauty: '<rect x="7" y="10" width="10" height="11" rx="2"/><path d="M9 10V6h6v4M11 6V3h4M7 14h10"/>',
+  home: '<rect x="5" y="3" width="14" height="11" rx="2"/><path d="M5 10h14M5 14l-2 4h18l-2-4M5 18v3m14-3v3"/>',
+  food: '<path d="M4 3v5a3 3 0 0 0 6 0V3M7 3v18M20 3c-4 2-5 7-4 10h4M20 3v18"/>',
+  electronics: '<rect x="6" y="2" width="12" height="20" rx="2"/><path d="M10 5h4M11 19h2"/>',
+  other: '<circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/>',
+}[slug || 'all'], s);
+
 export const iconGlobe = (s = 20) =>
   svg(
     '<circle cx="12" cy="12" r="9"/><path d="M3 12h18"/>' +

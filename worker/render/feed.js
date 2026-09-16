@@ -1,7 +1,7 @@
-import { APP_NAME, APP_TAGLINE, CHIPS, LOCALES, SLIDE_MS, UI } from '../config.js';
+import { APP_NAME, APP_NAME_LATIN, APP_TAGLINE, CHIPS, LOCALES, SLIDE_MS, UI } from '../config.js';
 import { attr, esc } from './html.js';
 import { moneyHtml } from './money.js';
-import { iconGlobe, iconHeart, iconPin, iconSearch, iconShare, iconWhatsapp } from './icons.js';
+import { iconCategory, iconGlobe, iconHeart, iconPin, iconSearch, iconShare, iconWhatsapp } from './icons.js';
 import { bottomNav } from './appshell.js';
 
 /** R2 keys are stored, never URLs. This is the only place one becomes a URL. */
@@ -44,7 +44,7 @@ function cardActions(product, href) {
  * `src` once the card is fully on screen. That keeps a cheap Android
  * phone from decoding images nobody has looked at.
  */
-export function cardHtml(product, index, { linked = true, saved = false } = {}) {
+export function cardHtml(product, index, { linked = true, saved = false, showShop = true } = {}) {
   const [first, ...rest] = product.images;
   const href = linked && product.shopSlug
     ? `/@${encodeURIComponent(product.shopSlug)}/p/${encodeURIComponent(product.id)}`
@@ -54,7 +54,7 @@ export function cardHtml(product, index, { linked = true, saved = false } = {}) 
 
   const firstImg = first
     ? `<img class="card__img is-active" src="${esc(imgUrl(first))}"` +
-      ` width="360" height="450" alt=""` +
+      ` width="360" height="360" alt=""` +
       ` loading="${eager ? 'eager' : 'lazy'}" decoding="async"` +
       `${eager ? ' fetchpriority="high"' : ''}>`
     : '';
@@ -63,7 +63,7 @@ export function cardHtml(product, index, { linked = true, saved = false } = {}) 
     .map(
       (key) =>
         `<img class="card__img" data-src="${esc(imgUrl(key))}"` +
-        ` width="360" height="450" alt="" decoding="async">`,
+        ` width="360" height="360" alt="" decoding="async">`,
     )
     .join('');
 
@@ -101,9 +101,10 @@ export function cardHtml(product, index, { linked = true, saved = false } = {}) 
       tag: 'p', cls: 'card__price',
       amountClass: 'card__amount', currencyClass: 'card__currency',
     }) +
-    `${cardActions(product, href)}</div>` +
-    `<div class="card__shop">${avatar}` +
-    `<span class="card__shop-name">${esc(product.shopName)}</span></div>` +
+    `</div>` +
+    (showShop ? `<div class="card__shop">${avatar}` +
+    `<span class="card__shop-name">${esc(product.shopName)}</span></div>` : '') +
+    cardActions(product, href) +
     `</div>` +
     `</article>`
   );
@@ -122,7 +123,8 @@ function headerHtml({ query }) {
   return (
     `<header class="header">` +
     `<div class="header__top">` +
-    `<h1 class="header__name">${esc(APP_NAME)}</h1>` +
+    `<div class="header__brand"><h1 class="header__name" dir="ltr" aria-label="${esc(APP_NAME)}">${esc(APP_NAME_LATIN)}</h1>` +
+    `<p class="header__tagline">${esc(APP_TAGLINE)}</p></div>` +
     `<button class="icon-btn" type="button" id="lang-btn"` +
     ` aria-haspopup="dialog" aria-expanded="false" aria-controls="lang-sheet" aria-label="${esc(UI.language)}">${iconGlobe()}</button>` +
     `</div>` +
@@ -149,11 +151,11 @@ function chipsHtml({ category, query }) {
 
     return (
       `<a class="chip" href="${esc(href)}"` +
-      `${current ? ' aria-current="true"' : ''}>${esc(chip.label)}</a>`
+      `${current ? ' aria-current="true"' : ''}><span class="chip__icon">${iconCategory(chip.slug)}</span><span>${esc(chip.label)}</span></a>`
     );
   }).join('');
 
-  return `<nav class="chips" aria-label="جۆرەکان">${items}</nav>`;
+  return `<nav class="chips chips--categories" aria-label="جۆرەکان">${items}</nav>`;
 }
 
 function sheetHtml() {
@@ -203,11 +205,8 @@ function loadMoreHtml({ category, query, nextOffset, hasMore }) {
  * reads it once on their first visit and scrolls past it forever after,
  * which is the most an advert on somebody's shopping feed should ask.
  *
- * It cannot be hidden for sellers who are already signed in: the feed is
- * served `public, s-maxage=60` to everybody, so varying it per visitor
- * would mean giving up the shared cache on the busiest page in the app.
- * A line about making a shop is a small thing to show somebody who has
- * one; a slow feed is not.
+ * HTML stays shared-cacheable. favorites.js uses its existing private
+ * session response to hide this prompt for signed-in visitors.
  */
 const sellerPromptHtml = () =>
   `<aside class="seller-prompt">` +

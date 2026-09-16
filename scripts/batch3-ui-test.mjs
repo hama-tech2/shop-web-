@@ -183,7 +183,7 @@ try {
     await page.screenshot({ path: join(tmpdir(), 'batch3-cover-390.png') });
     await page.locator('#cover-save').click(); await page.waitForFunction(() => !document.querySelector('#cover-editor').open);
     const ratio = await select.locator('img').evaluate(async img => { await img.decode(); return img.naturalHeight / img.naturalWidth; });
-    check('cover: saved rotated/zoomed image is 4:5', Math.abs(ratio - 1.25) < .01);
+    check('cover: saved rotated/zoomed image is square', Math.abs(ratio - 1) < .01);
     check('cover: saved image actually changes', await select.locator('img').getAttribute('src') !== original);
     // The delete failure is reported on /app now; /app/products is a
     // retired address that redirects there and renders nothing itself.

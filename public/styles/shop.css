@@ -31,7 +31,7 @@
 .page--shop .chips { padding: 0 16px 16px; gap: 8px; }
 .page--shop .chip { display: inline-flex; justify-content: center; align-items: center; min-height: 44px; min-width: 66px; text-align: center; color: var(--muted); }
 .page--shop .chip[aria-current="true"] { color: white; }
-.page--shop .grid { gap: 18px 12px; }
+.page--shop .grid { gap: 8px; }
 .notice { margin: 24px 16px; padding: 24px 20px; border-radius: 16px; background: var(--surface); text-align: center; color: var(--muted); }
 .notice--tall { margin-top: 32px; display: grid; gap: 16px; justify-items: center; }
 .notice__title { font-weight: 700; color: var(--text); margin: 0 0 8px; }

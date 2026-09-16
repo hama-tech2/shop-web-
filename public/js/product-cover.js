@@ -63,9 +63,9 @@
     try {
       var bitmap = await createImageBitmap(await session.source(item));
       if (mine !== token || !dialog.open) { bitmap.close(); return; }
-      var draft = session.drafts[id], state = (draft && draft.state) || item.cropState || { ratio: 1.25, rotation: 0, zoom: 1, x: 0, y: 0 };
+      var draft = session.drafts[id], state = (draft && draft.state) || item.cropState || { ratio: 1, rotation: 0, zoom: 1, x: 0, y: 0 };
       view = Object.assign({ id: id, bitmap: bitmap, changed: !!(draft && draft.changed) }, state);
-      if (view.ratio !== 1.25) { view.ratio = 1.25; view.changed = true; }
+      if (view.ratio !== 1 || (item.previewRatio && Math.abs(item.previewRatio - 1) > .01)) { view.ratio = 1; view.changed = true; }
       say(''); save.disabled = false; paint();
     } catch (e) { if (mine === token) say('وێنەکە بار نەکرا؛ دووبارە هەڵیبژێرە.'); }
   }
