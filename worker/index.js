@@ -6,11 +6,10 @@
  * (/styles, /js, /seed) are served by the ASSETS binding before this runs.
  */
 
-import { PAGE_SIZE } from './config.js';
+import { APP_TAGLINE, PAGE_SIZE, SITE_IDENTITY, SITE_ORIGIN } from './config.js';
 import { getCategories, getFeed } from './supabase.js';
 import { cardsFragment, feedHtml, feedTitle } from './render/feed.js';
 import { layout } from './render/layout.js';
-import { APP_TAGLINE } from './config.js';
 import * as authRoutes from './routes/auth.js';
 import * as onboarding from './routes/onboarding.js';
 import { appGet, bannerDismissPost } from './routes/app.js';
@@ -23,6 +22,8 @@ import * as favorites from './routes/favorites.js';
 import { scheduled } from './cron.js';
 import { webhookPost } from './routes/telegram.js';
 import * as payment from './routes/payment.js';
+import { robotsGet, sitemapGet } from './routes/seo.js';
+import { homeLd } from './render/structured-data.js';
 
 const IMG_CACHE = 'public, max-age=31536000, immutable';
 const HTML_CACHE = 'public, max-age=0, s-maxage=60, stale-while-revalidate=300';
@@ -121,6 +122,10 @@ async function routeRequest(request, env, ctx) {
           status: 404, headers: { 'cache-control': 'no-store' },
         });
       }
+      // Crawler entry points. Before the auth-bearing routes and
+      // never behind a session: a crawler has no cookie.
+      if (path === '/robots.txt') return robotsGet();
+      if (path === '/sitemap.xml') return sitemapGet(env);
       if (path === '/search') return searchGet(env, url);
       if (path === '/saved') return favorites.savedGet(request, env);
       if (path === '/') return feedPage(env, url);
@@ -446,17 +451,22 @@ async function feedPage(env, url) {
   });
 
   const ogImage = products[0]?.images?.[0]
-    ? new URL(`/img/${products[0].images[0]}`, url).toString()
+    ? new URL(`/img/${products[0].images[0]}`, SITE_ORIGIN).toString()
     : null;
+
+  const isHomepage = !query && !category && !offset;
 
   return new Response(
     layout({
       title: feedTitle(query),
-      description: APP_TAGLINE,
-      canonical: new URL(url.pathname + url.search, url).toString(),
+      description: isHomepage ? SITE_IDENTITY.description : APP_TAGLINE,
+      canonical: new URL(url.pathname + url.search, SITE_ORIGIN).toString(),
       ogImage,
       body,
       scripts: ['/js/feed.js', '/js/favorites.js'],
+      // Who Bazaro is. Only on the unfiltered homepage: a category or a
+      // search is a view of the site, not a second site.
+      structuredData: isHomepage ? homeLd() : null,
     }),
     {
       headers: {

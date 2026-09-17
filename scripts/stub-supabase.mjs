@@ -33,6 +33,7 @@ const FOREIGN_SHOP = {
   slug: 'nafin-boutique', name: 'بۆتیکی نافین', logo_key: null,
   city: 'erbil', whatsapp: '+9647510000002', status: 'active',
 };
+const PLATFORM_CAT = 'cccccccc-1111-4111-8111-111111111111';
 const CAT_A = 'dddddddd-1111-4111-8111-111111111111';
 const CAT_B = 'dddddddd-2222-4222-8222-222222222222';
 /** The id an insert comes back with — nothing the client could guess. */
@@ -60,6 +61,7 @@ let productImages = [];           // product_images on the public product
 let mixedList = false;            // the manager holding a visible AND a hidden product
 // IQD unless a test says otherwise; null models a pre-migration row.
 let productCurrency = 'IQD';
+let productPlatformCategory = null;
 /**
  * The currency key as PostgREST would return it.
  *
@@ -178,6 +180,11 @@ http.createServer(async (req, res) => {
     const v = decodeURIComponent(p.slice(12));
     productCurrency = v === '-' ? null : v;
     return send({ productCurrency });
+  }
+  if (p.startsWith('/__platformcategory/')) {
+    const v = decodeURIComponent(p.slice(20));
+    productPlatformCategory = v === '-' ? null : PLATFORM_CAT;
+    return send({ productPlatformCategory });
   }
   if (p.startsWith('/__public/')) { publicCount = Number(p.split('/')[2]); return send({ publicCount }); }
   if (p.startsWith('/__dismissed/')) {
@@ -398,7 +405,7 @@ http.createServer(async (req, res) => {
   }
 
   if (table === 'platform_categories') {
-    return send([{ id: 'cccccccc-1111-4111-8111-111111111111', slug: 'clothing', name_ckb: 'جل' }]);
+    return send([{ id: PLATFORM_CAT, slug: 'clothing', name_ckb: 'جل' }]);
   }
 
   if (table === 'categories') {
@@ -470,7 +477,9 @@ http.createServer(async (req, res) => {
         id: PRODUCT_ID, title: 'کراسی کوردی', price: 85000, description: '',
         ...withCurrency(),
         status: 'active', shop_id: SHOP.id, sort_order: 0,
-        platform_category_id: null, category_id: null, product_images: productImages,
+        platform_category_id: productPlatformCategory, category_id: null,
+        platform_categories: productPlatformCategory ? { name_ckb: 'جل' } : null,
+        categories: null, product_images: productImages,
         // getProduct() joins shops!inner and reads the slug off it to
         // prove the product belongs to the shop in the URL.
         shops: { id: SHOP.id, name: SHOP.name, slug: SHOP.slug, logo_key: shopLogo,
