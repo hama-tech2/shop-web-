@@ -11,6 +11,7 @@ import { APP_NAME, IMAGE_VARIANTS, PROFILE_VARIANTS, SHOP as T } from '../config
 import { layout } from '../render/layout.js';
 import { shopDescription, shopNotFound, shopPage } from '../render/shop.js';
 import { productDescription, productPage } from '../render/product-page.js';
+import { productBreadcrumbLd, productLd, shopLd } from '../render/structured-data.js';
 import {
   getCategories, getMoreFromShop, getProduct, getShopCategories,
   getShopProducts, getShopProfile, recordView, viewToken,
@@ -24,11 +25,11 @@ const absolute = (origin, key) =>
   `${origin}/img/${key.split('/').map(encodeURIComponent).join('/')}`;
 
 function page({ body, title, description, canonical, ogImage, ogImageWidth,
-                ogImageHeight, ogType, status = 200 }) {
+                ogImageHeight, ogType, structuredData = null, status = 200 }) {
   return new Response(
     layout({
       title, description, body, canonical, ogImage,
-      ogImageWidth, ogImageHeight, ogType,
+      ogImageWidth, ogImageHeight, ogType, structuredData,
       scripts: ['/js/shop.js', '/js/favorites.js'],
     }),
     {
@@ -116,6 +117,8 @@ export async function shopGet(request, env, url, slug, ctx) {
     ogImageWidth: ogSource?.size.width,
     ogImageHeight: ogSource?.size.height,
     ogType: 'profile',
+    // Everything in here is already rendered on the page above.
+    structuredData: shopLd({ shop, origin: url.origin, productCount: products.length }),
   });
 }
 
@@ -148,5 +151,9 @@ export async function productGet(request, env, url, slug, id, ctx) {
     ogImageWidth: 1200,
     ogImageHeight: 1500,
     ogType: 'product',
+    structuredData: [
+      productLd({ product, shop: product.shop }),
+      productBreadcrumbLd({ product, shop: product.shop }),
+    ],
   });
 }

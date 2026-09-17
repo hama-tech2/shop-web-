@@ -259,6 +259,36 @@ export async function searchShops(env, { query, limit = 20, offset = 0 }) {
 }
 
 /* ---------------------------------------------------------------
+   sitemap
+   --------------------------------------------------------------- */
+
+/**
+ * Every shop a stranger can open, for sitemap.xml.
+ *
+ * No status filter and no join: RLS on `shops` for the anon role is
+ * already `app.shop_is_public(id)`, so the rows that come back are
+ * exactly the ones /@slug will render. Adding a second rule here is how
+ * a sitemap starts listing pages that 404.
+ */
+export async function publicShops(env) {
+  return get(env, 'shops', {
+    select: 'id,slug,updated_at',
+    order: 'updated_at.desc',
+    limit: 5000,
+  });
+}
+
+/** Every publicly visible product, as the two fields a URL needs. */
+export async function publicProductRefs(env) {
+  return get(env, 'products', {
+    select: 'id,shop_id,updated_at',
+    status: 'eq.active',
+    order: 'updated_at.desc',
+    limit: 45000,
+  });
+}
+
+/* ---------------------------------------------------------------
    favourites
    --------------------------------------------------------------- */
 

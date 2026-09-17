@@ -46,6 +46,35 @@ export const BRAND = {
  */
 export const APP_TAGLINE = 'دوکانەکەت لە یەک بەستەردا';
 
+/**
+ * The one address Bazaro is, for a crawler.
+ *
+ * The Worker also answers on its workers.dev hostname, and a page that
+ * named that as its own address would be a second, competing copy of
+ * every shop in Google's index. Absolute URLs that a crawler reads —
+ * the sitemap, the JSON-LD, the robots Sitemap: line — are built from
+ * this and never from the request, whose Host header is not ours to
+ * trust. Per-page <link rel=canonical> is unchanged and still follows
+ * the request, so a preview deploy stays self-consistent.
+ */
+export const SITE_ORIGIN = 'https://bazarnow.xyz';
+
+/**
+ * What Bazaro calls itself where a machine is reading.
+ *
+ * alternateName carries the Kurdish name and the bare domain, because
+ * both are what somebody types when they are looking for this and do
+ * not remember which. Nothing here is a claim about the business that
+ * is not already on the page.
+ */
+export const SITE_IDENTITY = {
+  name: APP_NAME_LATIN,
+  alternateName: [APP_NAME, 'bazarnow.xyz'],
+  url: `${SITE_ORIGIN}/`,
+  description:
+    'Bazaro — بازاڕۆ. دوکانە بچووکەکانی کوردستان، هەر دوکانێک و یەک بەستەر.',
+};
+
 /** Products per page. The feed asks for one extra to know if more exist. */
 export const PAGE_SIZE = 6;
 
