@@ -7,6 +7,8 @@
  * The service_role key is never used here and must never reach this file.
  */
 
+import { DEFAULT_VISIBILITY } from './config.js';
+
 const SELECT_CARD =
   'id,title,price,currency,created_at,platform_category_id,category_id,' +
   'shops!inner(name,slug,logo_key,whatsapp,phone,maps_url),' +
@@ -60,10 +62,17 @@ export async function getFeed(env, { categoryId, query, limit, offset }) {
         p_limit: limit + 1,
         p_offset: offset,
         select: SELECT_CARD,
+        // search_products returns setof products, so the same filter
+        // applies to searching the feed as to scrolling it.
+        visibility: `eq.${DEFAULT_VISIBILITY}`,
       })
     : await get(env, 'products', {
         select: SELECT_CARD,
         status: 'eq.active',
+        // The marketplace feed shows what the seller pointed at it.
+        // A profile-only product is still active and still public — it
+        // just does not belong on somebody else's home screen.
+        visibility: `eq.${DEFAULT_VISIBILITY}`,
         platform_category_id: categoryId ? `eq.${categoryId}` : undefined,
         order: 'created_at.desc',
         limit: limit + 1,
@@ -245,6 +254,10 @@ export async function searchProducts(env, { query, categoryId, limit, offset = 0
     p_limit: limit + 1,
     p_offset: offset,
     select: SELECT_CARD,
+    // Searching Bazaro is the marketplace, the same as scrolling it.
+    // A product the seller kept off the feed stays off this too;
+    // it is still reachable on their profile and by its own link.
+    visibility: `eq.${DEFAULT_VISIBILITY}`,
   });
   return { products: rows.slice(0, limit).map(toCard), hasMore: rows.length > limit };
 }

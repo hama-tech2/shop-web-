@@ -10,6 +10,7 @@
 import {
   APP_NAME, DEFAULT_CURRENCY, FREE_IMAGE_LIMIT, FREE_PRODUCT_LIMIT, MAX_IMAGES,
   MAX_UPLOAD_BYTES, PRODUCT_CURRENCIES, PRODUCT as T, SUBSCRIPTION as S,
+  DEFAULT_VISIBILITY, PRODUCT_VISIBILITY,
 } from '../config.js';
 import { layout } from '../render/layout.js';
 import { productForm, trialLimitPage } from '../render/product-form.js';
@@ -31,7 +32,7 @@ const AFFECTED = 'return=representation';
 const affected = (res) => (res.ok && Array.isArray(res.data) ? res.data.length : 0);
 
 const PRODUCT_SELECT =
-  'id,title,price,currency,description,status,platform_category_id,category_id,created_at,' +
+  'id,title,price,currency,visibility,description,status,platform_category_id,category_id,created_at,' +
   'product_images(r2_key,r2_key_full,position)';
 
 function page(body, title, headers, scripts = ['/js/crop.js', '/js/product.js']) {
@@ -190,6 +191,25 @@ const parseCurrency = (raw) => {
   return Object.hasOwn(PRODUCT_CURRENCIES, value) ? value : null;
 };
 
+/**
+ * Where the seller chose to show this product, or null if the browser
+ * sent something else.
+ *
+ * Absent is not invalid: a form cached before this shipped has no
+ * visibility field, and that seller meant "everyone", which is what
+ * every product was until now. Only a value that is present AND
+ * unrecognised is refused — the same rule parseCurrency uses, and for
+ * the same reason: quietly folding an unknown value to a default hides
+ * a bug that the seller would never see.
+ *
+ * The database repeats this check (products_visibility_allowed).
+ */
+const parseVisibility = (raw) => {
+  if (raw === undefined || raw === null || raw === '') return DEFAULT_VISIBILITY;
+  const value = String(raw).trim();
+  return Object.hasOwn(PRODUCT_VISIBILITY, value) ? value : null;
+};
+
 const parsePrice = (raw) => {
   const text = String(raw ?? '')
     .replace(/[\u0660-\u0669]/g, (d) => String(d.charCodeAt(0) - 0x0660))
@@ -323,6 +343,7 @@ async function readForm(request, env, token, shopId, productId) {
   const images = picked.images ?? null;
   const price = parsePrice(f.price);
   const currency = parseCurrency(f.currency);
+  const visibility = parseVisibility(f.visibility);
   const ownCategory = await ownCategoryIdFor(env, token, shopId, f.own_category);
 
   const values = {
@@ -332,6 +353,8 @@ async function readForm(request, env, token, shopId, productId) {
     // sent back over a missing image should not silently reset a price
     // in dollars to one in dinars.
     currency: currency ?? DEFAULT_CURRENCY,
+    // Redrawn with what the seller picked, not with the default.
+    visibility: visibility ?? DEFAULT_VISIBILITY,
     description: (f.description || '').trim(),
     category: f.category || '',
     status: f.status === 'hidden' ? 'hidden' : 'active',
@@ -350,6 +373,7 @@ async function readForm(request, env, token, shopId, productId) {
   }
   if (price === null || price > 999999999) return { error: T.errPrice, values };
   if (currency === null) return { error: T.errCurrency, values };
+  if (visibility === null) return { error: T.errVisibility, values };
 
   return {
     values,
@@ -357,6 +381,7 @@ async function readForm(request, env, token, shopId, productId) {
       title: values.title,
       price,
       currency,
+      visibility,
       description: values.description || null,
       status: values.status,
       // An unknown market slug resolves to null rather than an error:
@@ -379,14 +404,17 @@ async function readEditForm(request, shopId, productId, product, categories) {
   const picked = cleanImages(f.images, shopId, productId);
   const images = picked.images ?? null;
   const original = toValues(product, categories);
+  const visibility = parseVisibility(f.visibility);
   const values = {
     ...original,
     title: (f.title || '').replace(/\s+/g, ' ').trim(),
     category: f.category || '',
+    visibility: visibility ?? original.visibility,
     images: images || [],
   };
 
   if (!images) return { error: picked.error, values };
+  if (visibility === null) return { error: T.errVisibility, values };
   if (values.title.length < 2 || values.title.length > 200) {
     return { error: T.errTitle, values };
   }
@@ -405,6 +433,9 @@ async function readEditForm(request, shopId, productId, product, categories) {
     values,
     row: {
       title: values.title,
+      // Where it shows is the seller's to change; what it costs is not.
+      // Price, currency and status still never leave this editor.
+      visibility,
       platform_category_id: categories.find((c) => c.slug === values.category)?.id ?? null,
     },
     images,
@@ -585,6 +616,9 @@ const toValues = (product, categories) => ({
   // A product written before the column existed has no currency to
   // load; it was in dinars, so that is what the form opens on.
   currency: product.currency ?? DEFAULT_CURRENCY,
+  // A product written before the column existed was shown to everyone,
+  // so that is what its form opens on.
+  visibility: product.visibility ?? DEFAULT_VISIBILITY,
   description: product.description ?? '',
   status: product.status === 'hidden' ? 'hidden' : product.status,
   category: categories.find((c) => c.id === product.platform_category_id)?.slug ?? '',

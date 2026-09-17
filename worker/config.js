@@ -142,6 +142,27 @@ export const PRODUCT_CURRENCIES = {
   USD: { code: 'USD', symbol: '$',   label: 'دۆلار',         lead: true,  decimals: 0 },
 };
 
+/**
+ * Where a product is shown.
+ *
+ * A second axis to `status`, not a replacement for it. `profile` is
+ * still a public product — the direct link works and anyone may open
+ * it; it is simply kept out of the marketplace feed. Both choices count
+ * toward the seller's plan limit, because both are live products.
+ */
+export const PRODUCT_VISIBILITY = {
+  everyone: { key: 'everyone', label: 'بۆ هەمووان', hint: 'لە سەرەتا و لە پرۆفایلەکەت دەردەکەوێت.' },
+  profile:  { key: 'profile',  label: 'تەنها لە پرۆفایل', hint: 'لە سەرەتادا دەرناکەوێت؛ لە پرۆفایلەکەت و بە بەستەری ڕاستەوخۆ دەردەکەوێت.' },
+};
+
+/** What every product made before this column existed already was. */
+export const DEFAULT_VISIBILITY = 'everyone';
+
+/** The label above the two choices on the product form. */
+export const VISIBILITY_UI = {
+  legend: 'دەرکەوتن',
+};
+
 /** The default, and what every product created before this was. */
 export const DEFAULT_CURRENCY = 'IQD';
 
@@ -302,6 +323,7 @@ export const PRODUCT = {
   errNoImage: 'لانیکەم یەک وێنە زیاد بکە.',
   errTitle: 'ناوی بەرهەم دەبێت لانیکەم ٢ پیت بێت.',
   errPrice: 'نرخێکی دروست بنووسە.',
+  errVisibility: 'دەرکەوتنێکی دروست هەڵبژێرە.',
   errCurrency: 'دراوێکی دروست هەڵبژێرە.',
   errUpload: 'ناردنی وێنە سەرکەوتوو نەبوو. دووبارە هەوڵ بدەرەوە.',
   errType: 'تەنها JPG، PNG یان WebP.',
@@ -382,12 +404,6 @@ export const SHOP = {
   /** wa.me needs digits only. */
   waNumber: (raw) => String(raw || '').replace(/[^0-9]/g, ''),
 
-  /** Pre-filled Sorani order message. Product name, then the link. */
-  orderText: (productTitle, url) =>
-    `سڵاو 👋\nحەزم لەم بەرهەمەیە: ${productTitle}\n${url}\nهێشتا بەردەستە؟`,
-
-  shopText: (shopName, url) =>
-    `سڵاو 👋\nدوکانەکەتم بینی: ${shopName}\n${url}`,
 };
 
 /** City slug -> Sorani label, for the pin under the shop name. */

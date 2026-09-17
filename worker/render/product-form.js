@@ -1,6 +1,7 @@
 import {
   CATEGORIES_UI as C, CURRENCY_UI as CUR, FREE_IMAGE_LIMIT, FREE_PRODUCT_LIMIT,
   IMAGE_VARIANTS, MAX_IMAGES, PRODUCT_CURRENCIES, PRODUCT as T,
+  DEFAULT_VISIBILITY, PRODUCT_VISIBILITY, VISIBILITY_UI,
 } from '../config.js';
 import { esc, price as fmtPrice } from './html.js';
 import { currencyOf, moneyText, symbolOf } from './money.js';
@@ -78,6 +79,7 @@ export function productForm({ mode, draftId, categories, shopCategories = [], va
     `<select class="field__input" name="category" id="category-field">` +
     [{ slug: '', name_ckb: T.categoryNone }, ...categories].map(c => `<option value="${esc(c.slug)}"${(values.category ?? '') === c.slug ? ' selected' : ''}>${esc(c.name_ckb)}</option>`).join('') +
     `</select><p class="field__hint">هەڵبژاردنەکەت بۆ بەرهەمی داهاتوو لەم وێبگەڕەدا دەمێنێتەوە.</p></div>` +
+    visibilityField(values.visibility) +
     `<div class="field"><label class="field__label" for="f-own-category">پۆلی دوکان</label>` +
     `<select class="field__input" id="f-own-category" name="own_category"><option value="">${esc(C.none)}</option>` +
     shopCategories.map(c => `<option value="${esc(c.id)}"${values.ownCategory === c.id ? ' selected' : ''}>${esc(c.name)}</option>`).join('') +
@@ -118,7 +120,7 @@ function editProductForm({ draftId, categories, values, error, imageLimit }) {
     `<div class="shell publish-page publish-page--edit">` +
     `<header class="publish-head"><a class="icon-btn" href="/app" aria-label="گەڕانەوە">${iconBack()}</a>` +
     `<h1>${esc(T.editTitle)}</h1><span></span></header>` +
-    `<p class="publish-sub">کاڤەر، ناو یان پۆلی بەرهەمەکە بگۆڕە.</p>` +
+    `<p class="publish-sub">کاڤەر، ناو، پۆل یان دەرکەوتنی بەرهەمەکە بگۆڕە.</p>` +
     alert(error) +
     `<form method="post" id="product-form" action="/app/products/${esc(draftId)}"` +
     ` data-mode="edit" data-cover-only="true" data-price="${esc(String(values.price ?? ''))}"` +
@@ -145,9 +147,36 @@ function editProductForm({ draftId, categories, values, error, imageLimit }) {
     `<select class="field__input" name="category" id="category-field">` +
     [{ slug: '', name_ckb: T.categoryNone }, ...categories].map(c => `<option value="${esc(c.slug)}"${(values.category ?? '') === c.slug ? ' selected' : ''}>${esc(c.name_ckb)}</option>`).join('') +
     `</select></div>` +
+    visibilityField(values.visibility) +
     `<div class="publish-save"><button class="btn btn--primary" type="submit" id="save-btn" data-saving="${esc(T.saving)}">${esc(T.save)}</button>` +
-    `<p>تەنها کاڤەر، ناو و پۆل پاشەکەوت دەکرێن.</p></div></form>` +
+    `<p>تەنها کاڤەر، ناو، پۆل و دەرکەوتن پاشەکەوت دەکرێن.</p></div></form>` +
     `</div>` + productCover() + `<script src="/js/product-cover.js" defer></script>`
+  );
+}
+
+/**
+ * Where the product is shown.
+ *
+ * Two radios in the same segmented control the currency picker uses, so
+ * it reads as one more choice rather than a new kind of setting. The
+ * hint under each spells out what it means, because "profile only"
+ * sounds like hiding and is not: the product stays public and its link
+ * keeps working.
+ */
+function visibilityField(value) {
+  const current = Object.hasOwn(PRODUCT_VISIBILITY, value) ? value : DEFAULT_VISIBILITY;
+  const options = Object.values(PRODUCT_VISIBILITY).map((v) =>
+    `<label class="seg__option">` +
+    `<input type="radio" name="visibility" value="${esc(v.key)}"` +
+    `${v.key === current ? ' checked' : ''}>` +
+    `<span>${esc(v.label)}</span></label>`).join('');
+
+  return (
+    `<fieldset class="seg" id="visibility-seg">` +
+    `<legend class="field__label">${esc(VISIBILITY_UI.legend)}</legend>` +
+    `<div class="seg__row">${options}</div>` +
+    `<p class="field__hint">${esc(PRODUCT_VISIBILITY[current].hint)}</p>` +
+    `</fieldset>`
   );
 }
 

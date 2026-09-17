@@ -60,6 +60,7 @@ let productImages = [];           // product_images on the public product
 let mixedList = false;            // the manager holding a visible AND a hidden product
 // IQD unless a test says otherwise; null models a pre-migration row.
 let productCurrency = 'IQD';
+let productVisibility = 'everyone';  // where the stub product is shown
 /**
  * The currency key as PostgREST would return it.
  *
@@ -68,6 +69,8 @@ let productCurrency = 'IQD';
  * it rather than send a null the views would treat differently.
  */
 const withCurrency = () => (productCurrency === null ? {} : { currency: productCurrency });
+/** A product written before the column existed simply has no visibility. */
+const withVisibility = () => (productVisibility === null ? {} : { visibility: productVisibility });
 
 let dismissed = {};               // banner kind -> ISO timestamp
 const telegram = [];              // every call the Worker made to the bot API
@@ -178,6 +181,12 @@ http.createServer(async (req, res) => {
     const v = decodeURIComponent(p.slice(12));
     productCurrency = v === '-' ? null : v;
     return send({ productCurrency });
+  }
+  // Where the stub product is shown, and the pre-column state ('-').
+  if (p.startsWith('/__visibility/')) {
+    const v = decodeURIComponent(p.slice(14));
+    productVisibility = v === '-' ? null : v;
+    return send({ productVisibility });
   }
   if (p.startsWith('/__public/')) { publicCount = Number(p.split('/')[2]); return send({ publicCount }); }
   if (p.startsWith('/__dismissed/')) {
@@ -456,10 +465,18 @@ http.createServer(async (req, res) => {
     }
     if (!write) {
       if (noProduct) return send([]);
+      // The feed and search ask for ?visibility=eq.everyone. PostgREST
+      // would return no row for a product that does not match, and a
+      // stub that ignored the filter would let a profile-only product
+      // "pass" a feed test it should fail.
+      const wantVisible = (url.searchParams.get('visibility') || '').slice(3);
+      if (wantVisible && productVisibility !== null && productVisibility !== wantVisible) {
+        return send([]);
+      }
       if (mixedList) {
         const base = { price: 85000, description: '', shop_id: SHOP.id, sort_order: 0,
                        platform_category_id: null, category_id: null, product_images: [],
-                       ...withCurrency() };
+                       ...withCurrency(), ...withVisibility() };
         return send([
           { ...base, id: PRODUCT_ID, title: 'کراسی کوردی', status: 'active' },
           { ...base, id: 'bbbbbbbb-2222-4222-8222-222222222222',
@@ -469,6 +486,7 @@ http.createServer(async (req, res) => {
       return send([{
         id: PRODUCT_ID, title: 'کراسی کوردی', price: 85000, description: '',
         ...withCurrency(),
+        ...withVisibility(),
         status: 'active', shop_id: SHOP.id, sort_order: 0,
         platform_category_id: null, category_id: null, product_images: productImages,
         // getProduct() joins shops!inner and reads the slug off it to
@@ -485,9 +503,14 @@ http.createServer(async (req, res) => {
   // Without this the stub answered null and /search threw, which is why
   // no suite had ever rendered a search result.
   if (table === 'rpc/search_products') {
+    const wantVisible = (url.searchParams.get('visibility') || '').slice(3);
+    if (wantVisible && productVisibility !== null && productVisibility !== wantVisible) {
+      return send([]);
+    }
     return send([{
       id: PRODUCT_ID, title: 'کراسی کوردی', price: 85000, description: '',
       ...withCurrency(),
+      ...withVisibility(),
       status: 'active', shop_id: SHOP.id, sort_order: 0,
       created_at: new Date().toISOString(),
       platform_category_id: null, category_id: null,
