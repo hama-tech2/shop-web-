@@ -5,7 +5,7 @@ import { bodyTooLarge, uploadRateAllows } from '../worker/abuse.js';
 import { sendRecovery, signInPassword, signUp } from '../worker/auth.js';
 import { cleanOrphanShopImages } from '../worker/cron.js';
 import worker, { harden } from '../worker/index.js';
-import { loginPost } from '../worker/routes/auth.js';
+import { loginPost, resetGet, resetPost } from '../worker/routes/auth.js';
 
 let checks = 0;
 const check = (name, value) => {
@@ -50,6 +50,21 @@ for (const [name, env] of [
 }
 
 globalThis.fetch = originalFetch;
+
+// An expired recovery session renders a complete login form, including
+// the CAPTCHA needed for the very first replacement login attempt.
+for (const [name, response] of [
+  ['GET', await resetGet(new Request('https://bazarnow.xyz/reset'), {
+    TURNSTILE_SITE_KEY: 'reset-site-key',
+  })],
+  ['POST', await resetPost(new Request('https://bazarnow.xyz/reset', {
+    method: 'POST', headers: { origin: 'https://bazarnow.xyz' },
+  }), { TURNSTILE_SITE_KEY: 'reset-site-key' })],
+]) {
+  const body = await response.text();
+  check(`expired reset ${name} includes a usable login CAPTCHA`,
+    body.includes('action="/login"') && body.includes('data-sitekey="reset-site-key"'));
+}
 
 // Request-size checks reject a known oversized body before multipart parsing.
 check('oversized request is detected', bodyTooLarge(new Request('https://x.test', {
@@ -157,8 +172,8 @@ check('upload limiter RPC is service-role only',
   /revoke all[\s\S]*public, anon, authenticated/.test(uploadMigration) &&
   /grant execute[\s\S]*to service_role/.test(uploadMigration));
 check('upload limiter has burst and daily caps',
-  uploadMigration.includes("12, interval '1 minute'") &&
-  uploadMigration.includes("100, interval '1 day'"));
+  uploadMigration.includes("30, interval '1 minute'") &&
+  uploadMigration.includes("1500, interval '1 day'"));
 
 const reportsMigration = readFileSync(new URL(
   '../supabase/migrations/20260923091000_disable_direct_public_reports.sql', import.meta.url,

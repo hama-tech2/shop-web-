@@ -349,7 +349,10 @@ export async function forgotPost(request, env, url) {
 
 export async function resetGet(request, env) {
   const { user } = await resolveSession(request, env);
-  if (!user) return html(loginPage({ error: AUTH.errSession }), AUTH.loginTitle);
+  if (!user) return html(loginPage({
+    error: AUTH.errSession,
+    turnstileSiteKey: turnstileSiteKey(env),
+  }), AUTH.loginTitle);
   return html(resetPage({}), `${AUTH.resetTitle} — ${APP_NAME}`);
 }
 
@@ -359,7 +362,10 @@ export async function resetPost(request, env) {
   const { user, token, refreshed } = await resolveSession(request, env);
   const headers = new Headers();
   if (refreshed) setSessionCookies(headers, refreshed);
-  if (!user) return html(loginPage({ error: AUTH.errSession }), AUTH.loginTitle, headers);
+  if (!user) return html(loginPage({
+    error: AUTH.errSession,
+    turnstileSiteKey: turnstileSiteKey(env),
+  }), AUTH.loginTitle, headers);
 
   const { password } = await form(request);
   if (!password || password.length < 8) {

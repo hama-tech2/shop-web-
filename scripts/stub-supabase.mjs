@@ -634,8 +634,8 @@ http.createServer(async (req, res) => {
 
     const overBurst = signup
       ? mine.filter((t) => now - t < 3600000).length >= 10
-      : upload && mine.filter((t) => now - t < 60000).length >= 12;
-    const overDay = mine.length >= (signup ? 30 : upload ? 100 : 10);
+      : upload && mine.filter((t) => now - t < 60000).length >= 30;
+    const overDay = mine.length >= (signup ? 30 : upload ? 1500 : 10);
     if (overBurst || overDay) {
       hits.set(key, mine);
       return send(false);

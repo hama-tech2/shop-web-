@@ -15,8 +15,8 @@ set search_path = app, public, pg_temp
 as $$
   select app.take_rate_token(
     'upload', p_key,
-    12, interval '1 minute',
-    100, interval '1 day'
+    30, interval '1 minute',
+    1500, interval '1 day'
   );
 $$;
 
@@ -26,4 +26,4 @@ grant execute on function public.rate_limit_upload(text)
   to service_role;
 
 comment on function public.rate_limit_upload(text) is
-  'True if an authenticated shop may start another R2 upload: 12 per minute and 100 per day. Called only by the Worker with its service credential after session and shop ownership checks.';
+  'True if an authenticated shop may start another R2 upload: 30 per minute and 1500 per day. The daily allowance covers a 200-product initial catalog with five images each plus retries and replacements; the burst and daily ceilings still bound runaway R2 writes. Called only by the Worker with its service credential after session and shop ownership checks.';
