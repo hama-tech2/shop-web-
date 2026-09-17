@@ -1,17 +1,20 @@
 /**
  * The nightly sweep.
  *
- * Three jobs, in order:
+ * Four jobs, in order:
  *   1. drain `deleted_objects` — nothing ever deletes from R2 inline,
  *      triggers queue the key and this is what actually removes it.
  *   2. delete orphaned draft uploads: /app/new mints a product id
  *      before the row exists, so an abandoned form leaves objects under
  *      a product id that never appeared. Older than 24 hours only.
- *   3. expire subscriptions whose grace period has run out.
+ *   3. delete abandoned shop logo/banner uploads that were never saved.
+ *      Current logo_key and cover_key values are always retained.
+ *   4. expire subscriptions whose grace period has run out.
  *
- * This is the ONLY file that touches the service_role key. It runs on
- * the `scheduled` handler, never on a request, and the key is a Worker
- * secret — it is never sent to a browser and never appears in a page.
+ * The cleanup work uses the service_role key. Request routes use it only
+ * through the narrow boolean rate-limit helper; seller data writes still
+ * use the seller's own token and RLS. The key is a Worker secret — it is
+ * never sent to a browser and never appears in a page.
  */
 
 const BATCH = 200;          // deletions per run
@@ -147,7 +150,58 @@ export async function cleanOrphanDrafts(env) {
 }
 
 /* ============================================================
-   3. lapsed subscriptions
+   3. abandoned shop image uploads
+   ============================================================ */
+
+export async function cleanOrphanShopImages(env) {
+  const cutoff = Date.now() - DRAFT_AGE_MS;
+  const candidates = [];
+  let cursor;
+
+  for (let page = 0; page < LIST_PAGES; page += 1) {
+    const listing = await env.IMAGES.list({ prefix: 'shops/', limit: 1000, cursor });
+    for (const object of listing.objects) {
+      if (object.uploaded && object.uploaded.getTime() > cutoff) continue;
+      candidates.push(object.key);
+    }
+    if (!listing.truncated) break;
+    cursor = listing.cursor;
+  }
+
+  if (!candidates.length) return { checked: 0, deleted: 0 };
+
+  // Read only the two columns that can legitimately reference a shop
+  // object. Page the read so a growing marketplace never silently keeps
+  // an orphan because it fell beyond PostgREST's response limit.
+  const live = new Set();
+  const pageSize = 1000;
+  for (let offset = 0; ; offset += pageSize) {
+    const rows = await rest(env, 'shops', {
+      search: {
+        select: 'logo_key,cover_key',
+        order: 'id.asc',
+        limit: String(pageSize),
+        offset: String(offset),
+      },
+    });
+    for (const row of rows ?? []) {
+      if (row.logo_key) live.add(row.logo_key);
+      if (row.cover_key) live.add(row.cover_key);
+    }
+    if (!rows || rows.length < pageSize) break;
+  }
+
+  let deleted = 0;
+  for (const key of candidates) {
+    if (live.has(key)) continue;
+    await env.IMAGES.delete(key);
+    deleted += 1;
+  }
+  return { checked: candidates.length, deleted };
+}
+
+/* ============================================================
+   4. lapsed subscriptions
    ============================================================ */
 
 export async function expireLapsed(env) {
@@ -169,6 +223,7 @@ export async function scheduled(event, env, ctx) {
     for (const [name, job] of [
       ['deletions', drainDeletions],
       ['drafts', cleanOrphanDrafts],
+      ['shopImages', cleanOrphanShopImages],
       ['subscriptions', expireLapsed],
     ]) {
       // One failing job must not stop the other two.

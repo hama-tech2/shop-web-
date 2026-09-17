@@ -6,11 +6,10 @@
  * (/styles, /js, /seed) are served by the ASSETS binding before this runs.
  */
 
-import { PAGE_SIZE } from './config.js';
+import { APP_TAGLINE, PAGE_SIZE, SITE_IDENTITY, SITE_ORIGIN } from './config.js';
 import { getCategories, getFeed } from './supabase.js';
 import { cardsFragment, feedHtml, feedTitle } from './render/feed.js';
 import { layout } from './render/layout.js';
-import { APP_TAGLINE } from './config.js';
 import * as authRoutes from './routes/auth.js';
 import * as onboarding from './routes/onboarding.js';
 import { appGet, bannerDismissPost } from './routes/app.js';
@@ -23,18 +22,60 @@ import * as favorites from './routes/favorites.js';
 import { scheduled } from './cron.js';
 import { webhookPost } from './routes/telegram.js';
 import * as payment from './routes/payment.js';
+import { robotsGet, sitemapGet } from './routes/seo.js';
+import { homeLd } from './render/structured-data.js';
 
 const IMG_CACHE = 'public, max-age=31536000, immutable';
 const HTML_CACHE = 'public, max-age=0, s-maxage=60, stale-while-revalidate=300';
+const CSP = [
+  "default-src 'self'",
+  "script-src 'self' https://challenges.cloudflare.com",
+  "style-src 'self' https://fonts.googleapis.com",
+  "font-src 'self' https://fonts.gstatic.com",
+  "img-src 'self' data: blob:",
+  "connect-src 'self' https://challenges.cloudflare.com https://fonts.googleapis.com https://fonts.gstatic.com",
+  'frame-src https://challenges.cloudflare.com',
+  "object-src 'none'",
+  "base-uri 'self'",
+  "frame-ancestors 'none'",
+].join('; ');
 
 export default {
   async fetch(request, env, ctx) {
-    const url = new URL(request.url);
-
-    const method = request.method.toUpperCase();
-    const path = url.pathname.replace(/\/+$/, '') || '/';
-
     try {
+      return harden(await routeRequest(request, env, ctx));
+    } catch (err) {
+      const url = new URL(request.url);
+      console.error('request failed', {
+        method: request.method,
+        path: url.pathname,
+        name: err?.name || 'Error',
+        message: String(err?.message || 'unknown error').slice(0, 500),
+      });
+      const api = url.pathname === '/api' || url.pathname.startsWith('/api/');
+      const response = api
+        ? Response.json({ error: 'temporary_failure' }, {
+            status: 500, headers: { 'cache-control': 'no-store' },
+          })
+        : new Response('Temporary error. Please try again.', {
+            status: 500,
+            headers: {
+              'content-type': 'text/plain; charset=utf-8',
+              'cache-control': 'no-store',
+            },
+          });
+      return harden(response);
+    }
+  },
+
+  scheduled,
+};
+
+async function routeRequest(request, env, ctx) {
+  const url = new URL(request.url);
+  const method = request.method.toUpperCase();
+  const path = url.pathname.replace(/\/+$/, '') || '/';
+
       if (path.startsWith('/img/')) return serveImage(request, env, url);
 
       // The Telegram webhook. Public, so the secret is in the path and
@@ -81,6 +122,10 @@ export default {
           status: 404, headers: { 'cache-control': 'no-store' },
         });
       }
+      // Crawler entry points. Before the auth-bearing routes and
+      // never behind a session: a crawler has no cookie.
+      if (path === '/robots.txt') return robotsGet();
+      if (path === '/sitemap.xml') return sitemapGet(env);
       if (path === '/search') return searchGet(env, url);
       if (path === '/saved') return favorites.savedGet(request, env);
       if (path === '/') return feedPage(env, url);
@@ -104,12 +149,12 @@ export default {
       if (path === '/signup') {
         return method === 'POST'
           ? authRoutes.signupPost(request, env)
-          : authRoutes.signupGet(request, url);
+          : authRoutes.signupGet(request, env, url);
       }
       if (path === '/login') {
         return method === 'POST'
           ? authRoutes.loginPost(request, env)
-          : authRoutes.loginGet(request, url);
+          : authRoutes.loginGet(request, env, url);
       }
       if (path === '/logout' && method === 'POST') return authRoutes.logoutPost(request, env);
       if (path === '/auth/google') return authRoutes.googleStart(request, env, url);
@@ -117,7 +162,7 @@ export default {
       if (path === '/forgot') {
         return method === 'POST'
           ? authRoutes.forgotPost(request, env, url)
-          : authRoutes.forgotGet();
+          : authRoutes.forgotGet(request, env);
       }
       if (path === '/reset') {
         return method === 'POST'
@@ -245,18 +290,24 @@ export default {
 
       // ---- protected seller area ----
       if (path === '/app' || path.startsWith('/app/')) return appGet(request, env, url);
-    } catch (err) {
-      return new Response(`error: ${err.message}`, {
-        status: 502,
-        headers: { 'content-type': 'text/plain; charset=utf-8' },
-      });
-    }
 
-    return env.ASSETS.fetch(request);
-  },
+  return assetResponse(request, env);
+}
 
-  scheduled,
-};
+export function harden(response) {
+  const headers = new Headers(response.headers);
+  headers.set('content-security-policy', CSP);
+  headers.set('strict-transport-security', 'max-age=31536000; includeSubDomains');
+  headers.set('x-content-type-options', 'nosniff');
+  headers.set('referrer-policy', 'strict-origin-when-cross-origin');
+  headers.set('x-frame-options', 'DENY');
+  headers.set('permissions-policy', 'camera=(), microphone=(), geolocation=()');
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  });
+}
 
 /**
  * Every /admin path, including one that matches nothing, ends at the
@@ -302,7 +353,16 @@ function adminRoute(request, env, url, path, method) {
     }
   }
 
-  return env.ASSETS.fetch(request);
+  return assetResponse(request, env);
+}
+
+function assetResponse(request, env) {
+  if (request.method === 'GET' || request.method === 'HEAD') {
+    return env.ASSETS.fetch(request);
+  }
+  return env.ASSETS.fetch(new Request(request.url, {
+    method: 'GET', headers: { accept: 'text/html' },
+  }));
 }
 
 const redirectTo = (location) =>
@@ -391,17 +451,22 @@ async function feedPage(env, url) {
   });
 
   const ogImage = products[0]?.images?.[0]
-    ? new URL(`/img/${products[0].images[0]}`, url).toString()
+    ? new URL(`/img/${products[0].images[0]}`, SITE_ORIGIN).toString()
     : null;
+
+  const isHomepage = !query && !category && !offset;
 
   return new Response(
     layout({
       title: feedTitle(query),
-      description: APP_TAGLINE,
-      canonical: new URL(url.pathname + url.search, url).toString(),
+      description: isHomepage ? SITE_IDENTITY.description : APP_TAGLINE,
+      canonical: new URL(url.pathname + url.search, SITE_ORIGIN).toString(),
       ogImage,
       body,
       scripts: ['/js/feed.js', '/js/favorites.js'],
+      // Who Bazaro is. Only on the unfiltered homepage: a category or a
+      // search is a view of the site, not a second site.
+      structuredData: isHomepage ? homeLd() : null,
     }),
     {
       headers: {

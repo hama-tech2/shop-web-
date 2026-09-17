@@ -4,7 +4,10 @@
  * Reads go through PostgREST with the PUBLISHABLE key only. Row Level
  * Security is what protects the data, so the anon role already sees
  * exactly the right rows: active products of active, non-expired shops.
- * The service_role key is never used here and must never reach this file.
+ * Ordinary reads and seller writes never use service_role. The one
+ * narrow exception below is the rate-limit RPC helper: it calls only a
+ * named service-only limiter, returns a boolean, and never exposes the
+ * credential to a response or browser.
  */
 
 const SELECT_CARD =
@@ -187,7 +190,8 @@ export async function getShopProducts(env, shopId, categoryId, ownCategoryId) {
 export async function getProduct(env, id) {
   const rows = await get(env, 'products', {
     select:
-      'id,title,price,currency,description,status,shop_id,platform_category_id,' +
+      'id,title,price,currency,description,status,shop_id,platform_category_id,category_id,' +
+      'platform_categories(name_ckb),categories(name),' +
       'shops!inner(id,name,slug,logo_key,whatsapp,city,maps_url),' +
       'product_images(r2_key,r2_key_full,position)',
     id: `eq.${id}`,
@@ -209,6 +213,8 @@ export async function getProduct(env, id) {
     currency: row.currency,
     description: row.description ?? '',
     categoryId: row.platform_category_id,
+    ownCategoryId: row.category_id,
+    category: row.categories?.name || row.platform_categories?.name_ckb || null,
     images: images.map((i) => ({ card: i.r2_key, full: i.r2_key_full || i.r2_key })),
     shop: row.shops,
   };
@@ -256,6 +262,46 @@ export async function searchShops(env, { query, limit = 20, offset = 0 }) {
     p_limit: limit,
     p_offset: offset,
   });
+}
+
+/* ---------------------------------------------------------------
+   sitemap
+   --------------------------------------------------------------- */
+
+/**
+ * Every shop a stranger can open, for sitemap.xml.
+ *
+ * No status filter and no join: RLS on `shops` for the anon role is
+ * already `app.shop_is_public(id)`, so the rows that come back are
+ * exactly the ones /@slug will render. Adding a second rule here is how
+ * a sitemap starts listing pages that 404.
+ */
+async function publicRows(env, path, search, maximum) {
+  const rows = [];
+  const pageSize = 1000;
+  while (rows.length < maximum) {
+    const limit = Math.min(pageSize, maximum - rows.length);
+    const page = await get(env, path, { ...search, limit, offset: rows.length });
+    rows.push(...page);
+    if (page.length < limit) break;
+  }
+  return rows;
+}
+
+export async function publicShops(env, limit = 49999) {
+  return publicRows(env, 'shops', {
+    select: 'id,slug,updated_at',
+    order: 'updated_at.desc',
+  }, limit);
+}
+
+/** Every publicly visible product, as the two fields a URL needs. */
+export async function publicProductRefs(env, limit = 49999) {
+  return publicRows(env, 'products', {
+    select: 'id,shop_id,updated_at',
+    status: 'eq.active',
+    order: 'updated_at.desc',
+  }, limit);
 }
 
 /* ---------------------------------------------------------------

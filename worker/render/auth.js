@@ -18,7 +18,13 @@ const googleButton = (next) =>
 const nextInput = (next) =>
   next ? `<input type="hidden" name="next" value="${esc(next)}">` : '';
 
-export function signupPage({ error, email = '', next }) {
+const turnstile = (siteKey) => siteKey
+  ? `<div class="auth__turnstile"><div class="cf-turnstile" data-sitekey="${esc(siteKey)}"` +
+    ` data-theme="light" data-size="flexible"></div></div>` +
+    `<script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>`
+  : '';
+
+export function signupPage({ error, email = '', next, turnstileSiteKey }) {
   return shell(
     brand() +
       `<h1 class="auth__title">${esc(AUTH.signupTitle)}</h1>` +
@@ -39,6 +45,7 @@ export function signupPage({ error, email = '', next }) {
         name: 'password', label: AUTH.password, type: 'password',
         autocomplete: 'new-password', hint: AUTH.passwordHint,
       }) +
+      turnstile(turnstileSiteKey) +
       button(AUTH.signupBtn) +
       `</form>` +
       `<p class="auth__foot">${esc(AUTH.haveAccount)} ` +
@@ -46,7 +53,7 @@ export function signupPage({ error, email = '', next }) {
   );
 }
 
-export function loginPage({ error, notice, email = '', next } = {}) {
+export function loginPage({ error, notice, email = '', next, turnstileSiteKey } = {}) {
   return (
     `<main class="auth login" aria-labelledby="login-title">` +
       `<a class="login__back" href="/">${iconBack(18)}<span>${esc(VISITOR.back)}</span></a>` +
@@ -79,13 +86,14 @@ export function loginPage({ error, notice, email = '', next } = {}) {
       `<path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/>` +
       `<path class="login__eye-slash" d="m3 3 18 18"/></svg></button></div>` +
       `<a class="login__forgot" href="/forgot">${esc(VISITOR.forgot)}</a>` +
+      turnstile(turnstileSiteKey) +
       button(AUTH.loginBtn) +
       `</form>` +
       `</main><script src="/js/login.js" defer></script>`
   );
 }
 
-export function forgotPage({ error, sent, email = '' }) {
+export function forgotPage({ error, sent, email = '', turnstileSiteKey }) {
   return shell(
     brand() +
       `<h1 class="auth__title">${esc(AUTH.forgotTitle)}</h1>` +
@@ -97,6 +105,7 @@ export function forgotPage({ error, sent, email = '' }) {
         name: 'email', label: AUTH.email, type: 'email', value: email,
         autocomplete: 'email', inputmode: 'email',
       }) +
+      turnstile(turnstileSiteKey) +
       button(AUTH.forgotBtn) +
       `</form>` +
       `<p class="auth__foot"><a href="/login">${esc(AUTH.goLogin)}</a></p>`,

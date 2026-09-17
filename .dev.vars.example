@@ -6,6 +6,15 @@
 #   wrangler secret put SUPABASE_SERVICE_ROLE_KEY
 SUPABASE_SERVICE_ROLE_KEY=
 
+# SERVER SIDE ONLY. Random salt for opaque client rate-limit keys.
+# Generate independently from every other secret:
+#   wrangler secret put VIEW_SALT
+VIEW_SALT=
+
+# Public Cloudflare Turnstile site key. The matching secret belongs only
+# in Supabase Auth -> Bot and Abuse Protection, never in this Worker.
+TURNSTILE_SITE_KEY=
+
 # R2 credentials for the deleted_objects queue drain, if the job ever
 # runs outside the Worker's R2 binding.
 R2_ACCOUNT_ID=

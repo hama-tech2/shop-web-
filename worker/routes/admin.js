@@ -22,6 +22,9 @@ import { grantProof, validGrantProof } from '../admin-grant.js';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const STATUSES = ['all', 'active', 'trial', 'expired', 'suspended'];
+const assetMiss = (request, env) => env.ASSETS.fetch(new Request(request.url, {
+  method: 'GET', headers: { accept: 'text/html' },
+}));
 
 function page(body, headers) {
   const h = new Headers(headers || undefined);
@@ -54,7 +57,7 @@ const redirect = (location, headers) => {
  * `miss` is the ordinary 404 the router would have produced anyway.
  */
 async function guard(request, env) {
-  const miss = () => ({ miss: env.ASSETS.fetch(request) });
+  const miss = () => ({ miss: assetMiss(request, env) });
 
   const { user, token, refreshed } = await resolveSession(request, env);
   if (!user) return miss();
@@ -228,10 +231,10 @@ async function loadShop(env, token, id) {
 export async function shopGet(request, env, url, id) {
   const g = await guard(request, env);
   if (g.miss) return g.miss;
-  if (!UUID.test(id)) return env.ASSETS.fetch(request);
+  if (!UUID.test(id)) return assetMiss(request, env);
 
   const data = await loadShop(env, g.token, id);
-  if (!data) return env.ASSETS.fetch(request);
+  if (!data) return assetMiss(request, env);
 
   return page(
     adminShop({
@@ -254,16 +257,16 @@ async function post(request, env, id) {
   const g = await guard(request, env);
   if (g.miss) return { deny: g.miss };
   if (!sameOrigin(request)) return { deny: new Response('bad origin', { status: 403 }) };
-  if (id && !UUID.test(id)) return { deny: env.ASSETS.fetch(request) };
+  if (id && !UUID.test(id)) return { deny: assetMiss(request, env) };
   return g;
 }
 
 export async function grantGet(request, env, id) {
   const g = await guard(request, env);
   if (g.miss) return g.miss;
-  if (!UUID.test(id)) return env.ASSETS.fetch(request);
+  if (!UUID.test(id)) return assetMiss(request, env);
   const data = await loadShop(env, g.token, id);
-  if (!data) return env.ASSETS.fetch(request);
+  if (!data) return assetMiss(request, env);
   return page(adminGrant({ ...data }), g.headers);
 }
 
@@ -271,7 +274,7 @@ export async function grantPost(request, env, id) {
   const g = await post(request, env, id);
   if (g.deny) return g.deny;
   const data = await loadShop(env, g.token, id);
-  if (!data) return env.ASSETS.fetch(request);
+  if (!data) return assetMiss(request, env);
   const f = await form(request);
   const plan = typeof f.plan === 'string' ? f.plan : '';
   const reason = typeof f.reason === 'string' ? f.reason : '';

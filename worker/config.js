@@ -46,6 +46,35 @@ export const BRAND = {
  */
 export const APP_TAGLINE = 'دوکانەکەت لە یەک بەستەردا';
 
+/**
+ * The one address Bazaro is, for a crawler.
+ *
+ * The Worker also answers on its workers.dev hostname, and a page that
+ * named that as its own address would be a second, competing copy of
+ * every shop in Google's index. Absolute URLs that a crawler reads —
+ * the sitemap, the JSON-LD, the robots Sitemap: line — are built from
+ * this and never from the request, whose Host header is not ours to
+ * trust. Public-page canonicals use the same origin, so preview and
+ * workers.dev hosts cannot become competing indexed copies.
+ */
+export const SITE_ORIGIN = 'https://bazarnow.xyz';
+
+/**
+ * What Bazaro calls itself where a machine is reading.
+ *
+ * alternateName carries the Kurdish name and the bare domain, because
+ * both are what somebody types when they are looking for this and do
+ * not remember which. Nothing here is a claim about the business that
+ * is not already on the page.
+ */
+export const SITE_IDENTITY = {
+  name: APP_NAME_LATIN,
+  alternateName: [APP_NAME, 'bazarnow.xyz'],
+  url: `${SITE_ORIGIN}/`,
+  description:
+    'Bazaro — بازاڕۆ، بازاڕێکی ئۆنلاینە کە دوکانەکان تێیدا بەرهەمەکانیان بڵاو دەکەنەوە و بەستەری دوکانەکەیان هاوبەش دەکەن.',
+};
+
 /** Products per page. The feed asks for one extra to know if more exist. */
 export const PAGE_SIZE = 6;
 
@@ -183,6 +212,8 @@ export const AUTH = {
   errPassword: 'وشەی نهێنی دەبێت لانیکەم ٨ پیت بێت.',
   errCredentials: 'ئیمەیڵ یان وشەی نهێنی هەڵەیە.',
   errTaken: 'ئەم ئیمەیڵە پێشتر تۆمارکراوە.',
+  errCaptcha: 'تکایە پشکنینی پاراستن تەواو بکە و دووبارە هەوڵ بدەرەوە.',
+  errAuthUnavailable: 'چوونە ژوورەوە کاتێکی کورت بەردەست نییە. تکایە دواتر هەوڵ بدەرەوە.',
   errGeneric: 'هەڵەیەک ڕوویدا. دووبارە هەوڵ بدەرەوە.',
   // Shown when this address has made too many accounts too quickly, and
   // when the limiter itself cannot run. Says the same thing either way:

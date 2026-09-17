@@ -49,6 +49,18 @@ function safeNext(value, fallback = '/app') {
 
 const validEmail = (v) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v || '');
 
+const turnstileSiteKey = (env) => String(env.TURNSTILE_SITE_KEY || '').trim();
+
+function captchaToken(data) {
+  const token = String(data['cf-turnstile-response'] || '').trim();
+  return token && token.length <= 2048 ? token : null;
+}
+
+function captchaError(env, token) {
+  if (!turnstileSiteKey(env)) return AUTH.errAuthUnavailable;
+  return token ? null : AUTH.errCaptcha;
+}
+
 async function form(request) {
   const data = await request.formData();
   const out = {};
@@ -109,21 +121,33 @@ async function landingFor(env, session, next) {
    /signup
    ============================================================ */
 
-export async function signupGet(request, url) {
+export async function signupGet(request, env, url) {
   const next = safeNext(url.searchParams.get('next'), '');
-  return html(signupPage({ next }), `${AUTH.signupTitle} — ${APP_NAME}`);
+  const siteKey = turnstileSiteKey(env);
+  return html(signupPage({
+    next,
+    turnstileSiteKey: siteKey,
+    error: siteKey ? null : AUTH.errAuthUnavailable,
+  }), `${AUTH.signupTitle} — ${APP_NAME}`);
 }
 
 export async function signupPost(request, env) {
   if (!sameOrigin(request)) return new Response('bad origin', { status: 403 });
-  const { email, password, next: rawNext } = await form(request);
+  const data = await form(request);
+  const { email, password, next: rawNext } = data;
   const next = safeNext(rawNext, '');
+  const siteKey = turnstileSiteKey(env);
+  const captcha = captchaToken(data);
+  const authError = captchaError(env, captcha);
 
   if (!validEmail(email)) {
-    return html(signupPage({ error: AUTH.errEmail, email, next }), AUTH.signupTitle);
+    return html(signupPage({ error: AUTH.errEmail, email, next, turnstileSiteKey: siteKey }), AUTH.signupTitle);
   }
   if (!password || password.length < 8) {
-    return html(signupPage({ error: AUTH.errPassword, email, next }), AUTH.signupTitle);
+    return html(signupPage({ error: AUTH.errPassword, email, next, turnstileSiteKey: siteKey }), AUTH.signupTitle);
+  }
+  if (authError) {
+    return html(signupPage({ error: authError, email, next, turnstileSiteKey: siteKey }), AUTH.signupTitle);
   }
 
   // The throttle, before Supabase is touched at all. Ten an hour and
@@ -142,17 +166,20 @@ export async function signupPost(request, env) {
         ? 'signup refused: no cf-connecting-ip on the request'
         : 'signup refused: VIEW_SALT is not set, so signups cannot be rate limited',
     );
-    return html(signupPage({ error: AUTH.errTooMany, email, next }), AUTH.signupTitle);
+    return html(signupPage({ error: AUTH.errTooMany, email, next, turnstileSiteKey: siteKey }), AUTH.signupTitle);
   }
   if (!await rateLimitAllows(env, 'rate_limit_signup', key)) {
-    return html(signupPage({ error: AUTH.errTooMany, email, next }), AUTH.signupTitle);
+    return html(signupPage({ error: AUTH.errTooMany, email, next, turnstileSiteKey: siteKey }), AUTH.signupTitle);
   }
 
-  const res = await signUp(env, email, password);
+  const res = await signUp(env, email, password, captcha);
   if (!res.ok) {
     const already = /already|registered|exists/i.test(res.error || '');
     return html(
-      signupPage({ error: already ? AUTH.errTaken : AUTH.errGeneric, email, next }),
+      signupPage({
+        error: already ? AUTH.errTaken : AUTH.errGeneric,
+        email, next, turnstileSiteKey: siteKey,
+      }),
       AUTH.signupTitle,
     );
   }
@@ -160,7 +187,9 @@ export async function signupPost(request, env) {
   // With confirmations off, signup returns a session immediately.
   const session = res.data?.access_token ? res.data : res.data?.session;
   if (!session?.access_token) {
-    return html(loginPage({ notice: AUTH.forgotSent, email, next }), AUTH.loginTitle);
+    return html(loginPage({
+      notice: AUTH.forgotSent, email, next, turnstileSiteKey: siteKey,
+    }), AUTH.loginTitle);
   }
 
   // A brand-new account has no shop yet, so the same rule applies:
@@ -174,21 +203,38 @@ export async function signupPost(request, env) {
    /login
    ============================================================ */
 
-export async function loginGet(request, url) {
+export async function loginGet(request, env, url) {
+  const siteKey = turnstileSiteKey(env);
   return html(
-    loginPage({ next: safeNext(url.searchParams.get('next'), '') }),
+    loginPage({
+      next: safeNext(url.searchParams.get('next'), ''),
+      turnstileSiteKey: siteKey,
+      error: siteKey ? null : AUTH.errAuthUnavailable,
+    }),
     `${AUTH.loginTitle} — ${APP_NAME}`,
   );
 }
 
 export async function loginPost(request, env) {
   if (!sameOrigin(request)) return new Response('bad origin', { status: 403 });
-  const { email, password, next: rawNext } = await form(request);
+  const data = await form(request);
+  const { email, password, next: rawNext } = data;
   const next = safeNext(rawNext, '');
+  const siteKey = turnstileSiteKey(env);
+  const captcha = captchaToken(data);
+  const authError = captchaError(env, captcha);
 
-  const res = await signInPassword(env, email, password);
+  if (authError) {
+    return html(loginPage({
+      error: authError, email, next, turnstileSiteKey: siteKey,
+    }), AUTH.loginTitle);
+  }
+
+  const res = await signInPassword(env, email, password, captcha);
   if (!res.ok || !res.data?.access_token) {
-    return html(loginPage({ error: AUTH.errCredentials, email, next }), AUTH.loginTitle);
+    return html(loginPage({
+      error: AUTH.errCredentials, email, next, turnstileSiteKey: siteKey,
+    }), AUTH.loginTitle);
   }
 
   const headers = new Headers();
@@ -232,17 +278,23 @@ export async function authCallback(request, env, url) {
   clearVerifierCookie(headers);
 
   const error = url.searchParams.get('error_description') || url.searchParams.get('error');
-  if (error) return html(loginPage({ error: AUTH.errGeneric }), AUTH.loginTitle, headers);
+  if (error) return html(loginPage({
+    error: AUTH.errGeneric, turnstileSiteKey: turnstileSiteKey(env),
+  }), AUTH.loginTitle, headers);
 
   const code = url.searchParams.get('code');
   const verifier = readVerifier(readCookies(request));
   if (!code || !verifier) {
-    return html(loginPage({ error: AUTH.errSession }), AUTH.loginTitle, headers);
+    return html(loginPage({
+      error: AUTH.errSession, turnstileSiteKey: turnstileSiteKey(env),
+    }), AUTH.loginTitle, headers);
   }
 
   const res = await exchangePkce(env, code, verifier);
   if (!res.ok || !res.data?.access_token) {
-    return html(loginPage({ error: AUTH.errGeneric }), AUTH.loginTitle, headers);
+    return html(loginPage({
+      error: AUTH.errGeneric, turnstileSiteKey: turnstileSiteKey(env),
+    }), AUTH.loginTitle, headers);
   }
 
   setSessionCookies(headers, res.data);
@@ -258,16 +310,28 @@ export async function authCallback(request, env, url) {
    password reset
    ============================================================ */
 
-export async function forgotGet() {
-  return html(forgotPage({}), `${AUTH.forgotTitle} — ${APP_NAME}`);
+export async function forgotGet(request, env) {
+  const siteKey = turnstileSiteKey(env);
+  return html(forgotPage({
+    turnstileSiteKey: siteKey,
+    error: siteKey ? null : AUTH.errAuthUnavailable,
+  }), `${AUTH.forgotTitle} — ${APP_NAME}`);
 }
 
 export async function forgotPost(request, env, url) {
   if (!sameOrigin(request)) return new Response('bad origin', { status: 403 });
-  const { email } = await form(request);
+  const data = await form(request);
+  const { email } = data;
+  const siteKey = turnstileSiteKey(env);
+  const captcha = captchaToken(data);
 
   if (!validEmail(email)) {
-    return html(forgotPage({ error: AUTH.errEmail, email }), AUTH.forgotTitle);
+    return html(forgotPage({ error: AUTH.errEmail, email, turnstileSiteKey: siteKey }), AUTH.forgotTitle);
+  }
+
+  const authError = captchaError(env, captcha);
+  if (authError) {
+    return html(forgotPage({ error: authError, email, turnstileSiteKey: siteKey }), AUTH.forgotTitle);
   }
 
   const verifier = createVerifier();
@@ -276,16 +340,19 @@ export async function forgotPost(request, env, url) {
 
   // Always report the same thing, so this cannot be used to discover
   // which email addresses have accounts.
-  await sendRecovery(env, email, challenge, redirectTo).catch(() => {});
+  await sendRecovery(env, email, challenge, redirectTo, captcha).catch(() => {});
 
   const headers = new Headers();
   setVerifierCookie(headers, verifier, RECOVERY_VERIFIER_AGE);
-  return html(forgotPage({ sent: true }), AUTH.forgotTitle, headers);
+  return html(forgotPage({ sent: true, turnstileSiteKey: siteKey }), AUTH.forgotTitle, headers);
 }
 
 export async function resetGet(request, env) {
   const { user } = await resolveSession(request, env);
-  if (!user) return html(loginPage({ error: AUTH.errSession }), AUTH.loginTitle);
+  if (!user) return html(loginPage({
+    error: AUTH.errSession,
+    turnstileSiteKey: turnstileSiteKey(env),
+  }), AUTH.loginTitle);
   return html(resetPage({}), `${AUTH.resetTitle} — ${APP_NAME}`);
 }
 
@@ -295,7 +362,10 @@ export async function resetPost(request, env) {
   const { user, token, refreshed } = await resolveSession(request, env);
   const headers = new Headers();
   if (refreshed) setSessionCookies(headers, refreshed);
-  if (!user) return html(loginPage({ error: AUTH.errSession }), AUTH.loginTitle, headers);
+  if (!user) return html(loginPage({
+    error: AUTH.errSession,
+    turnstileSiteKey: turnstileSiteKey(env),
+  }), AUTH.loginTitle, headers);
 
   const { password } = await form(request);
   if (!password || password.length < 8) {

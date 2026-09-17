@@ -7,10 +7,13 @@
  * JavaScript and follows no redirects it does not have to.
  */
 
-import { APP_NAME, IMAGE_VARIANTS, PROFILE_VARIANTS, SHOP as T } from '../config.js';
+import {
+  APP_NAME, IMAGE_VARIANTS, PROFILE_VARIANTS, SHOP as T, SITE_ORIGIN,
+} from '../config.js';
 import { layout } from '../render/layout.js';
 import { shopDescription, shopNotFound, shopPage } from '../render/shop.js';
 import { productDescription, productPage } from '../render/product-page.js';
+import { productBreadcrumbLd, productLd, shopLd } from '../render/structured-data.js';
 import {
   getCategories, getMoreFromShop, getProduct, getShopCategories,
   getShopProducts, getShopProfile, recordView, viewToken,
@@ -24,11 +27,11 @@ const absolute = (origin, key) =>
   `${origin}/img/${key.split('/').map(encodeURIComponent).join('/')}`;
 
 function page({ body, title, description, canonical, ogImage, ogImageWidth,
-                ogImageHeight, ogType, status = 200 }) {
+                ogImageHeight, ogType, structuredData = null, status = 200 }) {
   return new Response(
     layout({
       title, description, body, canonical, ogImage,
-      ogImageWidth, ogImageHeight, ogType,
+      ogImageWidth, ogImageHeight, ogType, structuredData,
       scripts: ['/js/shop.js', '/js/favorites.js'],
     }),
     {
@@ -111,11 +114,13 @@ export async function shopGet(request, env, url, slug, ctx) {
                      activeCategory: chipKey, origin: url.origin }),
     title: `${shop.name} — ${APP_NAME}`,
     description: shopDescription(shop, products.length),
-    canonical: `${url.origin}/@${shop.slug}`,
-    ogImage: ogSource ? absolute(url.origin, ogSource.key) : null,
+    canonical: `${SITE_ORIGIN}/@${shop.slug}`,
+    ogImage: ogSource ? absolute(SITE_ORIGIN, ogSource.key) : null,
     ogImageWidth: ogSource?.size.width,
     ogImageHeight: ogSource?.size.height,
     ogType: 'profile',
+    // Everything in here is already rendered on the page above.
+    structuredData: shopLd({ shop }),
   });
 }
 
@@ -137,16 +142,27 @@ export async function productGet(request, env, url, slug, id, ctx) {
   count(request, env, ctx, { product: product.id });
 
   const more = await getMoreFromShop(env, product.shop.id, product.id);
-  const ogKey = product.images[0]?.full || product.images[0]?.card || shop.cover_key || null;
+  const ogSource =
+    (product.images[0]?.full
+      && { key: product.images[0].full, size: IMAGE_VARIANTS.full })
+    || (product.images[0]?.card
+      && { key: product.images[0].card, size: IMAGE_VARIANTS.card })
+    || (shop.cover_key
+      && { key: shop.cover_key, size: PROFILE_VARIANTS.banner })
+    || null;
 
   return page({
     body: productPage({ product, more, origin: url.origin }),
     title: `${product.title} — ${shop.name}`,
     description: productDescription(product),
-    canonical: `${url.origin}/@${shop.slug}/p/${product.id}`,
-    ogImage: ogKey ? absolute(url.origin, ogKey) : null,
-    ogImageWidth: 1200,
-    ogImageHeight: 1500,
+    canonical: `${SITE_ORIGIN}/@${shop.slug}/p/${product.id}`,
+    ogImage: ogSource ? absolute(SITE_ORIGIN, ogSource.key) : null,
+    ogImageWidth: ogSource?.size.width,
+    ogImageHeight: ogSource?.size.height,
     ogType: 'product',
+    structuredData: [
+      productLd({ product, shop: product.shop }),
+      productBreadcrumbLd({ product, shop: product.shop }),
+    ],
   });
 }

@@ -11,6 +11,7 @@ import { APP_NAME, ONBOARDING as T } from '../config.js';
 import { layout } from '../render/layout.js';
 import { completeSlug, stepContact, stepLogo, stepName, stepSlug } from '../render/onboarding.js';
 import { asUser, clientRateKey, rateLimitAllows, slugAvailable } from '../supabase.js';
+import { bodyTooLarge, uploadRateAllows } from '../abuse.js';
 import {
   clearDraft, getOwnShop, readCookies, readDraft, resolveSession,
   sameOrigin, setDraft, setSessionCookies,
@@ -18,6 +19,7 @@ import {
 import { form, redirect } from './auth.js';
 
 const MAX_LOGO_BYTES = 5 * 1024 * 1024;
+const MAX_LOGO_REQUEST_BYTES = MAX_LOGO_BYTES + (128 * 1024);
 const LOGO_TYPES = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' };
 
 function page(body, title, headers, scripts = ['/js/app.js']) {
@@ -190,6 +192,12 @@ export async function logoPost(request, env) {
   if (!sameOrigin(request)) return new Response('bad origin', { status: 403 });
   const g = await guard(request, env, { needsShop: true });
   if (g.redirect) return g.redirect;
+  if (!await uploadRateAllows(env, g.shop.id, rateLimitAllows)) {
+    return logoPage(stepLogo({ shop: g.shop, error: T.errTooMany }), g.headers);
+  }
+  if (bodyTooLarge(request, MAX_LOGO_REQUEST_BYTES)) {
+    return logoPage(stepLogo({ shop: g.shop, error: T.errLogoSize }), g.headers);
+  }
 
   let file;
   try {

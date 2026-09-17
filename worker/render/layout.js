@@ -1,4 +1,5 @@
 import { APP_NAME, APP_NAME_LATIN, BRAND } from '../config.js';
+import { ldJson } from './structured-data.js';
 import { esc } from './html.js';
 
 /**
@@ -9,8 +10,16 @@ import { esc } from './html.js';
 export function layout({
   title, description, body, canonical, ogImage,
   ogImageWidth, ogImageHeight, ogType = 'website',
-  scripts = ['/js/feed.js'],
+  scripts = ['/js/feed.js'], structuredData = null,
 }) {
+  // Structured data, for Google and for the crawlers behind AI answers.
+  // One <script> per block rather than one combined graph: a block with
+  // a mistake in it is then discarded on its own instead of taking the
+  // page's whole description down with it.
+  const jsonLd = (structuredData ? [].concat(structuredData) : [])
+    .filter(Boolean)
+    .map((block) => `<script type="application/ld+json">${ldJson(block)}</script>`)
+    .join('');
   // A page with no image of its own still needs a share card, and an
   // og:image must be absolute or every crawler drops it silently. The
   // canonical URL is the only origin this function is given, so a page
@@ -72,8 +81,10 @@ export function layout({
     `<link rel="stylesheet" href="/styles/account.css">` +
     `<link rel="stylesheet" href="/styles/admin.css">` +
     `<link rel="stylesheet" href="/styles/search.css">` +
+    jsonLd +
     `</head>` +
     `<body>${body}` +
+    `<script src="/js/confirm-submit.js" defer></script>` +
     scripts.map((src) => `<script src="${esc(src)}" defer></script>`).join('') +
     // Cards also arrive after load on Saved and the owner's public-shop preview.
     (scripts.includes('/js/favorites.js') || body.includes('id="owner-products"')

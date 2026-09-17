@@ -78,7 +78,7 @@ function rowHtml(category, index, total) {
     `<form id="move-${esc(category.id)}-down" method="post" action="${action}/move" hidden>` +
     `<input type="hidden" name="dir" value="down"></form>` +
     `<form id="del-${esc(category.id)}" method="post" action="${action}/delete" hidden` +
-    ` onsubmit="return confirm('${esc(T.removeConfirm)}')"></form>` +
+    ` data-confirm="${esc(T.removeConfirm)}"></form>` +
 
     `</li>`
   );

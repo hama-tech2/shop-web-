@@ -55,7 +55,9 @@ const ok = () => new Response('ok', { status: 200 });
  * Somebody probing for the webhook learns nothing from it: not that the
  * path shape is right, not that the secret was close.
  */
-const miss = (request, env) => env.ASSETS.fetch(request);
+const miss = (request, env) => env.ASSETS.fetch(new Request(request.url, {
+  method: 'GET', headers: { accept: 'text/html' },
+}));
 
 export async function webhookPost(request, env, pathSecret) {
   // Not configured at all: the route may as well not exist.

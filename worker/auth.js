@@ -93,11 +93,17 @@ async function authFetch(env, path, { method = 'POST', body, token, redirectTo }
   return { ok: true, status: res.status, data };
 }
 
-export const signUp = (env, email, password) =>
-  authFetch(env, '/signup', { body: { email, password } });
+const captchaMeta = (captchaToken) => ({
+  gotrue_meta_security: { captcha_token: captchaToken },
+});
 
-export const signInPassword = (env, email, password) =>
-  authFetch(env, '/token?grant_type=password', { body: { email, password } });
+export const signUp = (env, email, password, captchaToken) =>
+  authFetch(env, '/signup', { body: { email, password, ...captchaMeta(captchaToken) } });
+
+export const signInPassword = (env, email, password, captchaToken) =>
+  authFetch(env, '/token?grant_type=password', {
+    body: { email, password, ...captchaMeta(captchaToken) },
+  });
 
 export const refreshSession = (env, refresh_token) =>
   authFetch(env, '/token?grant_type=refresh_token', { body: { refresh_token } });
@@ -114,10 +120,15 @@ export const updateUser = (env, token, patch) =>
 export const signOut = (env, token) =>
   authFetch(env, '/logout', { token, body: {} });
 
-export const sendRecovery = (env, email, codeChallenge, redirectTo) =>
+export const sendRecovery = (env, email, codeChallenge, redirectTo, captchaToken) =>
   authFetch(env, '/recover', {
     redirectTo,
-    body: { email, code_challenge: codeChallenge, code_challenge_method: 's256' },
+    body: {
+      email,
+      code_challenge: codeChallenge,
+      code_challenge_method: 's256',
+      ...captchaMeta(captchaToken),
+    },
   });
 
 /* ---------------------------------------------------------------

@@ -126,8 +126,16 @@ try {
   check('no-JS password control stays hidden', await plain.locator('.login__reveal').isHidden());
   await plain.getByLabel(AUTH.email, { exact: true }).fill('s@x.test');
   await plain.getByLabel(AUTH.password, { exact: true }).fill('Local-test-123');
+  // Turnstile itself requires JavaScript. Inject the official dummy token
+  // here so this remains a test of the Worker's native form POST and safe
+  // redirect, not a live dependency on Cloudflare's widget runtime.
+  await plain.locator('form[action="/login"]').evaluate(form => {
+    const token = document.createElement('input');
+    token.type = 'hidden'; token.name = 'cf-turnstile-response';
+    token.value = 'XXXX.DUMMY.TOKEN.XXXX'; form.appendChild(token);
+  });
   await Promise.all([plain.waitForURL(APP + '/saved'), plain.getByRole('button', { name: AUTH.loginBtn, exact: true }).click()]);
-  check('native login POST preserves next without JavaScript', new URL(plain.url()).pathname === '/saved');
+  check('native login POST with a validated token preserves next', new URL(plain.url()).pathname === '/saved');
   await basic.close();
 
   const seller = await browser.newContext({ javaScriptEnabled: false });
@@ -135,6 +143,13 @@ try {
   await account.goto(APP + '/app');
   await account.getByLabel(AUTH.email, { exact: true }).fill('s@x.test');
   await account.getByLabel(AUTH.password, { exact: true }).fill('Local-test-123');
+  await account.locator('form[action="/login"]').evaluate(form => {
+    const existing = form.querySelector('[name="cf-turnstile-response"]');
+    if (existing) existing.remove();
+    const token = document.createElement('input');
+    token.type = 'hidden'; token.name = 'cf-turnstile-response';
+    token.value = 'XXXX.DUMMY.TOKEN.XXXX'; form.appendChild(token);
+  });
   await Promise.all([
     account.waitForResponse(response => new URL(response.url()).pathname === '/login' && response.request().method() === 'POST'),
     account.getByRole('button', { name: AUTH.loginBtn, exact: true }).click(),
