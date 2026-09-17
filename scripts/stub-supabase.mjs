@@ -619,20 +619,24 @@ http.createServer(async (req, res) => {
   // keeps — a refusal records nothing, and each bucket counts its own
   // attempts. Real limits, so a test that loops past them sees what a
   // spammer would.
-  if (table === 'rpc/rate_limit_signup' || table === 'rpc/rate_limit_shop') {
+  if (table === 'rpc/rate_limit_signup' || table === 'rpc/rate_limit_shop' ||
+      table === 'rpc/rate_limit_upload') {
     if (!(req.headers.authorization || '').includes(SERVICE_KEY)) return send({ code: '42501' }, 403);
     const key = lastBody?.p_key;
     if (typeof key !== 'string' || !key) return send({ code: '22023' }, 400);
 
     const signup = table.endsWith('signup');
-    const bucket = signup ? 'signup' : 'shop_day';
+    const upload = table.endsWith('upload');
+    const bucket = signup ? 'signup' : upload ? 'upload' : 'shop_day';
     const now = Date.now();
     const hits = (rateEvents[bucket] ||= new Map());
     const mine = (hits.get(key) || []).filter((t) => now - t < 86400000);
 
-    const overHour = signup && mine.filter((t) => now - t < 3600000).length >= 10;
-    const overDay = mine.length >= (signup ? 30 : 10);
-    if (overHour || overDay) {
+    const overBurst = signup
+      ? mine.filter((t) => now - t < 3600000).length >= 10
+      : upload && mine.filter((t) => now - t < 60000).length >= 12;
+    const overDay = mine.length >= (signup ? 30 : upload ? 100 : 10);
+    if (overBurst || overDay) {
       hits.set(key, mine);
       return send(false);
     }

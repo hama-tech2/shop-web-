@@ -4,7 +4,10 @@
  * Reads go through PostgREST with the PUBLISHABLE key only. Row Level
  * Security is what protects the data, so the anon role already sees
  * exactly the right rows: active products of active, non-expired shops.
- * The service_role key is never used here and must never reach this file.
+ * Ordinary reads and seller writes never use service_role. The one
+ * narrow exception below is the rate-limit RPC helper: it calls only a
+ * named service-only limiter, returns a boolean, and never exposes the
+ * credential to a response or browser.
  */
 
 const SELECT_CARD =

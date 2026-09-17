@@ -39,6 +39,15 @@
 
 .auth__foot a { color: var(--accent); font-weight: var(--fw-bold); }
 
+.auth__turnstile {
+  width: 100%;
+  min-height: 65px;
+  margin: 0 0 var(--s-4);
+  overflow: hidden;
+}
+
+.auth__turnstile .cf-turnstile { width: 100%; }
+
 /* Signed-out Account and login share one compact, scrollable screen.
    Scope the palette so signup, recovery and seller pages keep theirs. */
 body:has(.login) {

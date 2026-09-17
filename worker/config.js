@@ -183,6 +183,8 @@ export const AUTH = {
   errPassword: 'وشەی نهێنی دەبێت لانیکەم ٨ پیت بێت.',
   errCredentials: 'ئیمەیڵ یان وشەی نهێنی هەڵەیە.',
   errTaken: 'ئەم ئیمەیڵە پێشتر تۆمارکراوە.',
+  errCaptcha: 'تکایە پشکنینی پاراستن تەواو بکە و دووبارە هەوڵ بدەرەوە.',
+  errAuthUnavailable: 'چوونە ژوورەوە کاتێکی کورت بەردەست نییە. تکایە دواتر هەوڵ بدەرەوە.',
   errGeneric: 'هەڵەیەک ڕوویدا. دووبارە هەوڵ بدەرەوە.',
   // Shown when this address has made too many accounts too quickly, and
   // when the limiter itself cannot run. Says the same thing either way:

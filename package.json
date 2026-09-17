@@ -11,6 +11,7 @@
     "db:push": "supabase db push",
     "db:diff": "supabase db diff",
     "test:security": "node scripts/security-test.mjs",
+    "test:hardening": "node scripts/security-hardening-test.mjs",
     "test:favorites": "node scripts/favorites-test.mjs",
     "test:auth": "node scripts/auth-next-test.mjs",
     "test:affected": "node scripts/affected-rows-test.mjs",

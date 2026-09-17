@@ -101,7 +101,7 @@ export function productForm({ mode, draftId, categories, shopCategories = [], va
     `<span class="description-count" id="description-count"></span></div>` +
     `<div class="publish-save"><button class="btn btn--primary" type="submit" id="save-btn" data-saving="${esc(T.saving)}">${esc(isEdit ? T.save : 'بڵاو بکەرەوە')}</button>` +
     `<p>پێش پاشەکەوتکردن، وێنەکان و زانیارییەکان بپشکنە.</p></div></form>` +
-    (isEdit ? `<form method="post" action="/app/products/${esc(draftId)}/delete" onsubmit="return confirm('${esc(T.deleteConfirm)}')"><button class="btn btn--ghost btn--danger" type="submit">${esc(T.delete)}</button></form>` : '') +
+    (isEdit ? `<form method="post" action="/app/products/${esc(draftId)}/delete" data-confirm="${esc(T.deleteConfirm)}"><button class="btn btn--ghost btn--danger" type="submit">${esc(T.delete)}</button></form>` : '') +
     `</div>` + productCover() + `<script src="/js/product-cover.js" defer></script>`
   );
 }

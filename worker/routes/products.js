@@ -14,11 +14,13 @@ import {
 import { layout } from '../render/layout.js';
 import { productForm, trialLimitPage } from '../render/product-form.js';
 import { accessGatePage } from '../render/subscription.js';
-import { asUser, getCategories, subscriptionState } from '../supabase.js';
+import { asUser, getCategories, rateLimitAllows, subscriptionState } from '../supabase.js';
 import { getOwnShop, resolveSession, sameOrigin, setSessionCookies } from '../auth.js';
+import { bodyTooLarge, uploadLimited, uploadRateAllows } from '../abuse.js';
 import { redirect } from './auth.js';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const MAX_UPLOAD_REQUEST_BYTES = (MAX_UPLOAD_BYTES * 2) + (128 * 1024);
 
 /**
  * PostgREST answers 200 with an empty body when a write matches no
@@ -109,6 +111,10 @@ export async function uploadPost(request, env) {
 
   const g = await guard(request, env);
   if (g.redirect) return Response.json({ error: 'auth' }, { status: 401 });
+  if (!await uploadRateAllows(env, g.shop.id, rateLimitAllows)) return uploadLimited();
+  if (bodyTooLarge(request, MAX_UPLOAD_REQUEST_BYTES)) {
+    return Response.json({ error: 'size' }, { status: 413 });
+  }
 
   let data;
   try {
@@ -139,10 +145,16 @@ export async function uploadPost(request, env) {
   const cardKey = `${prefix}${name}-card.webp`;
   const fullKey = `${prefix}${name}-full.webp`;
 
-  await Promise.all([
+  const written = await Promise.allSettled([
     env.IMAGES.put(cardKey, card.buffer, { httpMetadata: { contentType: card.type } }),
     env.IMAGES.put(fullKey, full.buffer, { httpMetadata: { contentType: full.type } }),
   ]);
+  if (written.some((result) => result.status === 'rejected')) {
+    await Promise.allSettled([env.IMAGES.delete(cardKey), env.IMAGES.delete(fullKey)]);
+    return Response.json({ error: 'upload' }, {
+      status: 503, headers: { 'cache-control': 'no-store' },
+    });
+  }
 
   return Response.json({ card: cardKey, full: fullKey, url: `/img/${cardKey}` },
                        { headers: { 'cache-control': 'no-store' } });

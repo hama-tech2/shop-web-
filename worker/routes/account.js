@@ -15,9 +15,10 @@ import { profilePage } from '../render/profile.js';
 import { categoriesPage } from '../render/categories.js';
 import { accessGatePage, payPage, subscriptionPage } from '../render/subscription.js';
 import { notifyPending } from '../telegram.js';
-import { asUser, subscriptionState } from '../supabase.js';
+import { asUser, rateLimitAllows, subscriptionState } from '../supabase.js';
 import { paymentsEnabled } from '../wayl.js';
 import { getOwnShop, resolveSession, sameOrigin, setSessionCookies } from '../auth.js';
+import { bodyTooLarge, uploadLimited, uploadRateAllows } from '../abuse.js';
 import { redirect, safeNext } from './auth.js';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -30,6 +31,7 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const AFFECTED = 'return=representation';
 const affected = (res) => (res.ok && Array.isArray(res.data) ? res.data.length : 0);
 const MAX_IMAGE_BYTES = 4 * 1024 * 1024;
+const MAX_IMAGE_REQUEST_BYTES = MAX_IMAGE_BYTES + (128 * 1024);
 
 function page(body, title, headers, scripts = ['/js/account.js']) {
   const h = new Headers(headers || undefined);
@@ -237,6 +239,10 @@ export async function profileImagePost(request, env) {
   if (!sameOrigin(request)) return Response.json({ error: 'origin' }, { status: 403 });
   const g = await guard(request, env);
   if (g.redirect) return Response.json({ error: 'auth' }, { status: 401 });
+  if (!await uploadRateAllows(env, g.shop.id, rateLimitAllows)) return uploadLimited();
+  if (bodyTooLarge(request, MAX_IMAGE_REQUEST_BYTES)) {
+    return Response.json({ error: 'size' }, { status: 413 });
+  }
 
   let data;
   try { data = await request.formData(); }
