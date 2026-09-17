@@ -94,6 +94,70 @@ begin
     end loop;
   end loop;
 
+  -- ------------------------------------------------------------
+  -- month_1: the grant-only duration.
+  --
+  -- The loop above pairs every grant against the paid activation of the
+  -- same plan, which month_1 cannot join: it has no price, so there is
+  -- no paid path to compare it to (app.plan_price('month_1') is null,
+  -- and app.set_intent_price returns before reading it only because the
+  -- source is manual_grant). That is exactly why it needs its own case
+  -- rather than being left out — an owner can grant it, so it has to be
+  -- proven to work, and to add one month and not twelve.
+  -- ------------------------------------------------------------
+  foreach v_days in array array[-10, 0, 40] loop
+    v_start := now() + make_interval(days => v_days);
+    update public.subscriptions set plan='trial', status='trialing', expires_at=v_start where shop_id=v_shop;
+    perform set_config('request.jwt.claims', json_build_object('sub', v_admin, 'role', 'authenticated')::text, true);
+    set local role authenticated;
+    v_grant := public.admin_grant_plan(v_shop, 'month_1', 'one month gift', gen_random_uuid());
+    reset role;
+    select * into strict v_grant_sub from public.subscriptions where shop_id=v_shop;
+
+    if v_grant.months_added <> 1 then
+      raise exception 'FAIL: month_1 added % months, not 1', v_grant.months_added;
+    end if;
+    if v_grant.method <> 'manual_grant' or v_grant.amount <> 0 or v_grant.recorded_by <> v_admin then
+      raise exception 'FAIL: month_1 grant attribution';
+    end if;
+    -- One month from the later of now and the old expiry, which is the
+    -- rule the whole grant screen is built on.
+    if v_grant_sub.expires_at
+       <> greatest(v_start, v_grant.paid_at) + make_interval(months => 1 + v_grant.bonus_months) then
+      raise exception 'FAIL: month_1 did not extend from the later of now/expiry (days %)', v_days;
+    end if;
+  end loop;
+
+  -- ------------------------------------------------------------
+  -- A grant never shortens, and never throws unused time away.
+  --
+  -- The equivalence checks above would still pass if both the paid and
+  -- the granted path started counting from now() and silently dropped a
+  -- seller's remaining months, because they are compared with each
+  -- other rather than against the clock. This states the property on
+  -- its own: whatever the shop had, it has at least as much afterwards.
+  -- ------------------------------------------------------------
+  foreach v_plan in array array['month_1', 'months_6', 'year_1'] loop
+    foreach v_days in array array[-10, 0, 40, 400] loop
+      v_start := now() + make_interval(days => v_days);
+      update public.subscriptions set plan='trial', status='trialing', expires_at=v_start where shop_id=v_shop;
+      perform set_config('request.jwt.claims', json_build_object('sub', v_admin, 'role', 'authenticated')::text, true);
+      set local role authenticated;
+      perform public.admin_grant_plan(v_shop, v_plan, 'never shortens', gen_random_uuid());
+      reset role;
+      select * into strict v_grant_sub from public.subscriptions where shop_id=v_shop;
+      if v_grant_sub.expires_at <= v_start then
+        raise exception 'FAIL: % grant moved expiry backwards from % (days %)', v_plan, v_start, v_days;
+      end if;
+      if v_grant_sub.expires_at <= now() then
+        raise exception 'FAIL: % grant left the shop expired (days %)', v_plan, v_days;
+      end if;
+      if v_grant_sub.status <> 'active' then
+        raise exception 'FAIL: % grant did not activate the shop (days %)', v_plan, v_days;
+      end if;
+    end loop;
+  end loop;
+
   -- An existing real transfer survives a gift; it is never marked paid by the gift.
   v_intent := gen_random_uuid();
   insert into public.payment_intents(id, shop_id, plan, amount, status)
@@ -127,5 +191,5 @@ begin
   reset role;
 end;
 $$;
-select 'PASS: database gates, 6 paid/grant equivalence scenarios, audit, retry, existing transfer and service paid activation' as result;
+select 'PASS: database gates, 6 paid/grant equivalence scenarios, 3 month_1 grants, 12 never-shortens scenarios, audit, retry, existing transfer and service paid activation' as result;
 rollback;
