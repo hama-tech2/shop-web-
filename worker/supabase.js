@@ -10,6 +10,8 @@
  * credential to a response or browser.
  */
 
+import { DEFAULT_VISIBILITY } from './config.js';
+
 const SELECT_CARD =
   'id,title,price,currency,created_at,platform_category_id,category_id,' +
   'shops!inner(name,slug,logo_key,whatsapp,phone,maps_url),' +
@@ -67,6 +69,10 @@ export async function getFeed(env, { categoryId, query, limit, offset }) {
     : await get(env, 'products', {
         select: SELECT_CARD,
         status: 'eq.active',
+        // The marketplace feed shows what the seller pointed at it.
+        // A profile-only product is still active and still public — it
+        // just does not belong on somebody else's home screen.
+        visibility: `eq.${DEFAULT_VISIBILITY}`,
         platform_category_id: categoryId ? `eq.${categoryId}` : undefined,
         order: 'created_at.desc',
         limit: limit + 1,

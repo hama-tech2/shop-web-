@@ -8,8 +8,8 @@ import {
 
 const imgUrl = (key) => `/img/${key.split('/').map(encodeURIComponent).join('/')}`;
 
-const wa = (number, text) =>
-  `https://wa.me/${T.waNumber(number)}?text=${encodeURIComponent(text)}`;
+/** The shop's WhatsApp, with an empty composer. See product-page.js. */
+const wa = (number) => `https://wa.me/${T.waNumber(number)}`;
 
 /* ============================================================
    header — banner, logo, name, city, bio, contact
@@ -78,7 +78,7 @@ export function shopHeader({ shop, origin, controls = '' }) {
       `<button class="shop-bio-toggle" type="button" aria-controls="shop-bio" aria-expanded="false" hidden>زیاتر</button></div>` : '') +
     controls +
     `<div class="shop-actions">` +
-    `<a class="btn btn--whatsapp" href="${esc(wa(shop.whatsapp, T.shopText(shop.name, url)))}"` +
+    `<a class="btn btn--whatsapp" href="${esc(wa(shop.whatsapp))}"` +
     ` target="_blank" rel="noopener">${iconWhatsapp()}` +
     `<span>${esc(T.whatsappShop)}</span></a>` +
     // https-only, enforced by the CHECK on shops.maps_url and again by

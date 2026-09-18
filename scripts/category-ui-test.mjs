@@ -1,14 +1,9 @@
 /**
- * Shop Web — the two screens where a seller touches categories.
+ * Shop Web — category publishing stays simple while the shop category
+ * manager remains available on the owner profile.
  *
- * Both are browser behaviour, so both are tested in a browser against
- * the real Worker: the assertions are about what survives an action,
- * which no amount of HTML checking can see.
- *
- *  - Add Product: creating a category must not navigate. The title, the
- *    price, the description and the prepared images have to still be
- *    there afterwards, and the new category has to come back selected.
- *    On failure the form stays put and one line says why.
+ *  - Add Product: one optional marketplace category and no shop-category
+ *    picker or inline creation controls.
  *  - Owner Profile: "ڕێکخستن" turns the category chips into rename,
  *    delete and add, in place. No long press, no manager page.
  *
@@ -24,7 +19,6 @@ const { chromium } = pw;
 const APP = process.argv[2] || 'http://127.0.0.1:8810';
 const STUB = process.argv[3] || 'http://127.0.0.1:8899';
 const CAT_A = 'dddddddd-1111-4111-8111-111111111111';
-const CAT_NEW = 'dddddddd-3333-4333-8333-333333333333';
 
 // The stub is shared and stateful, and another suite may have left it
 // reporting zero affected rows. Say what this one needs.
@@ -57,79 +51,25 @@ async function open(path) {
 const NEW_PRODUCT = '/app/new?plan=free';
 
 /* ============================================================
-   Add Product — a new category without losing the form
+   Add Product — one optional marketplace category
    ============================================================ */
 
 {
-  const { ctx, page, navigations } = await open(NEW_PRODUCT);
-  const before = navigations.length;
-
-  // Fill the form the way a seller would before noticing they need a
-  // section. This is exactly the state the old link threw away.
-  await page.fill('#f-title', 'کراسی کوردی');
-  await page.fill('#f-price', '25000');
-  await page.fill('#f-description', 'وەسفێکی کورت');
-
-  // Stand in for a prepared image: the hidden field is what the publish
-  // actually reads, and it is what a page reload would clear.
-  await page.evaluate(() => {
-    document.getElementById('images-field').value = '[{"card":"x","full":"y"}]';
-  });
-
-  check('the old manage link is gone', await page.locator('.category-manage').count(), 0);
-  check('there is an inline opener instead',
-        await page.locator('#category-add-open').count(), 1);
-  check('the inline form starts hidden',
-        await page.locator('#category-add-form').isHidden(), true);
-
-  await page.click('#category-add-open');
-  check('tapping it opens the input', await page.locator('#category-add-form').isVisible(), true);
-  check('and focuses it',
-        await page.evaluate(() => document.activeElement.id), 'category-add-name');
-
-  await page.fill('#category-add-name', 'شەڵ');
-  await page.click('#category-add-save');
-  await page.waitForFunction(() => document.getElementById('f-own-category').value !== '');
-
-  check('the new category is selected',
-        await page.inputValue('#f-own-category'), CAT_NEW);
-  check('by name, in the list',
-        await page.locator(`#f-own-category option[value="${CAT_NEW}"]`).textContent(), 'شەڵ');
-  check('the inline form closes again',
-        await page.locator('#category-add-form').isHidden(), true);
-
-  check('the page never navigated', navigations.length, before);
-  check('the title survived', await page.inputValue('#f-title'), 'کراسی کوردی');
-  check('the price survived', await page.inputValue('#f-price'), '25,000');
-  check('the description survived', await page.inputValue('#f-description'), 'وەسفێکی کورت');
-  check('the prepared images survived',
-        await page.inputValue('#images-field'), '[{"card":"x","full":"y"}]');
-
-  /* Enter must create the category, not publish a half-typed product. */
-  await page.click('#category-add-open');
-  await page.fill('#category-add-name', 'پێڵاو');
-  await page.press('#category-add-name', 'Enter');
-  await page.waitForTimeout(300);
-  check('Enter does not submit the product form', navigations.length, before);
-  check('Enter created the category instead',
-        await page.locator('#category-add-form').isHidden(), true);
-
-  /* A failure keeps everything and says so in one line. */
-  await ctx.route('**/api/categories', (route) =>
-    route.fulfill({ status: 500, contentType: 'application/json', body: '{"error":"boom"}' }));
-  await page.click('#category-add-open');
-  await page.fill('#category-add-name', 'شتێک');
-  await page.click('#category-add-save');
-  await page.waitForSelector('#category-add-error:not([hidden])');
-
-  check('a failure shows a local error',
-        (await page.locator('#category-add-error').textContent()).length > 0, true);
-  check('a failure does not navigate', navigations.length, before);
-  check('a failure keeps the title', await page.inputValue('#f-title'), 'کراسی کوردی');
-  check('a failure keeps the images',
-        await page.inputValue('#images-field'), '[{"card":"x","full":"y"}]');
-  check('a failure keeps what was typed',
-        await page.inputValue('#category-add-name'), 'شتێک');
+  const { ctx, page } = await open(NEW_PRODUCT);
+  check('there is exactly one product category field',
+        await page.locator('select[name="category"]').count(), 1);
+  check('the product category label is پۆل',
+        (await page.locator('label[for="category-field"]').textContent()).trim().startsWith('پۆل'), true);
+  check('the product category is marked optional',
+        (await page.locator('label[for="category-field"]').textContent()).includes('ئارەزوومەندانە'), true);
+  check('there is no shop-category selector',
+        await page.locator('[name="own_category"], #f-own-category').count(), 0);
+  check('there is no inline shop-category creation UI',
+        await page.locator('#category-add-open, #category-add-form').count(), 0);
+  check('the old marketplace label is gone',
+        (await page.locator('body').textContent()).includes('پۆلی بازاڕ'), false);
+  check('the old shop-category label is gone',
+        (await page.locator('body').textContent()).includes('پۆلی دوکان'), false);
 
   await ctx.close();
 }

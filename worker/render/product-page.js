@@ -6,8 +6,16 @@ import { iconBack, iconHeart, iconPin, iconShare, iconWhatsapp } from './icons.j
 
 const imgUrl = (key) => `/img/${key.split('/').map(encodeURIComponent).join('/')}`;
 
-const wa = (number, text) =>
-  `https://wa.me/${T.waNumber(number)}?text=${encodeURIComponent(text)}`;
+/**
+ * The seller's WhatsApp, with an empty composer.
+ *
+ * No ?text=. A pre-filled message put Bazaro's words in the customer's
+ * mouth — they tapped to ask about a product and WhatsApp opened with a
+ * greeting, the product name and a link already typed, which many
+ * people send without reading and others delete before they can start.
+ * The chat opens empty and the customer writes their own first line.
+ */
+const wa = (number) => `https://wa.me/${T.waNumber(number)}`;
 
 /**
  * Product detail.
@@ -92,7 +100,7 @@ export function productPage({ product, more, origin }) {
     (location ? `<a class="card__action card__action--location" href="${esc(location)}" target="_blank" rel="noopener noreferrer" aria-label="شوێنی دوکان"><span>${iconPin(18)}</span></a>` : '') + `</div>` +
 
     `<div class="pdp-order">` +
-    `<a class="btn btn--whatsapp" href="${esc(wa(shop.whatsapp, T.orderText(product.title, pageUrl)))}"` +
+    `<a class="btn btn--whatsapp" href="${esc(wa(shop.whatsapp))}"` +
     ` target="_blank" rel="noopener">${iconWhatsapp()}` +
     `<span>${esc(T.whatsappOrder)}</span></a>` +
     `</div></div>` +

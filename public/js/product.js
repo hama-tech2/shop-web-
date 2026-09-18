@@ -187,56 +187,6 @@
     try { var last = localStorage.getItem(categoryKey); if (last !== null && Array.from(category.options).some(function (option) { return option.value === last; })) category.value = last; } catch (e) { /* Storage is optional. */ }
   }
   category.addEventListener('change', function () { try { localStorage.setItem(categoryKey, category.value); } catch (e) { /* Storage is optional. */ } });
-  /* ---------------------------------------------------------
-     a new shop category, without leaving this form
-     Nothing below navigates or reloads: the title, the price, the
-     description and every prepared image stay exactly where they are,
-     including when the request fails.
-     --------------------------------------------------------- */
-  var own = document.getElementById('f-own-category');
-  var catOpen = document.getElementById('category-add-open');
-  var catForm = document.getElementById('category-add-form');
-  var catName = document.getElementById('category-add-name');
-  var catSave = document.getElementById('category-add-save');
-  var catCancel = document.getElementById('category-add-cancel');
-  var catError = document.getElementById('category-add-error');
-
-  if (own && catOpen && catForm && catName && catSave && catCancel && catError) {
-    function catSay(text) { catError.textContent = text || ''; catError.hidden = !text; }
-    function catShow(open) {
-      catForm.hidden = !open;
-      catOpen.hidden = open;
-      if (open) { catName.value = ''; catSay(''); catName.focus(); }
-      else { catOpen.focus(); }
-    }
-    async function createCategory() {
-      var name = catName.value.replace(/\s+/g, ' ').trim();
-      if (!name) { catSay(D.msgCatName); catName.focus(); return; }
-      catSave.disabled = catName.disabled = true;
-      catSay('');
-      try {
-        var body = new URLSearchParams(); body.append('name', name);
-        var response = await fetch('/api/categories', { method: 'POST', credentials: 'same-origin', body: body });
-        var data = await response.json().catch(function () { return null; });
-        if (!response.ok || !data || !data.id) throw new Error(data && data.error);
-        var option = Array.from(own.options).find(function (o) { return o.value === data.id; });
-        if (option) option.textContent = data.name;
-        else { option = document.createElement('option'); option.value = data.id; option.textContent = data.name; own.appendChild(option); }
-        own.value = data.id;
-        catShow(false);
-      } catch (error) {
-        catSay(error.message || D.msgCatCreate);
-        catName.focus();
-      } finally { catSave.disabled = catName.disabled = false; }
-    }
-    catOpen.addEventListener('click', function () { catShow(true); });
-    catCancel.addEventListener('click', function () { catShow(false); });
-    catSave.addEventListener('click', createCategory);
-    catName.addEventListener('keydown', function (e) {
-      if (e.key === 'Enter') { e.preventDefault(); createCategory(); }
-      else if (e.key === 'Escape') { e.preventDefault(); catShow(false); }
-    });
-  }
   var description = document.getElementById('f-description');
   if (description) {
     function countDescription() { document.getElementById('description-count').textContent = Array.from(description.value).length + ' پیت'; }
