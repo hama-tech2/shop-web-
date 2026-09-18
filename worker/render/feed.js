@@ -237,4 +237,4 @@ export function feedHtml({ products, hasMore, category, query, offset, pageSize 
 }
 
 export const feedTitle = (query) =>
-  query ? `${query} — ${APP_NAME}` : `${APP_NAME} · ${APP_TAGLINE}`;
+  query ? `${query} — ${APP_NAME}` : `${APP_NAME_LATIN} (${APP_NAME}) — KurdBazaro | bazarnow.xyz`;
