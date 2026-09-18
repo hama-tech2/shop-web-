@@ -61,6 +61,7 @@
   "vars": {
     "SUPABASE_URL": "https://kvwgiobnpwrjwyevadvc.supabase.co",
     "SUPABASE_PUBLISHABLE_KEY": "sb_publishable_j6YHgYneV4Bfox79hrxH7g_0r28MsBg",
+    "TURNSTILE_SITE_KEY": "0x4AAAAAAE6_PB7CXJ14it2G",
     "R2_BUCKET": "shop-web-images",
     "PAYMENTS_ENABLED": "true",
     "WAYL_ENV": "live",
