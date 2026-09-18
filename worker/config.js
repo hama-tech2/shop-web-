@@ -69,10 +69,19 @@ export const SITE_ORIGIN = 'https://bazarnow.xyz';
  */
 export const SITE_IDENTITY = {
   name: APP_NAME_LATIN,
-  alternateName: [APP_NAME, 'bazarnow.xyz'],
+  alternateName: [
+    APP_NAME,
+    'KurdBazaro',
+    'Kurd Bazaro',
+    'KurdBazar',
+    'Kurd Bazaar',
+    'Bazarnow',
+    'Bazaro Now',
+    'bazarnow.xyz',
+  ],
   url: `${SITE_ORIGIN}/`,
   description:
-    'Bazaro — بازاڕۆ، بازاڕێکی ئۆنلاینە کە دوکانەکان تێیدا بەرهەمەکانیان بڵاو دەکەنەوە و بەستەری دوکانەکەیان هاوبەش دەکەن.',
+    'Bazaro — بازاڕۆ (KurdBazaro / Bazarnow)، بازاڕێکی ئۆنلاینە کە دوکانەکان تێیدا بەرهەمەکانیان بڵاو دەکەنەوە و بەستەری دوکانەکەیان هاوبەش دەکەن.',
 };
 
 /** Products per page. The feed asks for one extra to know if more exist. */
