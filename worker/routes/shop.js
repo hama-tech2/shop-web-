@@ -8,7 +8,7 @@
  */
 
 import {
-  APP_NAME, IMAGE_VARIANTS, PROFILE_VARIANTS, SHOP as T, SITE_ORIGIN,
+  APP_NAME, APP_NAME_LATIN, IMAGE_VARIANTS, PROFILE_VARIANTS, SHOP as T, SITE_ORIGIN,
 } from '../config.js';
 import { layout } from '../render/layout.js';
 import { shopDescription, shopNotFound, shopPage } from '../render/shop.js';
@@ -112,7 +112,7 @@ export async function shopGet(request, env, url, slug, ctx) {
   return page({
     body: shopPage({ shop, products, categories, shopCategories,
                      activeCategory: chipKey, origin: url.origin }),
-    title: `${shop.name} — ${APP_NAME}`,
+    title: `${shop.name} — ${APP_NAME_LATIN} (${APP_NAME})`,
     description: shopDescription(shop, products.length),
     canonical: `${SITE_ORIGIN}/@${shop.slug}`,
     ogImage: ogSource ? absolute(SITE_ORIGIN, ogSource.key) : null,
@@ -153,7 +153,7 @@ export async function productGet(request, env, url, slug, id, ctx) {
 
   return page({
     body: productPage({ product, more, origin: url.origin }),
-    title: `${product.title} — ${shop.name}`,
+    title: `${product.title} — ${shop.name} | ${APP_NAME_LATIN}`,
     description: productDescription(product),
     canonical: `${SITE_ORIGIN}/@${shop.slug}/p/${product.id}`,
     ogImage: ogSource ? absolute(SITE_ORIGIN, ogSource.key) : null,
