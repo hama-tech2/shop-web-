@@ -139,26 +139,29 @@ function editProductForm({ draftId, categories, values, error, imageLimit }) {
 /**
  * Where the product is shown.
  *
- * Two radios in the same segmented control the currency picker uses, so
- * it reads as one more choice rather than a new kind of setting. The
- * helper text spells out the less obvious profile-only choice, because
- * it sounds like hiding and is not: the product stays searchable and
- * public, and its direct link keeps working.
+ * A checked switch posts `everyone`; its hidden fallback posts `profile`
+ * when unchecked. The database values and their meaning stay unchanged,
+ * while the seller answers the simpler question: show this on Home?
  */
 function visibilityField(value) {
   const current = Object.hasOwn(PRODUCT_VISIBILITY, value) ? value : DEFAULT_VISIBILITY;
-  const options = Object.values(PRODUCT_VISIBILITY).map((v) =>
-    `<label class="seg__option">` +
-    `<input type="radio" name="visibility" value="${esc(v.key)}"` +
-    `${v.key === current ? ' checked' : ''}>` +
-    `<span>${esc(v.label)}</span></label>`).join('');
+  const on = current === 'everyone';
+  const hint = on ? VISIBILITY_UI.onHint : VISIBILITY_UI.offHint;
 
   return (
-    `<fieldset class="seg" id="visibility-seg">` +
-    `<legend class="field__label">${esc(VISIBILITY_UI.legend)}</legend>` +
-    `<div class="seg__row">${options}</div>` +
-    `<p class="field__hint">${esc(VISIBILITY_UI.hint)}</p>` +
-    `</fieldset>`
+    `<div class="visibility-field" id="visibility-field">` +
+    `<label class="visibility-row" for="visibility-toggle">` +
+    `<span class="visibility-row__label">${esc(VISIBILITY_UI.label)}</span>` +
+    `<span class="visibility-switch">` +
+    `<input type="hidden" name="visibility" value="profile">` +
+    `<input class="visibility-switch__control" id="visibility-toggle" type="checkbox"` +
+    ` name="visibility" value="everyone" role="switch" aria-describedby="visibility-hint"` +
+    `${on ? ' checked' : ''}>` +
+    `<span class="visibility-switch__track" aria-hidden="true"><span class="visibility-switch__thumb"></span></span>` +
+    `</span></label>` +
+    `<p class="field__hint visibility-hint" id="visibility-hint" aria-live="polite"` +
+    ` data-on="${esc(VISIBILITY_UI.onHint)}" data-off="${esc(VISIBILITY_UI.offHint)}">${esc(hint)}</p>` +
+    `</div>`
   );
 }
 
