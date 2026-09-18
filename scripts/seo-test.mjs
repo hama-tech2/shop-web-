@@ -144,6 +144,10 @@ check('with the Kurdish name as an alternate',
   website?.alternateName?.includes(APP_NAME), true);
 check('and the bare domain as an alternate',
   website?.alternateName?.includes('bazarnow.xyz'), true);
+for (const alias of ['KurdBazaro', 'Kurd Bazaro', 'KurdBazar', 'Kurd Bazaar', 'Bazarnow', 'Bazaro Now']) {
+  check(`homepage identity carries search alias ${alias}`,
+    website?.alternateName?.includes(alias), true);
+}
 check('pointing at the canonical domain', website?.url, `${SITE_ORIGIN}/`);
 check('and it is the identity config, not a second copy',
   website?.url, SITE_IDENTITY.url);
@@ -154,7 +158,12 @@ check('the WebSite names that Organization as its publisher',
   website?.publisher?.['@id'], org?.['@id']);
 
 check('og:site_name is Bazaro', head(home, /og:site_name" content="([^"]*)"/), APP_NAME_LATIN);
-check('the homepage has a title', (head(home, /<title>([^<]*)<\/title>/) || '').length > 0, true);
+check('the homepage title names the Latin brand',
+  (head(home, /<title>([^<]*)<\/title>/) || '').includes(APP_NAME_LATIN), true);
+check('the homepage title carries KurdBazaro',
+  (head(home, /<title>([^<]*)<\/title>/) || '').includes('KurdBazaro'), true);
+check('the homepage title carries the domain identity',
+  (head(home, /<title>([^<]*)<\/title>/) || '').includes('bazarnow.xyz'), true);
 check('and explains the marketplace',
   head(home, /name="description" content="([^"]*)"/), SITE_IDENTITY.description);
 check('and uses the production canonical',
@@ -181,6 +190,8 @@ check('its intentionally public social profile is discoverable',
 check('and it belongs to Bazaro', store?.parentOrganization?.['@id'], org?.['@id']);
 check('the shop page uses the production canonical',
   head(shop, /rel="canonical" href="([^"]*)"/), `${SITE_ORIGIN}${SHOP_PATH}`);
+check('the shop title ties the seller to Bazaro',
+  (head(shop, /<title>([^<]*)<\/title>/) || '').includes(APP_NAME_LATIN), true);
 
 // Requirement 6: already-public shop detail is in the server HTML.
 check('shop name is server-rendered', shop.includes('بۆتیکی نافین'), true);
@@ -215,6 +226,8 @@ check('which links back to the shop page',
   product?.offers?.seller?.url, `${SITE_ORIGIN}${SHOP_PATH}`);
 check('the product page uses the production canonical',
   head(productHtml, /rel="canonical" href="([^"]*)"/), `${SITE_ORIGIN}${PRODUCT_PATH}`);
+check('the product title ties the listing to Bazaro',
+  (head(productHtml, /<title>([^<]*)<\/title>/) || '').includes(APP_NAME_LATIN), true);
 
 /* ---------- nothing invented ----------
    Google penalises structured data that the page cannot support, and
