@@ -196,10 +196,11 @@ export const PRODUCT_VISIBILITY = {
 /** What every product made before this column existed already was. */
 export const DEFAULT_VISIBILITY = 'everyone';
 
-/** The label above the two choices on the product form. */
+/** Seller-facing copy for the compact Home / For You switch. */
 export const VISIBILITY_UI = {
-  legend: 'دەرکەوتنی بەرهەم',
-  hint: 'تەنها لە پڕۆفایل لە سەرەتادا دەرناکەوێت؛ لە گەڕان، پڕۆفایلی دوکان و بەستەری ڕاستەوخۆ هەر دیارە.',
+  label: 'پیشاندانی لە «بۆ تۆ»',
+  onHint: 'بەرهەمەکە لە «بۆ تۆ» دەردەکەوێت.',
+  offHint: 'لە «بۆ تۆ» دەرناکەوێت، بەڵام لە گەڕان و پڕۆفایلی دوکان هەر دیارە.',
 };
 
 /** The default, and what every product created before this was. */

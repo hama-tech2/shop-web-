@@ -16,7 +16,7 @@
  *   npx wrangler dev --port 8810 --local
  *   node scripts/visibility-test.mjs
  */
-import { DEFAULT_VISIBILITY, PRODUCT_VISIBILITY } from '../worker/config.js';
+import { DEFAULT_VISIBILITY } from '../worker/config.js';
 
 const APP = process.argv[2] || 'http://127.0.0.1:8810';
 const STUB = process.argv[3] || 'http://127.0.0.1:8899';
@@ -39,7 +39,7 @@ const post = (p, fields) => fetch(APP + p, {
   method: 'POST',
   redirect: 'manual',
   headers: { cookie: COOKIE, origin: APP, 'content-type': 'application/x-www-form-urlencoded' },
-  body: new URLSearchParams(fields),
+  body: fields instanceof URLSearchParams ? fields : new URLSearchParams(fields),
 });
 
 /** Every wa.me link on a page. */
@@ -141,19 +141,19 @@ await control(`/__visibility/${DEFAULT_VISIBILITY}`);
    ============================================================ */
 
 const createForm = await page('/app/new', true);
-check('the create form offers the choice', createForm.includes('name="visibility"'), true);
-check('with both options',
-  Object.keys(PRODUCT_VISIBILITY).every((k) => createForm.includes(`value="${k}"`)), true);
-check('and "everyone" is preselected',
-  /value="everyone"[^>]*checked/.test(createForm), true);
-check('profile-only is not preselected',
-  /value="profile"[^>]*checked/.test(createForm), false);
-check('both labels are on the form',
-  createForm.includes('لە هەموو شوێنەکان') && createForm.includes('تەنها لە پڕۆفایل'), true);
+check('the create form has one visibility switch',
+  (createForm.match(/id="visibility-toggle"/g) || []).length, 1);
+check('the switch is a checkbox, not two radios',
+  /id="visibility-toggle" type="checkbox"[^>]*role="switch"/.test(createForm) &&
+  !/type="radio" name="visibility"/.test(createForm), true);
 check('the exact visibility label is on the form',
-  createForm.includes('دەرکەوتنی بەرهەم'), true);
-check('profile-only is explained as searchable and public',
-  createForm.includes('لە گەڕان') && createForm.includes('بەستەری ڕاستەوخۆ'), true);
+  createForm.includes('پیشاندانی لە «بۆ تۆ»'), true);
+check('the checked switch posts everyone',
+  /id="visibility-toggle"[^>]*value="everyone"[^>]*checked/.test(createForm), true);
+check('the unchecked fallback posts profile',
+  /type="hidden" name="visibility" value="profile"/.test(createForm), true);
+check('the ON helper is initially shown',
+  createForm.includes('بەرهەمەکە لە «بۆ تۆ» دەردەکەوێت.'), true);
 
 /* ---------- publishing has one optional marketplace category ---------- */
 check('the create form has one marketplace category field',
@@ -188,18 +188,24 @@ check('while status stayed active — this is not hiding',
 await control('/__visibility/profile');
 const editForm = await page(`/app/products/${PRODUCT_ID}`, true);
 check('the edit form offers the choice', editForm.includes('name="visibility"'), true);
-check('and opens on what was stored',
-  /value="profile"[^>]*checked/.test(editForm), true);
+check('and a stored profile value opens with the switch OFF',
+  /id="visibility-toggle"[^>]*checked/.test(editForm), false);
+check('the OFF helper keeps the public/search meaning clear',
+  editForm.includes('لە «بۆ تۆ» دەرناکەوێت، بەڵام لە گەڕان و پڕۆفایلی دوکان هەر دیارە.'), true);
 check('the edit form also has only the optional marketplace category',
   (editForm.match(/name="category"/g) || []).length === 1 &&
   !editForm.includes('name="own_category"') && editForm.includes('ئارەزوومەندانە'), true);
 
 await control('/__calls/reset');
-const edited = await post(`/app/products/${PRODUCT_ID}`, {
+const onFields = new URLSearchParams({
   draft_id: PRODUCT_ID,
   images: JSON.stringify([img(1)]),
-  title: 'کراسی کوردی', category: '', visibility: 'everyone',
+  title: 'کراسی کوردی', category: '', visibility: 'profile',
 });
+// This is the switch's real successful-control order: hidden OFF fallback
+// first, then the checked ON value. The route intentionally keeps the last.
+onFields.append('visibility', 'everyone');
+const edited = await post(`/app/products/${PRODUCT_ID}`, onFields);
 check('changing visibility saves', edited.status, 303);
 const patches = (await writes()).filter((w) => w.table === 'products' && w.method === 'PATCH');
 check('and the new choice reached the database', patches[0]?.body?.visibility, 'everyone');

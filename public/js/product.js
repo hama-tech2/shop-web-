@@ -182,6 +182,17 @@
       }
     });
   }
+  var visibility = document.getElementById('visibility-toggle');
+  var visibilityHint = document.getElementById('visibility-hint');
+  if (visibility && visibilityHint) {
+    function syncVisibility() {
+      visibilityHint.textContent = visibility.checked
+        ? visibilityHint.dataset.on
+        : visibilityHint.dataset.off;
+    }
+    visibility.addEventListener('change', syncVisibility);
+    syncVisibility();
+  }
   var categoryKey = 'shopweb:last-market-category';
   if (D.restoreCategory === 'true') {
     try { var last = localStorage.getItem(categoryKey); if (last !== null && Array.from(category.options).some(function (option) { return option.value === last; })) category.value = last; } catch (e) { /* Storage is optional. */ }
