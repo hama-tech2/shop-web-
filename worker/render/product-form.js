@@ -1,6 +1,7 @@
 import {
-  CATEGORIES_UI as C, CURRENCY_UI as CUR, FREE_IMAGE_LIMIT, FREE_PRODUCT_LIMIT,
+  CURRENCY_UI as CUR, FREE_IMAGE_LIMIT, FREE_PRODUCT_LIMIT,
   IMAGE_VARIANTS, MAX_IMAGES, PRODUCT_CURRENCIES, PRODUCT as T,
+  DEFAULT_VISIBILITY, PRODUCT_VISIBILITY, VISIBILITY_UI,
 } from '../config.js';
 import { esc, price as fmtPrice } from './html.js';
 import { currencyOf, moneyText, symbolOf } from './money.js';
@@ -30,7 +31,7 @@ export function trialLimitPage() {
   );
 }
 
-export function productForm({ mode, draftId, categories, shopCategories = [], values, error, trialLeft = null, imageLimit: editImageLimit = MAX_IMAGES }) {
+export function productForm({ mode, draftId, categories, values, error, trialLeft = null, imageLimit: editImageLimit = MAX_IMAGES }) {
   const isEdit = mode === 'edit';
   if (isEdit) return editProductForm({ draftId, categories, values, error, imageLimit: editImageLimit });
   const images = values.images ?? [];
@@ -56,7 +57,7 @@ export function productForm({ mode, draftId, categories, shopCategories = [], va
     ` data-card-w="${IMAGE_VARIANTS.card.width}" data-card-h="${IMAGE_VARIANTS.card.height}" data-card-q="${IMAGE_VARIANTS.card.quality}"` +
     ` data-full-w="${IMAGE_VARIANTS.full.width}" data-full-h="${IMAGE_VARIANTS.full.height}" data-full-q="${IMAGE_VARIANTS.full.quality}"` +
     ` data-msg-limit="تا ${imageLimit} وێنە دەتوانیت زیاد بکەیت." data-msg-type="${esc(T.errType)}" data-msg-upload="${esc(T.errUpload)}"` +
-    ` data-msg-cat-name="${esc(C.errName)}" data-msg-cat-create="${esc(C.errCreate)}">` +
+    `>` +
     `<input type="hidden" name="draft_id" value="${esc(draftId)}">` +
     `<input type="hidden" name="images" id="images-field" value="${esc(JSON.stringify(images))}">` +
     (isEdit ? `<div class="field"><label class="field__label" for="status-field">دۆخی بەرهەم</label>` +
@@ -74,28 +75,11 @@ export function productForm({ mode, draftId, categories, shopCategories = [], va
     `<p id="product-message" class="publish-message" role="status" aria-live="polite" hidden></p>` +
     field({ name: 'title', label: T.titleLabel, value: values.title ?? '', placeholder: T.titlePlaceholder, extra: ' minlength="2" maxlength="200"' }) +
     priceFieldHtml(values) +
-    `<div class="field"><label class="field__label" for="category-field">پۆلی بازاڕ</label>` +
+    `<div class="field"><label class="field__label" for="category-field">${esc(T.categoryLabel)} <span class="field__optional">${esc(T.optional)}</span></label>` +
     `<select class="field__input" name="category" id="category-field">` +
     [{ slug: '', name_ckb: T.categoryNone }, ...categories].map(c => `<option value="${esc(c.slug)}"${(values.category ?? '') === c.slug ? ' selected' : ''}>${esc(c.name_ckb)}</option>`).join('') +
     `</select><p class="field__hint">هەڵبژاردنەکەت بۆ بەرهەمی داهاتوو لەم وێبگەڕەدا دەمێنێتەوە.</p></div>` +
-    `<div class="field"><label class="field__label" for="f-own-category">پۆلی دوکان</label>` +
-    `<select class="field__input" id="f-own-category" name="own_category"><option value="">${esc(C.none)}</option>` +
-    shopCategories.map(c => `<option value="${esc(c.id)}"${values.ownCategory === c.id ? ' selected' : ''}>${esc(c.name)}</option>`).join('') +
-    `</select>` +
-    // A new category is made here, in this form. The old link opened the
-    // profile in another tab, and coming back to a reloaded form meant
-    // the title, the price and every prepared image were gone.
-    `<div class="category-inline">` +
-    `<button class="category-inline__open" type="button" id="category-add-open">` +
-    `${iconPlus(16)}<span>${esc(C.addInline)}</span></button>` +
-    `<div class="category-inline__form" id="category-add-form" hidden>` +
-    `<input class="field__input" id="category-add-name" type="text" maxlength="60"` +
-    ` autocomplete="off" placeholder="${esc(C.addPlaceholder)}">` +
-    `<button class="btn btn--quiet" type="button" id="category-add-save">${esc(C.create)}</button>` +
-    `<button class="btn btn--ghost" type="button" id="category-add-cancel">${esc(C.cancel)}</button>` +
-    `</div>` +
-    `<p class="category-inline__error" id="category-add-error" role="status" hidden></p>` +
-    `</div></div>` +
+    visibilityField(values.visibility) +
     `<div class="field"><label class="field__label" for="f-description">پێناسە <span class="field__optional">${esc(T.optional)}</span></label>` +
     `<textarea class="field__input field__input--area" id="f-description" name="description" rows="3" placeholder="${esc(T.descriptionPlaceholder)}">${esc(values.description ?? '')}</textarea>` +
     `<span class="description-count" id="description-count"></span></div>` +
@@ -118,7 +102,7 @@ function editProductForm({ draftId, categories, values, error, imageLimit }) {
     `<div class="shell publish-page publish-page--edit">` +
     `<header class="publish-head"><a class="icon-btn" href="/app" aria-label="گەڕانەوە">${iconBack()}</a>` +
     `<h1>${esc(T.editTitle)}</h1><span></span></header>` +
-    `<p class="publish-sub">کاڤەر، ناو یان پۆلی بەرهەمەکە بگۆڕە.</p>` +
+    `<p class="publish-sub">کاڤەر، ناو، پۆل یان دەرکەوتنی بەرهەمەکە بگۆڕە.</p>` +
     alert(error) +
     `<form method="post" id="product-form" action="/app/products/${esc(draftId)}"` +
     ` data-mode="edit" data-cover-only="true" data-price="${esc(String(values.price ?? ''))}"` +
@@ -126,7 +110,7 @@ function editProductForm({ draftId, categories, values, error, imageLimit }) {
     ` data-card-w="${IMAGE_VARIANTS.card.width}" data-card-h="${IMAGE_VARIANTS.card.height}" data-card-q="${IMAGE_VARIANTS.card.quality}"` +
     ` data-full-w="${IMAGE_VARIANTS.full.width}" data-full-h="${IMAGE_VARIANTS.full.height}" data-full-q="${IMAGE_VARIANTS.full.quality}"` +
     ` data-msg-limit="تا ${imageLimit} وێنە دەتوانیت زیاد بکەیت." data-msg-type="${esc(T.errType)}" data-msg-upload="${esc(T.errUpload)}"` +
-    ` data-msg-cat-name="${esc(C.errName)}" data-msg-cat-create="${esc(C.errCreate)}">` +
+    `>` +
     `<input type="hidden" name="draft_id" value="${esc(draftId)}">` +
     `<input type="hidden" name="images" id="images-field" value="${esc(JSON.stringify(images))}">` +
     `<section class="gallery gallery--cover-only" aria-label="کاڤەری بەرهەم">` +
@@ -141,13 +125,40 @@ function editProductForm({ draftId, categories, values, error, imageLimit }) {
     `<div class="field edit-price"><span class="field__label">${esc(T.priceLabel)}</span>` +
     `<div class="edit-price__value" aria-readonly="true"><span>${esc(moneyText(values.price, values.currency))}</span>` +
     `<small>گۆڕانکاری ناکرێت</small></div></div>` +
-    `<div class="field"><label class="field__label" for="category-field">پۆلی بازاڕ</label>` +
+    `<div class="field"><label class="field__label" for="category-field">${esc(T.categoryLabel)} <span class="field__optional">${esc(T.optional)}</span></label>` +
     `<select class="field__input" name="category" id="category-field">` +
     [{ slug: '', name_ckb: T.categoryNone }, ...categories].map(c => `<option value="${esc(c.slug)}"${(values.category ?? '') === c.slug ? ' selected' : ''}>${esc(c.name_ckb)}</option>`).join('') +
     `</select></div>` +
+    visibilityField(values.visibility) +
     `<div class="publish-save"><button class="btn btn--primary" type="submit" id="save-btn" data-saving="${esc(T.saving)}">${esc(T.save)}</button>` +
-    `<p>تەنها کاڤەر، ناو و پۆل پاشەکەوت دەکرێن.</p></div></form>` +
+    `<p>تەنها کاڤەر، ناو، پۆل و دەرکەوتن پاشەکەوت دەکرێن.</p></div></form>` +
     `</div>` + productCover() + `<script src="/js/product-cover.js" defer></script>`
+  );
+}
+
+/**
+ * Where the product is shown.
+ *
+ * Two radios in the same segmented control the currency picker uses, so
+ * it reads as one more choice rather than a new kind of setting. The
+ * helper text spells out the less obvious profile-only choice, because
+ * it sounds like hiding and is not: the product stays searchable and
+ * public, and its direct link keeps working.
+ */
+function visibilityField(value) {
+  const current = Object.hasOwn(PRODUCT_VISIBILITY, value) ? value : DEFAULT_VISIBILITY;
+  const options = Object.values(PRODUCT_VISIBILITY).map((v) =>
+    `<label class="seg__option">` +
+    `<input type="radio" name="visibility" value="${esc(v.key)}"` +
+    `${v.key === current ? ' checked' : ''}>` +
+    `<span>${esc(v.label)}</span></label>`).join('');
+
+  return (
+    `<fieldset class="seg" id="visibility-seg">` +
+    `<legend class="field__label">${esc(VISIBILITY_UI.legend)}</legend>` +
+    `<div class="seg__row">${options}</div>` +
+    `<p class="field__hint">${esc(VISIBILITY_UI.hint)}</p>` +
+    `</fieldset>`
   );
 }
 

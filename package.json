@@ -31,6 +31,7 @@
     "test:brand": "node scripts/brand-assets-test.mjs",
     "test:seo": "node scripts/seo-test.mjs",
     "test:owner-controls": "node scripts/owner-product-controls-test.mjs",
+    "test:visibility": "node scripts/visibility-test.mjs",
     "test:admin-access": "node scripts/admin-access-test.mjs"
   },
   "devDependencies": {

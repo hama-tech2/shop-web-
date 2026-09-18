@@ -78,6 +78,10 @@ async function lastWrittenCurrency() {
 await setMode('shop');
 await control('/__plan/year_1');
 await control('/__sub/20');
+// Visibility is independent of currency. Keep this suite's fixture in
+// the Home feed even when a previous suite left the shared stub on
+// profile-only.
+await control('/__visibility/everyone');
 
 /* ============================================================
    1. the formatter — the two shapes, decided in one place

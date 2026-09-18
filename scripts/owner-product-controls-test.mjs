@@ -77,8 +77,14 @@ check('restricted edit saves successfully', saved.status === 303 && saved.header
 const writes = await control('/__writes');
 const update = writes.find((write) => write.table === 'products' && write.method === 'PATCH');
 check('product update occurred', Boolean(update));
-check('product update contains only title and platform category',
-  JSON.stringify(Object.keys(update.body).sort()) === JSON.stringify(['platform_category_id', 'title']));
+// Where a product is shown joined the editor; what it costs did not.
+// The list is exact, so a fourth field cannot be added without this
+// test being changed on purpose.
+check('product update contains only title, market category and visibility',
+  JSON.stringify(Object.keys(update.body).sort())
+    === JSON.stringify(['platform_category_id', 'title', 'visibility']));
+check('the restricted edit still never writes a price, currency or status',
+  ['price', 'currency', 'status', 'description'].every((f) => !(f in update.body)));
 check('ownership remains scoped in the update query', update.search.includes(`shop_id=eq.${SHOP}`));
 
 /* Owner card menu behavior, including confirmation before deletion. */
