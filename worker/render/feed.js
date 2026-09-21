@@ -52,9 +52,15 @@ export function cardHtml(product, index, { linked = true, saved = false, showSho
   const multi = product.images.length > 1;
   const eager = index < 2;
 
+  // The first image is what a person, an image search and an AI
+  // assistant all see, so it is named: a product photo is content, not
+  // decoration, and alt="" told every one of them it could be ignored.
+  // The other slides are more views of the same, already-named product,
+  // so repeating the title on each would only be noise in a screen
+  // reader — they stay decorative on purpose.
   const firstImg = first
     ? `<img class="card__img is-active" src="${esc(imgUrl(first))}"` +
-      ` width="360" height="360" alt=""` +
+      ` width="360" height="360" alt="${esc(product.title)}"` +
       ` loading="${eager ? 'eager' : 'lazy'}" decoding="async"` +
       `${eager ? ' fetchpriority="high"' : ''}>`
     : '';

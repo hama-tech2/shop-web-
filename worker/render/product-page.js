@@ -30,11 +30,16 @@ export function productPage({ product, more, origin }) {
   const location = mapsUrl(shop.maps_url);
   const city = CITY_LABEL[shop.city] ?? shop.city ?? '';
 
+  // Same rule as the card: the first photo carries the product's name
+  // for image search and for anything reading the page without running
+  // JavaScript; the remaining slides show the same product and stay
+  // decorative rather than repeating it.
   const slides = product.images.length
     ? product.images
         .map(
           (img, i) =>
-            `<img class="carousel__img" src="${esc(imgUrl(img.full))}" alt=""` +
+            `<img class="carousel__img" src="${esc(imgUrl(img.full))}"` +
+            ` alt="${i === 0 ? esc(product.title) : ''}"` +
             ` width="1200" height="1500"` +
             ` loading="${i === 0 ? 'eager' : 'lazy'}" decoding="async"` +
             `${i === 0 ? ' fetchpriority="high"' : ''}>`,
