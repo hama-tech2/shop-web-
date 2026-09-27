@@ -16,7 +16,7 @@
  */
 
 import { readFileSync, readdirSync } from 'node:fs';
-import { FREE_IMAGE_LIMIT, FREE_PRODUCT_LIMIT, PLANS, WAYL } from '../worker/config.js';
+import { FREE_IMAGE_LIMIT, FREE_PRODUCT_LIMIT, PLANS, TRIAL_DAYS, WAYL } from '../worker/config.js';
 
 const DIR = new URL('../supabase/migrations/', import.meta.url);
 
@@ -91,20 +91,47 @@ check('app.free_image_limit is defined in a migration',
 check('the image limit the app shows is the one the database enforces',
       FREE_IMAGE_LIMIT, scalarFunctionFromSql('app', 'free_image_limit'));
 
-/* ---------- and the trial is gone from both ---------- */
+/* ---------- the free month, and where its length is decided ---------- */
 
 /**
- * The trial is retired, and a migration must be what retires it: a
- * function left behind in the database still has its grants, and
- * start_trial could still be called by anything holding a token.
+ * The trial is back, and it is the whole entitlement model now: thirty
+ * days, then a paid plan. Its length lives in app.trial_days() so the
+ * Worker and the database can be checked against each other, which is
+ * what this does — a screen promising thirty days over a database that
+ * grants twenty-eight is a promise broken at scale.
  */
-const dropsAt = sql.lastIndexOf('drop function if exists app.trial_days');
-check('a migration drops app.trial_days', dropsAt >= 0, true);
-check('and nothing defines it again afterwards',
-      /create\s+or\s+replace\s+function\s+app\.trial_days\b/.test(sql.slice(dropsAt)),
-      false);
-check('public.start_trial is dropped too',
+check('app.trial_days is defined in a migration',
+      scalarFunctionFromSql('app', 'trial_days') !== null, true);
+check('the free month the app shows is the one the database grants',
+      TRIAL_DAYS, scalarFunctionFromSql('app', 'trial_days'));
+check('and it is thirty days', scalarFunctionFromSql('app', 'trial_days'), 30);
+
+/**
+ * public.start_trial stays dropped, and that is not an oversight.
+ *
+ * The free month is not something a seller starts any more — it starts
+ * with the shop, from the trigger, reading its window out of
+ * public.trial_grants. A callable start_trial would be a second way in,
+ * with its own grants, able to move a date the rest of the app treats
+ * as settled.
+ */
+check('public.start_trial is dropped',
       /drop function if exists public\.start_trial/.test(sql), true);
+const restartAt = sql.lastIndexOf('drop function if exists public.start_trial');
+check('and nothing defines a seller-callable start_trial again afterwards',
+      /create\s+or\s+replace\s+function\s+public\.start_trial\b/.test(sql.slice(restartAt)),
+      false);
+
+/**
+ * One free month per account, and the ledger that enforces it is keyed
+ * on auth.users.id — not on the shop, which can be deleted and remade,
+ * and not on anything a browser holds.
+ */
+check('public.trial_grants is keyed on the user, not the shop',
+      /create table if not exists public\.trial_grants\s*\(\s*user_id\s+uuid\s+primary key/.test(sql),
+      true);
+check('and a seller has no privilege on it at all',
+      /revoke all on table public\.trial_grants from anon, authenticated/.test(sql), true);
 
 /* ---------- how long a checkout can be reused ---------- */
 

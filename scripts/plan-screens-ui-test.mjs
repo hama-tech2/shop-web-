@@ -224,8 +224,27 @@ try {
   check('no browser script errors', errors.length === 0);
   await ui.close();
   // Exercise server-controlled form rendering without enabling payments anywhere.
-  const on = subscriptionPage({ state:scenarios[1][1], paymentsEnabled:true });
+  //
+  // A shop that may buy is one that holds nothing: the free month with
+  // no plan bought yet, or a plan that has run out. That is the state
+  // the checkout form belongs to.
+  const buyable = {
+    plan:'trial', status:'trialing', tier:'trial',
+    expires_at:expiry(20), trial_ends_at:expiry(20),
+    trial_days_left:20, on_trial:true, paid_scheduled:false,
+  };
+  const on = subscriptionPage({ state:buyable, paymentsEnabled:true });
   check('enabled server state uses existing hosted checkout', /method="post" action="\/app\/subscription\/checkout" id="plan-form"/.test(on));
   check('no chooser/manual flow in primary plans', !/payment-method-form|subscription\/pay"|SW-/.test(on));
+
+  // And the other half of the same rule: a shop already holding a plan
+  // is given no form and no submit button, because it may not stack a
+  // second one. The prices stay visible; only the way to buy is gone.
+  const held = subscriptionPage({ state:scenarios[1][1], paymentsEnabled:true });
+  check('a running paid plan is offered no second checkout',
+    !/id="plan-form"/.test(held) && !/id="pay-btn"/.test(held));
+  check('but its prices are still on the screen',
+    /billing-options--info/.test(held) && /38,000/.test(held) && /72,000/.test(held));
+  check('and nothing on that list can be posted', !/name="plan"/.test(held));
 } finally { await browser.close(); }
 console.log(`All ${count} approved-screen UI checks passed. Screenshots: ${screenshots}`);

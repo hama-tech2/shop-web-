@@ -112,7 +112,21 @@ async function paid(count = 0, days = 20, plan = 'year_1') {
 await free(0);
 
 const account = await page('/app');
-check('the account card says the shop is on Free', account.includes('data-status="free"'));
+// Free stopped being a plan and became a beginning: a new shop is on its
+// one free month, and the card carries that state and its countdown
+// rather than a status that never changes.
+check('the account card says the shop is on its free month',
+  account.includes('data-status="trial"'));
+// Not an open-ended state: the same card, moved to the last days of the
+// free month, raises a countdown warning. A permanent Free plan never
+// could, because nothing about it ran out.
+await control('/__plan/trial');
+await control('/__trial/2');
+await control('/__sub/2');
+const nearlyOver = await page('/app');
+check('and the free month really does run out, with a warning near the end',
+  /id="settings-plan-warning"/.test(nearlyOver));
+await free(0);
 check('with nothing drawn as running out',
   account.includes('id="settings-plan-warning"'), false);
 check('and a way to the paid plans', account.includes('id="settings-subscription"'));
@@ -310,9 +324,13 @@ check('paying again reaches the form immediately',
 // A shop that lapses with room to spare loses nothing at all.
 await paid(3, -1);
 await control('/__public/3');
-check('a lapsed shop under the limit still reaches the form',
-  (await page('/app/new?plan=free')).includes('publish-page'));
-check('and can still publish', (await publish(1)).location === '/app', true);
+// A lapsed shop no longer falls back to a permanent Free plan, because
+// there is not one to fall back to. It keeps every product it has and
+// stays editable; what it may not do is post another while nobody is
+// paying. The stricter half of that is what is asserted here.
+check('a lapsed shop is not handed the publish form',
+  (await page('/app/new?plan=free')).includes('publish-page'), false);
+check('and cannot publish a new product', (await publish(1)).location === '/app', false);
 check('and its products are still public on its own page',
   (await page('/@nafin-boutique')).includes('کراسی کوردی'));
 
@@ -338,7 +356,15 @@ for (const [days, level, phrase] of [
   [7, 'soon', 'ڕۆژ لە پلانەکەت ماوە'],
   [3, 'urgent', 'تەنها'],
   [1, 'urgent', 'سبەی'],
-  [-1, null, null], // Backend tier is Free once paid access expires.
+  // One day past the date the shop is in its grace days, and the seller
+  // is told so loudly: this is the last warning before the products stop
+  // being public. Under the permanent Free plan this was silent, because
+  // there was somewhere harmless to land. There is not any more.
+  //
+  // 'blocked' is the level the card has always used for grace and for
+  // expired alike — planWarning() treats grace as over, because nothing
+  // new can be posted during it.
+  [-1, 'blocked', null],
 ]) {
   await control('/__plan/year_1');
   await control(`/__sub/${days}`);
@@ -441,8 +467,13 @@ if (process.env.CHROME) {
     }
     await control('/__sub/-1');
     await view.goto(`${APP}/app?w=expired#account-settings`);
-    check('expired paid is Free without countdown', await view.locator('.settings-plan').getAttribute('data-status'), 'free');
-    check('Free has no expiry warning', await view.locator('#settings-plan-warning, .settings-plan time').count(), 0);
+    // A plan one day past its date is in its grace days, not on a
+    // permanent Free plan, and the seller is warned rather than quietly
+    // moved somewhere that does not exist any more.
+    check('a plan one day past its date is in grace, not on a Free plan',
+      await view.locator('.settings-plan').getAttribute('data-status'), 'grace');
+    check('and the seller is warned about it',
+      (await view.locator('#settings-plan-warning, .settings-plan time').count()) > 0, true);
     check('no script errors on any of it', errors, []);
     await ctx.close();
   } finally {

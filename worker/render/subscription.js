@@ -1,5 +1,5 @@
 import {
-  APP_NAME, FIB_NUMBER, PLANS, SUBSCRIPTION as T, SUPPORT_WHATSAPP,
+  APP_NAME, FIB_NUMBER, PLANS, PLAN_LABEL, SUBSCRIPTION as T, SUPPORT_WHATSAPP,
   FREE_PRODUCT_LIMIT, FREE_IMAGE_LIMIT, UI,
 } from '../config.js';
 import { esc, price } from './html.js';
@@ -21,11 +21,20 @@ const ltr = (value) => `<span dir="ltr">${esc(value)}</span>`;
 /** One line naming where the seller stands. */
 function statusLine(plan, state) {
   switch (plan.key) {
-    case 'free': return 'بەخۆڕایی';
+    case 'trial':
+      return plan.days > 1 ? T.trialDaysLeft(plan.days) : T.trialLastDay;
+    case 'scheduled':
+      return T.trialScheduled(PLAN_LABEL[plan.scheduledPlan] ?? '');
+    case 'free': return T.trialName;
     case 'none': return T.warnNone;
     case 'pending': return T.statePending;
     case 'grace': return T.stateGrace(plan.days);
-    case 'expired': return T.stateExpired;
+    // Past the free month with nothing bought, or a paid plan that ran
+    // out. Both say the same thing first: the products are still here.
+    case 'expired':
+      return state?.trial_ends_at && state?.plan === 'trial'
+        ? T.trialOverBody
+        : T.stateExpired;
     default: return T.stateActive(formatDate(state?.expires_at));
   }
 }
@@ -91,21 +100,61 @@ const storefrontHeader = (title, subtitle, back) =>
 export function subscriptionPage({ state, selected, intent, payments = [], error, paymentsEnabled = false }) {
   const plan = state ? planState(state, Boolean(intent && intent.status === 'pending')) : null;
   if (plan && Number.isInteger(state.days_left) && state.tier === 'paid') plan.days = state.days_left;
-  const key = state?.status === 'suspended' ? 'suspended' : state?.tier === 'free' ? 'free' : plan?.key;
+  const key = state?.status === 'suspended' ? 'suspended' : plan?.key;
   const chosen = PLANS.some((p) => p.key === selected) ? selected : defaultPlan();
   const hasTime = key === 'active' && plan.days > 0;
-  const currentName = key === 'free' ? T.freeName
-    : PLANS.find((p) => p.key === state?.plan);
-  const currentLabel = typeof currentName === 'string' ? currentName : currentName ? planName(currentName) : '';
+  const onTrial = key === 'trial' || key === 'scheduled' || key === 'free';
+
+  // The heading names what the seller is on. During the free month that
+  // is the free month, even when a paid plan is already bought — the
+  // paid plan has not started, and saying "6 months" over a shop that is
+  // still on its free month would be telling them the wrong date.
+  const currentLabel = onTrial
+    ? T.trialName
+    : (PLANS.find((p) => p.key === state?.plan) ? planName(PLANS.find((p) => p.key === state?.plan)) : '');
+
+  // A plan bought during the free month starts the day the month ends,
+  // and the seller is told which day that is rather than being left to
+  // work it out.
+  const scheduledNote = key === 'scheduled' && state?.trial_ends_at
+    ? `<p class="billing-renewal-note">${esc(T.trialScheduledFrom(formatDate(state.trial_ends_at)))}</p>`
+    : '';
+
+  // Nothing was deleted. Said on the screen a seller lands on after the
+  // month runs out, because it is the only thing they want to know.
+  // Bought and not yet run out, whether it is running or waiting for the
+  // free month to end. The database is what decided this.
+  const alreadyHeld = key === 'scheduled' || hasTime;
+
+  const keptNote = key === 'expired'
+    ? `<p class="billing-renewal-note">${esc(T.trialOverKept)}</p>`
+    : '';
+
   return `<main class="shell billing billing--plans">` +
-    storefrontHeader('نوێکردنەوەی پلان', 'پلانێک هەڵبژێرە بۆ بەردەوامبوون', '/app#account-settings') +
-    `<div class="billing-state"${key ? ` data-plan-state="${esc(key)}"${key === 'free' ? '' : ` data-plan-days="${plan?.days ?? 0}"`}` : ''}>` +
+    storefrontHeader(
+      onTrial ? T.trialName : 'نوێکردنەوەی پلان',
+      onTrial ? T.trialThenPay : 'پلانێک هەڵبژێرە بۆ بەردەوامبوون',
+      '/app#account-settings') +
+    `<div class="billing-state"${key ? ` data-plan-state="${esc(key)}" data-plan-days="${plan?.days ?? 0}"` : ''}>` +
     `<p class="billing-state__label">پلانی ئێستا</p>` +
     (currentLabel ? `<h2>${esc(currentLabel)}</h2>` : '') +
-    `<p>${esc(!state ? 'وردەکاری پلان لە ئێستادا بەردەست نییە.' : key === 'suspended' ? 'بەشداریکردنەکەت ناچالاکە'
-      : key === 'free' ? 'بەخۆڕایی' : hasTime ? `${plan.days} ڕۆژ ماوە` : statusLine(plan, state))}</p>` +
-    (hasTime ? `<p class="billing-renewal-note">ماوەی پلانی نوێ دوای کۆتایی ماوەی ئێستات دەست پێ دەکات.</p>` : '') + `</div>` +
+    `<p>${esc(!state ? 'وردەکاری پلان لە ئێستادا بەردەست نییە.'
+      : key === 'suspended' ? 'بەشداریکردنەکەت ناچالاکە'
+      : hasTime ? `${plan.days} ڕۆژ ماوە`
+      : statusLine(plan, state))}</p>` +
+    (hasTime ? `<p class="billing-renewal-note">ماوەی پلانی نوێ دوای کۆتایی ماوەی ئێستات دەست پێ دەکات.</p>` : '') +
+    scheduledNote + keptNote + `</div>` +
     (error ? `<p class="alert alert--error" role="alert">${esc(error)}</p>` : '') +
+    // A shop already holding a plan is offered no way to buy another —
+    // a courtesy, not the protection: wayl_start_intent refuses a second
+    // plan in the database (SW008), so posting a form by hand gets a
+    // seller nowhere either. The prices stay on the screen, because
+    // knowing what the next plan costs is not the same as buying it.
+    (alreadyHeld
+      ? `<div class="billing-options billing-options--info">` +
+        paidOptions().map(planPriceRow).join('') + `</div>` +
+        `<p class="billing-renewal-note">${esc(T.renewWhenItEnds)}</p>`
+      :
     `<form method="${paymentsEnabled ? 'post' : 'get'}" ` +
     `action="${paymentsEnabled ? '/app/subscription/checkout' : '/app/subscription'}" ` +
     `id="plan-form" data-native-plans${paymentsEnabled ? ' data-checkout' : ''}>` +
@@ -114,8 +163,9 @@ export function subscriptionPage({ state, selected, intent, payments = [], error
     paidOptions().map((p) => planCard(p, chosen)).join('') + `</fieldset>` +
     // The form keeps the radios; its submit button lives in the dock
     // below and reaches back here by id. One form, one action, unchanged.
-    `</form>` +
-    hostedTrust() + (paymentsEnabled ? '' : `<p class="billing-availability">${availability}</p>`) +
+    `</form>`) +
+    (alreadyHeld ? '' : hostedTrust()) +
+    (alreadyHeld || paymentsEnabled ? '' : `<p class="billing-availability">${availability}</p>`) +
     // Historical records stay available; no SW code or manual-payment entry CTA.
     `<details class="billing-history"><summary>${esc(T.historyTitle)}</summary>${paymentHistory(payments)}</details>` +
     `</main>` +
@@ -124,12 +174,16 @@ export function subscriptionPage({ state, selected, intent, payments = [], error
     // never has to scroll past their payment history to renew. The
     // button submits #plan-form through the form attribute, so the
     // route, the method and the selected plan are exactly as before.
+    // No dock when there is nothing to buy: a "continue to payment"
+    // button over a plan that is already paid for is how a seller ends
+    // up paying twice.
+    (alreadyHeld ? '' :
     `<div class="action-dock plans-dock">` +
     (paymentsEnabled ? PLANS.map((p) =>
       `<p class="billing-charge" id="charge-${esc(p.key)}" data-charge-for="${esc(p.key)}"` +
       `${p.key === chosen ? '' : ' hidden'}><bdi>${esc(T.chargeNotice(price(p.amount)))}</bdi></p>`).join('') : '') +
     `<button class="billing-primary" type="submit" id="pay-btn" form="plan-form">بەردەوامبوون بۆ پارەدان ${iconBack(20)}</button>` +
-    `</div>` + bottomNav('account', { accountLabel: 'هەژمار' });
+    `</div>`) + bottomNav('account', { accountLabel: 'هەژمار' });
 }
 
 function planCard(plan, selected, gate = false) {
@@ -139,6 +193,23 @@ function planCard(plan, selected, gate = false) {
     `<span class="billing-plan__name">${planName(plan)}</span>${bestBadge(plan)}</span>` +
     `<span class="billing-plan__bottom"><span>${amount(plan)}<span class="billing-monthly">${monthly(plan)}</span></span>` +
     `<span class="billing-radio" aria-hidden="true"></span></span></span></label>`;
+}
+
+/**
+ * The same plan, priced, with nothing to click.
+ *
+ * Shown to a shop that already holds a plan. It may not buy a second
+ * one — that is the anti-stacking rule and it is enforced in the
+ * database — but it still needs to know what the next one costs, and
+ * hiding the prices from a seller whose plan ends next week is how you
+ * lose them. No radio, no name attribute, nothing that can be posted.
+ */
+function planPriceRow(plan) {
+  return `<div class="billing-choice billing-plan billing-plan--info" data-plan="${esc(plan.key)}">` +
+    `<span class="billing-choice__surface"><span class="billing-plan__top">` +
+    `<span class="billing-plan__name">${planName(plan)}</span>${bestBadge(plan)}</span>` +
+    `<span class="billing-plan__bottom"><span>${amount(plan)}` +
+    `<span class="billing-monthly">${monthly(plan)}</span></span></span></span></div>`;
 }
 
 /* ============================================================
