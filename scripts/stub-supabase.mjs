@@ -583,8 +583,13 @@ http.createServer(async (req, res) => {
     // The free month with nothing bought ends entitlement at trial end.
     const entitlementDays = sold ? subDays : (trialDays ?? 0);
     const expires = new Date(Date.now() + entitlementDays * 86400000).toISOString();
-    // Grace is 3 days, matching subscriptions.grace_days.
-    const graceEnds = new Date(Date.now() + (entitlementDays + 3) * 86400000).toISOString();
+    // app.visibility_ends_at: a paid plan keeps its three grace days
+    // (subscriptions.grace_days); the free month has none, so thirty days
+    // free means thirty and the day after it ends the products are gone.
+    const onTrialRow = !sold;
+    const graceDays = onTrialRow ? 0 : 3;
+    const graceEnds = new Date(
+      Date.now() + (entitlementDays + graceDays) * 86400000).toISOString();
     const legacyFree = subPlan === 'free';
     return send([{
       plan: subPlan,
@@ -598,9 +603,11 @@ http.createServer(async (req, res) => {
       grace_ends_at: graceEnds,
       days_left: Math.max(0, Math.ceil(entitlementDays)),
       total_days: 30,
-      in_grace: entitlementDays <= 0 && entitlementDays > -3,
+      in_grace: entitlementDays <= 0 && entitlementDays > -graceDays,
       // An expired shop is not public, and neither is a suspended one.
-      publicly_visible: !suspended && (legacyFree || entitlementDays > -3),
+      // A trial is gone the moment it ends; a paid plan has its grace.
+      publicly_visible: !suspended
+        && (legacyFree || entitlementDays > -graceDays || entitlementDays > 0),
       // app.can_publish: paid, or on the free month with a slot left.
       can_publish: !suspended
         && ((tier === 'paid') || (tier === 'trial' && productCount < 5)),

@@ -190,11 +190,35 @@ revoke all on function app.plan_tier(uuid) from public, anon;
 grant execute on function app.plan_tier(uuid) to authenticated, service_role;
 
 -- ------------------------------------------------------------
--- 5. an expired shop is not a public shop
+-- 5. an expired shop is not a public shop, and the free month gets no
+--    grace days
 --
--- The 'free' branch 0031 added is gone: there is no plan that is
--- public forever. Everything else is as it was, including the grace
--- days a paid plan gets.
+-- Two changes to one function, and no change anywhere that calls it.
+--
+-- The 'free' branch 0031 added is gone: there is no plan that is public
+-- forever.
+--
+-- And the free month ends when it ends. A paid subscription keeps its
+-- three grace days, exactly as it always had them — a seller who has
+-- been paying for a year and is four days late does not deserve to have
+-- their shop go dark over a bank transfer. Somebody who has not paid at
+-- all is a different case: thirty days free means thirty, not
+-- thirty-three, and the day after the month ends the products stop
+-- being public.
+--
+-- The rule needs no new argument, because `status` already carries it.
+-- 'trialing' is the free month and nothing else: 0031 rewrote every old
+-- trialing row to 'free', and section 10 below writes 'trialing' only
+-- for a shop on its free month. The moment a plan is bought,
+-- admin_apply_payment sets the status to 'active' — so the same row
+-- moves onto the paid rule, with its grace days, the instant it becomes
+-- a paid entitlement.
+--
+-- Doing it here rather than by lowering subscriptions.grace_days is
+-- deliberate. grace_days is the paid policy, one value, applying to
+-- every paid plan; a trial row with a zeroed copy of it would be state
+-- that has to be set on creation and unset on purchase, and the day
+-- somebody forgets the unset a paying seller silently loses their grace.
 --
 -- This is the only thing that hides a lapsed shop's products, and it
 -- writes nothing. products.status is never touched, so the seller's
@@ -215,9 +239,40 @@ as $$
            -- in section 10 has run. Kept so this migration is safe to
            -- apply before the Worker that goes with it.
            when p_status = 'free' then true
+           -- The free month: no grace. Exactly thirty days.
+           when p_status = 'trialing' then now() < p_expires_at
+           -- A paid plan: its grace days, unchanged.
            else now() < p_expires_at + make_interval(days => p_grace_days)
          end;
 $$;
+
+comment on function app.subscription_visible(text, timestamptz, int) is
+  'Is this subscription publicly visible? A paid plan keeps its grace days; the free month (status trialing) gets none, so thirty days free means thirty.';
+
+-- ------------------------------------------------------------
+-- 5b. and the same rule, said once, for everything that needs the date
+--     rather than the verdict
+--
+-- subscription_state and the nightly sweep both need "when does public
+-- visibility actually stop", which is the expiry for a trial and the
+-- expiry plus the grace days for a paid plan. Deriving it in two places
+-- is how the two drift apart.
+-- ------------------------------------------------------------
+create or replace function app.visibility_ends_at(
+  p_status text, p_expires_at timestamptz, p_grace_days int
+) returns timestamptz
+language sql
+immutable
+parallel safe
+as $$
+  select case
+           when p_status = 'trialing' then p_expires_at
+           else p_expires_at + make_interval(days => p_grace_days)
+         end;
+$$;
+
+comment on function app.visibility_ends_at(text, timestamptz, int) is
+  'When public visibility stops: the expiry for the free month, the expiry plus the grace days for a paid plan.';
 
 -- ------------------------------------------------------------
 -- 6. may this shop post right now?
@@ -329,12 +384,16 @@ begin
     raise exception 'admin only' using errcode = '42501';
   end if;
 
+  -- The free month is swept the moment it ends; a paid plan once its
+  -- grace days are also gone. Same rule as visibility, from the same
+  -- function, so a row is never left saying 'trialing' over products
+  -- that stopped being public three days ago.
   with updated as (
     update public.subscriptions
        set status     = 'expired',
            updated_at = now()
      where status in ('trialing', 'active')
-       and now() >= expires_at + make_interval(days => grace_days)
+       and now() >= app.visibility_ends_at(status, expires_at, grace_days)
     returning 1
   )
   select count(*) into v_count from updated;
@@ -734,11 +793,15 @@ as $$
     sub.status,
     sub.started_at,
     sub.expires_at,
-    sub.expires_at + make_interval(days => sub.grace_days),
+    -- For the free month this is the expiry itself: it has no grace days,
+    -- so there is no later moment at which its products go dark. The
+    -- Worker reads this to decide between 'grace' and 'expired', which is
+    -- why it must not report a window the database will not honour.
+    app.visibility_ends_at(sub.status, sub.expires_at, sub.grace_days),
     greatest(0, ceil(extract(epoch from (sub.expires_at - now())) / 86400))::int,
     greatest(1, ceil(extract(epoch from (sub.expires_at - sub.started_at)) / 86400))::int,
     (now() >= sub.expires_at
-      and now() < sub.expires_at + make_interval(days => sub.grace_days)),
+      and now() < app.visibility_ends_at(sub.status, sub.expires_at, sub.grace_days)),
     (s.status = 'active'
       and app.subscription_visible(sub.status, sub.expires_at, sub.grace_days)),
     app.can_publish(sub.shop_id),

@@ -17,13 +17,16 @@
 -- The last two statements print one line per check and a total. It is
 -- meant to be read, not just to exit 0.
 --
--- What it covers: the thirty days and that they are exactly thirty; one
--- free month per account, surviving a deleted shop and a changed email;
--- a plan bought mid-trial starting when the trial ends rather than on
--- the day it was paid for; nothing stacking, at the checkout or at the
--- webhook; a duplicate webhook adding nothing; the two prices; no
--- public one-month plan; and that the month running out deletes no
--- product, hides no product row, and locks nobody out of their account.
+-- What it covers: the thirty days, and that they are exactly thirty and
+-- not thirty-three — the free month gets no grace days, while a paid
+-- subscription keeps the three it has always had, and both halves are
+-- asserted against the same function at the same instant. One free month
+-- per account, surviving a deleted shop and a changed email. A plan
+-- bought mid-trial starting when the trial ends rather than on the day it
+-- was paid for. Nothing stacking, at the checkout or at the webhook, and
+-- a duplicate webhook adding nothing. The two prices. No public
+-- one-month plan. And that the month running out deletes no product,
+-- hides no product row, and locks nobody out of their account.
 -- ============================================================
 
 
@@ -267,11 +270,11 @@ select chk('54 a granted month is still not something a seller can buy',
 
 
 
--- ===== the grace days apply to the free month too =====
--- Not a new mechanism: subscriptions.grace_days has always been 3, and
--- the free month's expires_at goes through the same predicate as a paid
--- plan's. So the entitlement is exactly 30 days and public visibility
--- has the usual 3 days of slack on the end of it.
+-- ===== the free month ends when it ends =====
+-- A paid subscription keeps its three grace days. The free month has
+-- none: thirty days free means thirty, so the day after it ends the
+-- products stop being public. Section b6 proves both halves against the
+-- same function; this one checks it end to end through shop_is_public.
 insert into auth.users (id, email) values ('aa000007-0000-4000-8000-000000000007','grace@e.com');
 select seller('aa000007-0000-4000-8000-000000000007');
 insert into public.shops (id, owner_id, name, slug, whatsapp, status)
@@ -279,23 +282,148 @@ values ('cc000007-0000-4000-8000-000000000007','aa000007-0000-4000-8000-00000000
 insert into public.products (id, shop_id, title, price, currency, status)
 values ('dd000007-0000-4000-8000-000000000007','cc000007-0000-4000-8000-000000000007','Grace Item',1000,'IQD','active');
 
-update public.subscriptions set trial_ends_at = now() - interval '1 day', expires_at = now() - interval '1 day'
+update public.subscriptions set status='trialing', plan='trial',
+       trial_ends_at = now() - interval '1 day', expires_at = now() - interval '1 day'
  where shop_id='cc000007-0000-4000-8000-000000000007';
-select chk('55 one day after the free month the products are still public (grace)',
-  app.shop_is_public('cc000007-0000-4000-8000-000000000007')::text,'true');
-select chk('56 but nothing new may be posted during grace',
-  app.can_publish('cc000007-0000-4000-8000-000000000007')::text,'false');
-
-update public.subscriptions set expires_at = now() - interval '4 days'
- where shop_id='cc000007-0000-4000-8000-000000000007';
-select chk('57 four days after, past the three grace days, they are not',
+select chk('55 one day after the free month the products are NOT public',
   app.shop_is_public('cc000007-0000-4000-8000-000000000007')::text,'false');
+select chk('56 and nothing new may be posted',
+  app.can_publish('cc000007-0000-4000-8000-000000000007')::text,'false');
+select chk('57 three days after, still not — the trial never had grace days',
+  (select app.subscription_visible('trialing', now() - interval '3 days', sub.grace_days)::text
+     from public.subscriptions sub where sub.shop_id='cc000007-0000-4000-8000-000000000007'),'false');
 select chk('58 and the product row is still there, untouched',
   (select status from public.products where id='dd000007-0000-4000-8000-000000000007'),'active');
 
--- ===== the grace window is the one the schema always had =====
-select chk('59 the free month uses the same grace days as a paid plan',
-  (select grace_days::text from public.subscriptions where shop_id='cc000007-0000-4000-8000-000000000007'),'3');
+-- The column itself is untouched. The rule is about which side of it a
+-- trial falls on, not about lowering the paid policy for everybody.
+select chk('59 subscriptions.grace_days is still 3 for every row',
+  (select count(distinct grace_days)::text || ':' || max(grace_days)::text
+     from public.subscriptions),'1:3');
+
+
+
+-- ============================================================
+-- The free month is exactly thirty days, and a paid plan still has its
+-- grace days. Same table, two rows, one function telling them apart.
+-- ============================================================
+insert into auth.users (id, email) values
+  ('aa00000a-0000-4000-8000-00000000000a','trialgrace@e.com'),
+  ('aa00000b-0000-4000-8000-00000000000b','paidgrace@e.com');
+
+select seller('aa00000a-0000-4000-8000-00000000000a');
+insert into public.shops (id, owner_id, name, slug, whatsapp, status)
+values ('cc00000a-0000-4000-8000-00000000000a','aa00000a-0000-4000-8000-00000000000a','TrialGrace','trial-grace','9647510000021','active');
+insert into public.products (id, shop_id, title, price, currency, status)
+values ('dd00000a-0000-4000-8000-00000000000a','cc00000a-0000-4000-8000-00000000000a','Trial Item',1000,'IQD','active');
+
+select seller('aa00000b-0000-4000-8000-00000000000b');
+insert into public.shops (id, owner_id, name, slug, whatsapp, status)
+values ('cc00000b-0000-4000-8000-00000000000b','aa00000b-0000-4000-8000-00000000000b','PaidGrace','paid-grace','9647510000022','active');
+insert into public.products (id, shop_id, title, price, currency, status)
+values ('dd00000b-0000-4000-8000-00000000000b','cc00000b-0000-4000-8000-00000000000b','Paid Item',1000,'IQD','active');
+-- A shop that paid, past its free month, whose plan is about to lapse.
+update public.subscriptions
+   set plan='year_1', status='active', trial_ends_at = now() - interval '400 days'
+ where shop_id='cc00000b-0000-4000-8000-00000000000b';
+
+/* ---------- 1. the trial, one minute BEFORE it ends ---------- */
+update public.subscriptions set status='trialing', plan='trial',
+       trial_ends_at = now() + interval '1 minute', expires_at = now() + interval '1 minute'
+ where shop_id='cc00000a-0000-4000-8000-00000000000a';
+select chk('60 a minute before the free month ends the shop is public',
+  app.shop_is_public('cc00000a-0000-4000-8000-00000000000a')::text,'true');
+select chk('61 and the seller may still publish',
+  app.can_publish('cc00000a-0000-4000-8000-00000000000a')::text,'true');
+
+/* ---------- 2. the trial, one minute AFTER it ends ---------- */
+update public.subscriptions set trial_ends_at = now() - interval '1 minute',
+       expires_at = now() - interval '1 minute'
+ where shop_id='cc00000a-0000-4000-8000-00000000000a';
+select chk('62 a minute after it ends the shop is NOT public',
+  app.shop_is_public('cc00000a-0000-4000-8000-00000000000a')::text,'false');
+select chk('63 and the seller may not publish',
+  app.can_publish('cc00000a-0000-4000-8000-00000000000a')::text,'false');
+select chk('64 there is no extra day of trial visibility',
+  app.subscription_visible('trialing', now() - interval '1 minute', 3)::text,'false');
+select chk('65 nor two',
+  app.subscription_visible('trialing', now() - interval '2 days', 3)::text,'false');
+-- The two rules side by side, same instant, same grace_days argument.
+-- This is the whole change in one pair of lines.
+select chk('66 two days past the date: a trial is dark',
+  app.subscription_visible('trialing', now() - interval '2 days', 3)::text,'false');
+select chk('66b while a paid plan at the very same instant is not',
+  app.subscription_visible('active',   now() - interval '2 days', 3)::text,'true');
+select chk('67 visibility_ends_at for a trial IS its expiry, with nothing added',
+  (app.visibility_ends_at('trialing', timestamptz '2027-01-01 00:00:00+00', 3)
+     = timestamptz '2027-01-01 00:00:00+00')::text,'true');
+select chk('68 so the trial window is exactly 30 days, not 33',
+  (select round(extract(epoch from (
+     app.visibility_ends_at('trialing', g.started_at + make_interval(days => app.trial_days()), 3)
+     - g.started_at)) / 86400)::text
+   from (select now() as started_at) g),'30');
+
+/* ---------- 3. the product survived all of it ---------- */
+select chk('69 the trial shop keeps its product row, still active',
+  (select status from public.products where id='dd00000a-0000-4000-8000-00000000000a'),'active');
+
+/* ---------- 4. a PAID plan still has its three grace days ---------- */
+update public.subscriptions set expires_at = now() - interval '1 minute'
+ where shop_id='cc00000b-0000-4000-8000-00000000000b';
+select chk('70 a paid plan a minute past its date is STILL public (grace)',
+  app.shop_is_public('cc00000b-0000-4000-8000-00000000000b')::text,'true');
+update public.subscriptions set expires_at = now() - interval '2 days'
+ where shop_id='cc00000b-0000-4000-8000-00000000000b';
+select chk('71 still public two days past it',
+  app.shop_is_public('cc00000b-0000-4000-8000-00000000000b')::text,'true');
+update public.subscriptions set expires_at = now() - interval '4 days'
+ where shop_id='cc00000b-0000-4000-8000-00000000000b';
+select chk('72 and not public four days past it, once the grace is spent',
+  app.shop_is_public('cc00000b-0000-4000-8000-00000000000b')::text,'false');
+select chk('73 the paid rule is arithmetically untouched: expiry + grace_days',
+  (app.visibility_ends_at('active', timestamptz '2027-01-01 00:00:00+00', 3)
+     = timestamptz '2027-01-04 00:00:00+00')::text,'true');
+select chk('74 and subscriptions.grace_days itself was not lowered for anybody',
+  (select count(distinct grace_days)::text || ':' || max(grace_days)::text
+     from public.subscriptions),'1:3');
+
+/* ---------- 5. the sweep uses the same rule, so no row lies ---------- */
+update public.subscriptions set status='trialing', plan='trial',
+       trial_ends_at = now() - interval '1 minute', expires_at = now() - interval '1 minute'
+ where shop_id='cc00000a-0000-4000-8000-00000000000a';
+update public.subscriptions set status='active', plan='year_1',
+       expires_at = now() - interval '1 minute'
+ where shop_id='cc00000b-0000-4000-8000-00000000000b';
+select svc();
+select public.expire_lapsed_subscriptions();
+select chk('75 the sweep expires a trial the moment it ends',
+  (select status from public.subscriptions where shop_id='cc00000a-0000-4000-8000-00000000000a'),'expired');
+select chk('76 but leaves a paid plan alone while its grace days run',
+  (select status from public.subscriptions where shop_id='cc00000b-0000-4000-8000-00000000000b'),'active');
+update public.subscriptions set expires_at = now() - interval '4 days'
+ where shop_id='cc00000b-0000-4000-8000-00000000000b';
+select public.expire_lapsed_subscriptions();
+select chk('77 and expires it once they are spent',
+  (select status from public.subscriptions where shop_id='cc00000b-0000-4000-8000-00000000000b'),'expired');
+
+/* ---------- 6. a plan bought during the trial moves onto the paid rule ---------- */
+-- The same row, the same free month, but now a paid entitlement: it gets
+-- the grace days, because what is running out is something paid for.
+insert into auth.users (id, email) values ('aa00000c-0000-4000-8000-00000000000c','sched@e.com');
+select seller('aa00000c-0000-4000-8000-00000000000c');
+insert into public.shops (id, owner_id, name, slug, whatsapp, status)
+values ('cc00000c-0000-4000-8000-00000000000c','aa00000c-0000-4000-8000-00000000000c','Sched','sched-shop','9647510000023','active');
+select svc();
+select public.admin_apply_payment('cc00000c-0000-4000-8000-00000000000c','months_6',38000,'wayl','REF-G','t');
+select chk('78 buying during the free month moves the row to status active',
+  (select status from public.subscriptions where shop_id='cc00000c-0000-4000-8000-00000000000c'),'active');
+select chk('79 so the grace days apply to it, as a paid entitlement',
+  (select (app.visibility_ends_at(sub.status, sub.expires_at, sub.grace_days)
+             = sub.expires_at + interval '3 days')::text
+     from public.subscriptions sub where sub.shop_id='cc00000c-0000-4000-8000-00000000000c'),'true');
+select chk('80 and the free month is still recorded, unmoved',
+  (select (trial_ends_at is not null)::text from public.subscriptions
+    where shop_id='cc00000c-0000-4000-8000-00000000000c'),'true');
 
 -- ---------- the report ----------
 select case when got is not distinct from want then 'PASS  ' else 'FAIL  ' end || name ||

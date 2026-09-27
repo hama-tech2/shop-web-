@@ -173,14 +173,33 @@ await set('/__sub/-5');
 check('a shop the database calls expired is drawn as expired',
   stateAttr(await plans()), 'expired');
 
-// The three grace days a subscription has always carried apply to the
-// free month too: the day after it ends, the products are still up and
-// the seller is warned rather than cut off. This is the existing
-// expired-plan behaviour, reused rather than replaced.
+// The free month gets NO grace days. Thirty days free means thirty, so
+// the day after it ends the shop is expired, not in grace. A paid plan
+// keeps its three grace days — that is asserted right below, against the
+// same screen, so the two rules cannot quietly become one.
 await set('/__trial/-1');
 await set('/__sub/-1');
-check('the day after the free month ends the shop is in grace, not dark',
+check('the day after the free month ends the shop is expired, not in grace',
+  stateAttr(await plans()), 'expired');
+check('and the screen says the free month is over',
+  has(await plans(), 'مانگی بەخۆڕاییت تەواو بووە'));
+
+// The same day, but for a plan somebody paid for: still in grace, still
+// public, still warned rather than cut off.
+await set('/__plan/year_1');
+await set('/__sub/-1');
+check('a PAID plan one day past its date is still in grace',
   stateAttr(await plans()), 'grace');
+await set('/__sub/-2');
+check('and two days past it', stateAttr(await plans()), 'grace');
+await set('/__sub/-4');
+check('but not four days past it, once its grace is spent',
+  stateAttr(await plans()), 'expired');
+
+// Back to a live trial for the checks that follow.
+await set('/__plan/trial');
+await set('/__trial/1');
+await set('/__sub/1');
 
 // And the reverse: the database says the trial is live, so it is drawn
 // live even though the plan row still says 'trial' and could be read as
