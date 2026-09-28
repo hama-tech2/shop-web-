@@ -94,7 +94,7 @@ check('the image limit the app shows is the one the database enforces',
 /* ---------- the free month, and where its length is decided ---------- */
 
 /**
- * The trial is back, and it is the whole entitlement model now: thirty
+ * The trial is back, and it is the whole entitlement model now: sixty
  * days, then a paid plan. Its length lives in app.trial_days() so the
  * Worker and the database can be checked against each other, which is
  * what this does — a screen promising thirty days over a database that
@@ -104,7 +104,7 @@ check('app.trial_days is defined in a migration',
       scalarFunctionFromSql('app', 'trial_days') !== null, true);
 check('the free month the app shows is the one the database grants',
       TRIAL_DAYS, scalarFunctionFromSql('app', 'trial_days'));
-check('and it is thirty days', scalarFunctionFromSql('app', 'trial_days'), 30);
+check('and it is sixty days — two months', scalarFunctionFromSql('app', 'trial_days'), 60);
 
 /**
  * public.start_trial stays dropped, and that is not an oversight.

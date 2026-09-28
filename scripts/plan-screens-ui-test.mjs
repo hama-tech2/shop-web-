@@ -137,9 +137,10 @@ try {
   check('gate focus visible', await page.locator('input[name="gate-plan"][value="months_6"] + span').evaluate((el) => getComputedStyle(el).outlineStyle === 'solid'));
   await page.emulateMedia({ reducedMotion:'reduce' });
   check('gate reduced motion', await page.locator('.billing-choice__surface').first().evaluate((el) => getComputedStyle(el).transitionDuration === '0s'));
-  await control('/__products/5');
+  // The free period's allowance, spent. Thirty now, not five.
+  await control('/__products/' + FREE_PRODUCT_LIMIT);
   await page.goto(APP + '/app/subscription/start');
-  check('full Free cannot continue', await page.locator('[data-plan="free"] input').isDisabled() && await page.locator('#start-trial').count() === 0);
+  check('a shop that has used its whole allowance cannot continue for nothing', await page.locator('[data-plan="free"] input').isDisabled() && await page.locator('#start-trial').count() === 0);
   check('full-Free gate defaults to a paid plan', await page.locator('input[name="gate-plan"][value="year_1"]').isChecked() && await page.locator('.gate-actions button:visible').count() === 1);
   await ctx.close();
 
@@ -244,7 +245,7 @@ try {
   check('a running paid plan is offered no second checkout',
     !/id="plan-form"/.test(held) && !/id="pay-btn"/.test(held));
   check('but its prices are still on the screen',
-    /billing-options--info/.test(held) && /38,000/.test(held) && /72,000/.test(held));
+    /billing-options--info/.test(held) && /5,000/.test(held) && /9,000/.test(held));
   check('and nothing on that list can be posted', !/name="plan"/.test(held));
 } finally { await browser.close(); }
 console.log(`All ${count} approved-screen UI checks passed. Screenshots: ${screenshots}`);
