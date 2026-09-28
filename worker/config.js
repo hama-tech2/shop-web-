@@ -545,7 +545,41 @@ export const SUBSCRIPTION = {
   statePending: 'چاوەڕوانی پشتڕاستکردنەوە',
   stateActive: (d) => `چالاکە تا ${d}`,
   stateGrace: (n) => `بەسەرچووە — ${n} ڕۆژ ماوە پێش شاردنەوەی بەرهەمەکان`,
-  stateExpired: 'پلانی پارەدراوت تەواو بووە. بەرهەمەکانت پارێزراون؛ لە بەڕێوەبردنی بەرهەمەکان دۆخیان بگۆڕە.',
+  stateExpired: 'پلانەکەت تەواو بووە. بەرهەمەکانت پارێزراون؛ ' +
+    'بۆ دووبارە دەرکەوتنیان پلانێک هەڵبژێرە.',
+
+  // ---- the free month ----
+  //
+  // One month free, then a paid plan. Never drawn as a discount: there
+  // is no 38,000 crossed out and no 0 د.ع, because nothing was ever
+  // marked down. The seller is at the beginning of something, not
+  // holding a coupon.
+  trialName: 'یەکەم مانگ بەخۆڕایی',
+  trialDaysLeft: (n) => `${n} ڕۆژ لە مانگی بەخۆڕاییت ماوە.`,
+  trialLastDay: 'ئەمڕۆ ڕۆژی کۆتایی مانگی بەخۆڕاییتە.',
+  trialThenPay: 'پاش کۆتایی مانگی بەخۆڕایی، بۆ بەردەوامبوون پلانێک هەڵبژێرە.',
+
+  // Bought during the free month. The plan is theirs; it simply has not
+  // started yet, and saying which day it starts is the whole point.
+  trialScheduled: (planLabel) =>
+    `پلانی ${planLabel}ت ئامادەیە و پاش کۆتایی مانگی بەخۆڕایی دەست پێدەکات.`,
+  trialScheduledFrom: (date) => `دەست پێدەکات لە ${date}`,
+
+  // The free month has ended and nothing was bought. The first thing
+  // this has to say is that the products are still there: a seller who
+  // thinks their work was deleted does not come back to pay.
+  trialOverTitle: 'مانگی بەخۆڕاییت تەواو بووە',
+  trialOverBody: 'مانگی بەخۆڕاییت تەواو بووە. بەرهەمەکانت پارێزراون؛ ' +
+    'بۆ دووبارە دەرکەوتنیان پلانێک هەڵبژێرە.',
+  trialOverKept: 'هیچ بەرهەمێک نەسڕدراوەتەوە. هەموو وێنەکان و زانیارییەکان لە جێی خۆیان ماون.',
+
+  // Said where the two trial limits are met. They are the same two
+  // numbers the old Free plan carried.
+  trialAllowance: (n, i) => `لە مانگی بەخۆڕاییدا تا ${n} بەرهەم، هەر بەرهەمێک ${i} وێنە.`,
+
+  // Said under the prices to a shop that already holds a plan. It may
+  // not stack a second one, so this is what it is waiting for.
+  renewWhenItEnds: 'کاتێک پلانی ئێستات تەواو بوو، دەتوانیت پلانێکی نوێ بکڕیت.',
 
   best: 'باشترین نرخ',
   perMonth: (n) => `${n} مانگانە`,
@@ -581,19 +615,19 @@ export const SUBSCRIPTION = {
   // ---- the Free plan, said where a seller meets one of its two
   // limits: five products, one image each. Nothing here starts or ends
   // anything — Free is where every shop already is. ----
-  freeName: 'پلانی بەخۆڕایی',
-  freeAllowance: (n, i) => `تا ${n} بەرهەم، هەر بەرهەمێک ${i} وێنە.`,
+  freeName: 'مانگی بەخۆڕایی',
+  freeAllowance: (n, i) => `لە مانگی بەخۆڕاییدا تا ${n} بەرهەم، هەر بەرهەمێک ${i} وێنە.`,
   freeSlotsLeft: (n) => `${n} شوێنی بەتاڵت ماوە.`,
-  freeFull: (n) => `سنووری ${n} بەرهەمی پلانی بەخۆڕایی پڕە. ` +
+  freeFull: (n) => `سنووری ${n} بەرهەمی مانگی بەخۆڕایی پڕە. ` +
     'بەرهەمێک بسڕەوە، یان پلانێک بکڕە.',
-  freeImageOnly: (i) => `لە پلانی بەخۆڕاییدا هەر بەرهەمێک ${i} وێنەی هەیە.`,
-  errFreeFull: 'پلانی بەخۆڕایی پڕە. بەرهەمێک بسڕەوە یان پلانێک بکڕە.',
+  freeImageOnly: (i) => `لە مانگی بەخۆڕاییدا هەر بەرهەمێک ${i} وێنەی هەیە.`,
+  errFreeFull: 'مانگی بەخۆڕایی پڕە. بەرهەمێک بسڕەوە یان پلانێک بکڕە.',
   errSuspended: 'دوکانەکەت ناچالاکە. پەیوەندیمان پێوە بکە.',
 
   // ---- the plan gate, met on the way in to Add Product. Looking at it
   // starts nothing and writes nothing. ----
   gateTitle: 'بۆ زیادکردنی بەرهەم پلانێک هەڵبژێرە',
-  gateBody: 'بەخۆڕایی بەردەوام بە، یان پلانێکی پارەدراو هەڵبژێرە.',
+  gateBody: 'پاش کۆتایی مانگی بەخۆڕایی، بۆ بەردەوامبوون پلانێک هەڵبژێرە.',
   gateTrialTitle: () => 'پلانی بەخۆڕایی',
   gateTrialBody: (n) => `تا ${n} بەرهەم. هیچ پارەیەک وەرناگیرێت.`,
   gateTrialAction: 'بەردەوامبوون بەخۆڕایی',
@@ -606,7 +640,7 @@ export const SUBSCRIPTION = {
   warnSoon: (n) => `${n} ڕۆژ لە پلانەکەت ماوە.`,
   warnUrgent: (n) => `تەنها ${n} ڕۆژ ماوە.`,
   warnLast: 'سبەی پلانەکەت تەواو دەبێت.',
-  warnExpired: 'پلانی پارەدراوت تەواو بووە. سنوورەکانی پلانی بەخۆڕایی بەکاردێن.',
+  warnExpired: 'پلانەکەت تەواو بووە. بەرهەمەکانت پارێزراون بەڵام ئێستا بە گشتی دەرناکەون.',
   warnNone: 'هێشتا پلانێکت نییە.',
   warnAction: 'نوێکردنەوە / بینینی پلانەکان',
   // Renewal is a payment the seller makes, every time. Nothing here

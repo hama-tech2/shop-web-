@@ -51,7 +51,13 @@ let isAdmin = false;              // does the session own an admins row
 let adminActive = true;
 const manualGrants = new Map();
 let subDays = 20;                 // days until the subscription expires
-let subPlan = 'free';             // free | month_1 | months_6 | year_1
+let subPlan = 'trial';            // trial | month_1 | months_6 | year_1 | free (legacy)
+// Days until the FREE MONTH ends. Null means this shop never had one —
+// a shop that was already paying when first-month-free landed. Kept
+// separate from subDays because that is the point of the model: the
+// free month and the entitlement are two dates, and a plan bought
+// during the month moves only the second one.
+let trialDays = 20;
 let suspended = false;            // the admin's stop button
 let productCount = 0;             // how many products the shop has
 let publicCount = 0;              // how many of them are active
@@ -151,7 +157,22 @@ http.createServer(async (req, res) => {
   if (p.startsWith('/__admin/')) { isAdmin = p.split('/')[2] === '1'; return send({ isAdmin }); }
   if (p.startsWith('/__admin-active/')) { adminActive = p.split('/')[2] === '1'; return send({ adminActive }); }
   if (p.startsWith('/__sub/')) { subDays = Number(p.split('/')[2]); return send({ subDays }); }
-  if (p.startsWith('/__plan/')) { subPlan = p.split('/')[2]; return send({ subPlan }); }
+  // Setting a sold plan also ends the free month, because that is the
+  // ordinary shape of a paid shop: it paid, the month is behind it. A
+  // test that wants the other shape — bought DURING the free month —
+  // says so by calling /__trial/<days> afterwards.
+  if (p.startsWith('/__plan/')) {
+    subPlan = p.split('/')[2];
+    if (['month_1', 'months_6', 'year_1'].includes(subPlan)) trialDays = null;
+    else if (trialDays === null) trialDays = 20;
+    return send({ subPlan, trialDays });
+  }
+  // Days left in the free month. '-' is a shop that never had one.
+  if (p.startsWith('/__trial/')) {
+    const v = p.split('/')[2];
+    trialDays = v === '-' ? null : Number(v);
+    return send({ trialDays });
+  }
   // The admin's stop button, which outranks any plan.
   if (p.startsWith('/__suspended/')) { suspended = p.split('/')[2] === '1'; return send({ suspended }); }
   if (p.startsWith('/__products/')) {
@@ -550,26 +571,54 @@ http.createServer(async (req, res) => {
     // which is what lets the account card draw grace and then expired.
     // /__plan/free is the swept state.
     const sold = ['month_1', 'months_6', 'year_1'].includes(subPlan);
-    const expires = new Date(Date.now() + subDays * 86400000).toISOString();
-    // Grace is 3 days, matching subscriptions.grace_days.
-    const graceEnds = new Date(Date.now() + (subDays + 3) * 86400000).toISOString();
-    // app.plan_tier: only a sold plan whose date has not passed.
-    const paid = sold && subDays > 0;
+    // app.on_trial: a free month that has not run out yet.
+    const onTrial = trialDays !== null && trialDays > 0 && !suspended;
+    // app.has_paid_entitlement: bought, and not yet run out. During the
+    // free month the entitlement date is trial end + the plan, so a sold
+    // plan with days left is held whether or not it has started.
+    const held = sold && subDays > 0;
+    // app.plan_tier: trial wins while the free month runs; then paid;
+    // then expired. There is no permanent Free tier any more.
+    const tier = onTrial ? 'trial' : held ? 'paid' : 'expired';
+    // The free month with nothing bought ends entitlement at trial end.
+    const entitlementDays = sold ? subDays : (trialDays ?? 0);
+    const expires = new Date(Date.now() + entitlementDays * 86400000).toISOString();
+    // app.visibility_ends_at: a paid plan keeps its three grace days
+    // (subscriptions.grace_days); the free month has none, so thirty days
+    // free means thirty and the day after it ends the products are gone.
+    const onTrialRow = !sold;
+    const graceDays = onTrialRow ? 0 : 3;
+    const graceEnds = new Date(
+      Date.now() + (entitlementDays + graceDays) * 86400000).toISOString();
+    const legacyFree = subPlan === 'free';
     return send([{
       plan: subPlan,
-      status: suspended ? 'suspended' : sold ? 'active' : 'free',
+      status: suspended ? 'suspended'
+            : legacyFree ? 'free'
+            : onTrial ? 'trialing'
+            : held ? 'active'
+            : 'expired',
       started_at: new Date(Date.now() - 10 * 86400000).toISOString(),
-      expires_at: sold ? expires : new Date().toISOString(),
-      grace_ends_at: sold ? graceEnds : new Date().toISOString(),
-      days_left: sold ? Math.max(0, Math.ceil(subDays)) : 0,
+      expires_at: expires,
+      grace_ends_at: graceEnds,
+      days_left: Math.max(0, Math.ceil(entitlementDays)),
       total_days: 30,
-      in_grace: sold && subDays <= 0 && subDays > -3,
-      // A Free shop is a public shop; that is the whole point of it.
-      publicly_visible: !suspended && (!sold || subDays > -3),
-      // app.can_publish: not suspended, and either paid or holding a slot.
-      can_publish: !suspended && (paid || productCount < 5),
-      tier: paid ? 'paid' : 'free',
-      slots_left: paid ? null : Math.max(0, 5 - productCount),
+      in_grace: entitlementDays <= 0 && entitlementDays > -graceDays,
+      // An expired shop is not public, and neither is a suspended one.
+      // A trial is gone the moment it ends; a paid plan has its grace.
+      publicly_visible: !suspended
+        && (legacyFree || entitlementDays > -graceDays || entitlementDays > 0),
+      // app.can_publish: paid, or on the free month with a slot left.
+      can_publish: !suspended
+        && ((tier === 'paid') || (tier === 'trial' && productCount < 5)),
+      tier,
+      slots_left: tier === 'paid' ? null : Math.max(0, 5 - productCount),
+      trial_ends_at: trialDays === null
+        ? null
+        : new Date(Date.now() + trialDays * 86400000).toISOString(),
+      trial_days_left: trialDays === null ? 0 : Math.max(0, Math.ceil(trialDays)),
+      on_trial: onTrial,
+      paid_scheduled: onTrial && held,
     }]);
   }
   // Null on a paid plan means unlimited, which is what the app checks.
@@ -587,6 +636,12 @@ http.createServer(async (req, res) => {
     // app.wayl_start_intent's per-shop rate limit, on demand.
     if (waylBusy) return send({ code: 'SW002' }, 400);
     if (!['months_6', 'year_1'].includes(lastBody.p_plan)) return send({ code: '22023' }, 400);
+    // app.has_paid_entitlement: one paid plan at a time. The real guard
+    // is in the database and refuses before anything is written; this is
+    // the same refusal so the Worker's handling of it can be proven.
+    if (['month_1', 'months_6', 'year_1'].includes(subPlan) && subDays > 0) {
+      return send({ code: 'SW008', message: 'shop already holds a paid plan' }, 400);
+    }
     if (intent && intent.status === 'pending' && intent.plan === lastBody.p_plan) {
       return send({ code: 'SW003' }, 400);
     }

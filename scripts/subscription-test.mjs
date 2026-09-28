@@ -83,7 +83,12 @@ await setDismissed('reset', 0);
    ============================================================ */
 
 let html = await page('/app/subscription');
-check('the plan screen renders', html.includes('نوێکردنەوەی پلان'), true);
+// The heading names whichever state the shop is in: the free month for a
+// shop on it, renewal for one past it. What must always be true is that
+// the screen is the plan screen and carries both prices.
+check('the plan screen renders',
+      html.includes('یەکەم مانگ بەخۆڕایی') || html.includes('نوێکردنەوەی پلان'), true);
+check('and it is priced', html.includes('38,000') && html.includes('72,000'), true);
 check('both plans are offered', PLANS.every((p) => html.includes(String(p.amount).replace(/\B(?=(\d{3})+(?!\d))/g, ','))), true);
 check('6 months is priced from config', html.includes(priced('months_6')), true);
 check('1 year is priced from config', html.includes(priced('year_1')), true);
@@ -216,12 +221,26 @@ check('paid, 20 days left: no banner', await banner(20), null);
 check('paid, 14 days left: amber', await banner(14), 'soon');
 check('paid, 7 days left: amber', await banner(7), 'soon');
 check('paid, 3 days left: urgent', await banner(3), 'urgent');
-check('paid expiry uses Free tier without a countdown banner', await banner(-1), null);
-check('past grace stays Free without a countdown banner', await banner(-5), null);
+// A lapsed plan no longer lands on a permanent Free plan, because there
+// is not one to land on. One day past the date it is in its grace days,
+// with the products still up and the seller told so; past the grace days
+// the products are hidden, and the banner says that instead.
+check('a day past the date: the red grace banner', await banner(-1), 'grace');
+check('past the grace days: the products are hidden, and it says so',
+      await banner(-5), 'hidden');
 
 await setSub(-5);
 html = await page('/app');
-check('expired account shows permanent Free and a management link', html.includes('data-status="free"') && html.includes('href="/app"'), true);
+// Expired, not moved to a plan that no longer exists. The seller is
+// still signed in, the card still links into the app, and the copy says
+// the products are kept rather than implying they are gone.
+check('an expired account says expired, not Free',
+      html.includes('data-status="expired"'), true);
+check('and still links back into the app', html.includes('href="/app"'), true);
+check('and tells the seller their products are preserved',
+      /پارێزراون/.test(html), true);
+check('and never suggests anything was deleted',
+      /سڕاوە|لەناوچوو/.test(html), false);
 check('no promise that paying republishes hidden products', html.includes('یەکسەر بگەڕێنەوە'), false);
 check('the red banner has no close button',
       /plan-banner--hidden[\s\S]*?plan-banner__close/.test(html), false);
@@ -269,8 +288,11 @@ check('and is back the next day', await banner(3), 'urgent');
 // A dismissal can never hide the red ones.
 await setDismissed('soon', 0);
 await setDismissed('urgent', 0);
-check('stored dismissal cannot create a countdown for Free', await banner(-1), null);
-check('Free still has no countdown after grace', await banner(-5), null);
+// A dismissal cannot turn the red ones off. These two are the states
+// where the shop is about to go dark or already has, and both ignore
+// whatever the seller closed earlier.
+check('a stored dismissal cannot hide the grace banner', await banner(-1), 'grace');
+check('nor the hidden one after grace', await banner(-5), 'hidden');
 await setDismissed('reset', 0);
 
 r = await post('/app/banner/dismiss', { kind: 'grace' });

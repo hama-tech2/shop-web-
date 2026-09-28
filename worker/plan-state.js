@@ -1,23 +1,27 @@
 /**
- * Which of the five states a shop's plan is in.
+ * Which state a shop's plan is in.
  *
- * Only three of them are stored. `subscriptions.status` says trialing or
- * active; `grace` and `expired` are read off the expiry date and the
- * grace window, which is the same arithmetic RLS uses to decide whether
- * the shop's products are public. Keeping it derived is what makes
- * paying restore a shop instantly: one date moves, and the products
- * come back with no writes of their own.
+ * Six answers, and every one of them is read off dates the database
+ * handed over rather than computed here:
  *
- * `pending` is not a subscription state at all — it is a payment the
- * seller says they have sent and the owner has not yet found. It sits
- * on top of whatever the subscription is really doing, because a seller
- * whose trial is running out while their transfer is unconfirmed is
- * still on trial.
+ *   trial      the free month is running, nothing bought yet
+ *   scheduled  the free month is running and a plan is already bought,
+ *              waiting to start the day it ends
+ *   active     a paid plan is running
+ *   grace      past the expiry, products still up for the grace days
+ *   expired    past that. Products are hidden. Nothing is deleted.
+ *   pending    a hand-made transfer the owner has not yet found
  *
- * `free` is a sixth, and it is stored: the permanent Free plan, which
- * every shop is on until it pays and falls back to after a paid plan
- * runs out. Nothing about it expires, so it is never drawn as a plan
- * that ended and never carries a countdown.
+ * `pending` is not a subscription state at all. It sits on top of
+ * whatever the subscription is really doing, because a seller whose
+ * free month is running out while their transfer is unconfirmed is
+ * still on their free month.
+ *
+ * Nothing in here decides anything. subscription_state() in the
+ * database answers "is the trial running", "is a plan scheduled" and
+ * "when does entitlement end", and this turns those into the word a
+ * screen needs. A browser must never be the thing that decides whether
+ * somebody's free month is over.
  */
 
 export const GRACE_DAYS = 3;
@@ -45,12 +49,34 @@ export function planState(state, pending = false, now = Date.now()) {
     return { key: pending ? 'pending' : 'expired', days: 0, pending };
   }
 
-  // The Free plan. Read off the stored status rather than the date: a
-  // Free row carries a meaningless expires_at, which would otherwise
-  // read as a plan that ended this morning.
-  if (state.status === 'free' || state.plan === 'free'
-      || state.status === 'none' || state.plan === 'none') {
-    return { key: 'free', days: 0, pending };
+  // No plan at all, and no free month either: the trial ledger could not
+  // be read when the shop was made. Rare, and not the same thing as the
+  // free month having run out, so it is not drawn as a countdown that
+  // reached zero.
+  if (state.status === 'none' || state.plan === 'none') {
+    return { key: 'none', days: 0, pending };
+  }
+
+  // A row still stored as the old permanent Free plan: the transition in
+  // migration 20260927090000 has not run yet, or this shop is suspended
+  // or banned and was left alone by it on purpose.
+  if (state.status === 'free' || state.plan === 'free') {
+    return { key: 'trial', days: state.trial_days_left ?? 0, pending, legacyFree: true };
+  }
+
+  // The free month, which the database has already decided about. A
+  // plan bought during it is scheduled, not running: the seller has
+  // both, and the screen has to be able to say so.
+  if (state.on_trial) {
+    const days = Number.isInteger(state.trial_days_left) ? state.trial_days_left : 0;
+    if (pending) return { key: 'pending', days, pending, onTrial: true };
+    return {
+      key: state.paid_scheduled ? 'scheduled' : 'trial',
+      days,
+      pending,
+      onTrial: true,
+      scheduledPlan: state.paid_scheduled ? state.plan : null,
+    };
   }
 
   const left = daysUntil(state.expires_at, now);
@@ -73,6 +99,10 @@ export function planState(state, pending = false, now = Date.now()) {
   // it wins the headline while the plan is still running.
   if (pending) return { key: 'pending', days, pending };
 
+  // Past the free month, still inside the entitlement: a paid plan
+  // running. A row still on plan 'trial' at this point has a trial that
+  // has not been swept yet, and is what the grace branch above catches
+  // once its date passes.
   return { key: state.plan === 'trial' ? 'trial' : 'active', days, pending };
 }
 
@@ -97,10 +127,15 @@ export function planState(state, pending = false, now = Date.now()) {
  * data must not be a way to lose the warning.
  */
 export function bannerFor(plan, schedule, dismissedAt = {}, now = Date.now()) {
-  // Nothing runs out on Free, so there is nothing to warn about. What a
-  // Free seller needs to hear is said where they meet the limit: on the
-  // plan gate in front of a new product.
+  // A plan bought during the free month needs no warning: it starts the
+  // day the month ends and the seller has already done the thing a
+  // banner would be asking them to do.
+  if (plan.key === 'scheduled') return null;
   if (plan.key === 'free') return null;
+  // A row the transition left on the old permanent Free plan, which
+  // means a suspended or banned shop. It carries no real day count, so
+  // a countdown off it would be an invented deadline.
+  if (plan.legacyFree) return null;
   if (plan.key === 'expired') {
     return { kind: 'hidden', days: 0, dismissible: false };
   }

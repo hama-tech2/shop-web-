@@ -5,12 +5,15 @@ import { iconBack, iconDocument, iconExternal, iconLogout,
 
 const statusLabels = {
   free: 'بەخۆڕایی',
+  // The free month, and a plan bought during it that has not started.
+  trial: 'مانگی بەخۆڕایی',
+  scheduled: 'ئامادەیە',
   none: 'بێ پلان',
   active: 'چالاک', pending: 'چاوەڕوانی پشتڕاستکردنەوە',
   grace: 'لە کاتی زیادەدایە', expired: 'بەسەرچووە', suspended: 'ناچالاک',
 };
 const planLabels = {
-  none: 'بێ پلان', free: 'پلانی بەخۆڕایی',
+  none: 'بێ پلان', free: 'مانگی بەخۆڕایی', trial: 'مانگی بەخۆڕایی',
   month_1: '1 مانگ', months_6: '6 مانگ', year_1: '1 ساڵ',
 };
 

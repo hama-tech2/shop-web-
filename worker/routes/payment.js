@@ -253,6 +253,10 @@ export async function checkoutPost(request, env) {
     // A hand-made transfer is already waiting on the owner. Send them
     // to the screen that is about it rather than taking money twice.
     if (code === 'SW003') return redirect('/app/subscription/pay', g.headers);
+    // One paid plan at a time. The screen does not offer a second one,
+    // so reaching this means the form was posted directly — send them
+    // back to the plan screen, which says what they already hold.
+    if (code === 'SW008') return redirect('/app/subscription', g.headers);
     checkoutFailed('the database refused the attempt', code ?? started.status);
     return back('errCheckout');
   }
