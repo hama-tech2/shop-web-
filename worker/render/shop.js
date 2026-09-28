@@ -19,8 +19,13 @@ export function shopHeader({ shop, origin, controls = '' }) {
   const url = `${origin}/@${shop.slug}`;
   const city = CITY_LABEL[shop.city] ?? shop.city ?? '';
 
+  // The banner is this page's share image and its only picture above
+  // the fold, so it is named after the shop. The logo below it sits
+  // directly beside that same name in text, which is why it stays
+  // decorative — naming both would read the shop's name out twice.
   const banner = shop.cover_key
-    ? `<img class="shop-banner__img" src="${esc(imgUrl(shop.cover_key))}" alt=""` +
+    ? `<img class="shop-banner__img" src="${esc(imgUrl(shop.cover_key))}"` +
+      ` alt="${esc(shop.name)}"` +
       ` width="1200" height="450" fetchpriority="high" decoding="async">`
     : `<span class="shop-banner__img shop-banner__img--empty"></span>`;
 

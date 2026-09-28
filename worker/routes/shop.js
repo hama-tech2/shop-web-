@@ -13,7 +13,9 @@ import {
 import { layout } from '../render/layout.js';
 import { shopDescription, shopNotFound, shopPage } from '../render/shop.js';
 import { productDescription, productPage } from '../render/product-page.js';
-import { productBreadcrumbLd, productLd, shopLd } from '../render/structured-data.js';
+import {
+  productBreadcrumbLd, productLd, shopLd, shopProductsLd,
+} from '../render/structured-data.js';
 import {
   getCategories, getMoreFromShop, getProduct, getShopCategories,
   getShopProducts, getShopProfile, recordView, viewToken,
@@ -120,7 +122,15 @@ export async function shopGet(request, env, url, slug, ctx) {
     ogImageHeight: ogSource?.size.height,
     ogType: 'profile',
     // Everything in here is already rendered on the page above.
-    structuredData: shopLd({ shop }),
+    //
+    // The product list is only emitted for the whole shop. A category
+    // chip renders a subset while the canonical URL still points at
+    // /@slug, so listing the subset would describe a page nobody can
+    // visit under that address.
+    structuredData: [
+      shopLd({ shop }),
+      chipKey ? null : shopProductsLd({ shop, products }),
+    ].filter(Boolean),
   });
 }
 

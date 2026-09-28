@@ -119,6 +119,64 @@ export function shopLd({ shop }) {
 }
 
 /**
+ * The products a shop page is actually showing, as a list.
+ *
+ * The shop block above says who the seller is; this says what is on
+ * the shelf. Without it a crawler has to infer the products by parsing
+ * the card markup, which is exactly the step an AI assistant tends to
+ * get wrong or skip — the titles, prices, links and photos are all
+ * already in the HTML, so naming them costs nothing and removes the
+ * guesswork.
+ *
+ * Every value comes from the cards rendered on that same page, in the
+ * same order. Nothing is fetched again and nothing is invented: a
+ * product with no photo simply carries no image, and the seller is a
+ * reference to the Store block rather than a second copy of it.
+ *
+ * The caller must not pass a filtered list. A category chip narrows
+ * what is on screen but leaves the canonical URL pointing at the whole
+ * shop, and structured data that disagrees with the page it claims to
+ * describe is worse than none.
+ */
+export function shopProductsLd({ shop, products }) {
+  const shopUrl = siteUrl(`/@${encodeURIComponent(shop.slug)}`);
+  const listed = (products ?? []).filter((product) => product?.id && product?.title);
+  if (!listed.length) return null;
+
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'ItemList',
+    '@id': `${shopUrl}#products`,
+    name: shop.name,
+    url: shopUrl,
+    numberOfItems: listed.length,
+    itemListElement: listed.map((product, index) => {
+      const url = `${shopUrl}/p/${encodeURIComponent(product.id)}`;
+      // A card holds R2 keys, and toCard() pads an imageless product
+      // with [null] so the carousel has something to iterate.
+      const image = imageUrl(product.images?.find(Boolean));
+
+      const item = {
+        '@type': 'Product',
+        '@id': `${url}#product`,
+        name: product.title,
+        url,
+        offers: {
+          '@type': 'Offer',
+          url,
+          price: String(Number(product.price) || 0),
+          priceCurrency: PRODUCT_CURRENCIES[currencyOf(product.currency)].code,
+          seller: { '@id': `${shopUrl}#shop` },
+        },
+      };
+      if (image) item.image = image;
+
+      return { '@type': 'ListItem', position: index + 1, item };
+    }),
+  };
+}
+
+/**
  * One product.
  *
  * price and priceCurrency are the two the seller actually typed, read
