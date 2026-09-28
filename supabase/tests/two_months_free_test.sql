@@ -1,10 +1,10 @@
 -- ============================================================
--- Bazaro — the first month is free: what the database guarantees
+-- Bazaro — the first two months are free: what the database guarantees
 --
--- These are the rules of migration 20260927090000_first_month_free.sql,
+-- These are the rules of migration 20260927090000_two_months_free.sql,
 -- written as assertions and run against a real Postgres. The Worker
--- suite scripts/first-month-free-test.mjs proves the screens; this
--- proves the calendar, and the calendar is the part where a mistake
+-- suite scripts/two-months-free-test.mjs proves the screens; this proves
+-- the calendar and the numbers, and those are the parts where a mistake
 -- costs somebody money.
 --
 -- To run it, replay every migration in supabase/migrations into an
@@ -12,21 +12,25 @@
 -- an auth.users table and the anon/authenticated/service_role roles —
 -- and then:
 --
---   psql -v ON_ERROR_STOP=1 -f supabase/tests/first_month_free_test.sql
+--   psql -v ON_ERROR_STOP=1 -f supabase/tests/two_months_free_test.sql
 --
 -- The last two statements print one line per check and a total. It is
 -- meant to be read, not just to exit 0.
 --
--- What it covers: the thirty days, and that they are exactly thirty and
--- not thirty-three — the free month gets no grace days, while a paid
+-- What it covers: sixty days, and that they are exactly sixty and not
+-- sixty-three — the free period gets no grace days, while a paid
 -- subscription keeps the three it has always had, and both halves are
--- asserted against the same function at the same instant. One free month
--- per account, surviving a deleted shop and a changed email. A plan
--- bought mid-trial starting when the trial ends rather than on the day it
--- was paid for. Nothing stacking, at the checkout or at the webhook, and
--- a duplicate webhook adding nothing. The two prices. No public
--- one-month plan. And that the month running out deletes no product,
--- hides no product row, and locks nobody out of their account.
+-- asserted against the same function at the same instant. One free
+-- period per account, surviving a deleted shop and a changed email.
+-- Thirty products and five images, enforced by the triggers rather than
+-- merely declared, with no configuration in which either is unlimited.
+-- 5,000 IQD for six months and 9,000 for a year, priced by the server,
+-- with a payment at the old price refused. A plan bought mid-trial
+-- starting when the trial ends rather than on the day it was paid for.
+-- Nothing stacking, at the checkout or at the webhook, and a duplicate
+-- webhook adding nothing. No public one-month plan. And that the free
+-- period running out deletes no product, hides no product row, and
+-- locks nobody out of their account.
 -- ============================================================
 
 
@@ -44,10 +48,10 @@ select seller('aa000001-0000-4000-8000-000000000001');
 insert into public.shops (id, owner_id, name, slug, whatsapp, status)
 values ('cc000001-0000-4000-8000-000000000001','aa000001-0000-4000-8000-000000000001','New','new-shop','9647510000011','active');
 
-select chk('01 a new shop is on the free month',
+select chk('01 a new shop is on the free period',
   (select plan||'/'||status from public.subscriptions where shop_id='cc000001-0000-4000-8000-000000000001'),'trial/trialing');
-select chk('02 the free month is exactly 30 days',
-  (select round(extract(epoch from (trial_ends_at-started_at))/86400)::text from public.subscriptions where shop_id='cc000001-0000-4000-8000-000000000001'),'30');
+select chk('02 the free period is exactly 60 days',
+  (select round(extract(epoch from (trial_ends_at-started_at))/86400)::text from public.subscriptions where shop_id='cc000001-0000-4000-8000-000000000001'),'60');
 select chk('03 expires_at is the trial end, so there is one date not two',
   (select (expires_at=trial_ends_at)::text from public.subscriptions where shop_id='cc000001-0000-4000-8000-000000000001'),'true');
 select chk('04 the trial reads active', app.on_trial('cc000001-0000-4000-8000-000000000001')::text,'true');
@@ -55,32 +59,32 @@ select chk('05 the tier is trial', app.plan_tier('cc000001-0000-4000-8000-000000
 select chk('06 the shop is public', app.shop_is_public('cc000001-0000-4000-8000-000000000001')::text,'true');
 select chk('07 and may publish', app.can_publish('cc000001-0000-4000-8000-000000000001')::text,'true');
 select chk('08 nothing is scheduled yet', app.paid_scheduled('cc000001-0000-4000-8000-000000000001')::text,'false');
-select chk('09 the trial limit is 5 products', app.free_product_limit()::text,'5');
-select chk('10 and 1 image per product', app.free_image_limit()::text,'1');
-select chk('11 six months costs exactly 38,000', app.plan_price('months_6')::text,'38000');
-select chk('12 one year costs exactly 72,000', app.plan_price('year_1')::text,'72000');
+select chk('09 the free period allows 30 products', app.free_product_limit()::text,'30');
+select chk('10 and 5 images per product, the same as a paid plan', app.free_image_limit()::text,'5');
+select chk('11 six months costs exactly 5,000', app.plan_price('months_6')::text,'5000');
+select chk('12 one year costs exactly 9,000', app.plan_price('year_1')::text,'9000');
 select count(*) from results;
 
 
 
--- ===== 13-15: buying six months during the free month =====
+-- ===== 13-15: buying six months during the free period =====
 -- The trial end is captured first so the assertion compares against the
 -- date the seller could actually see, not against now().
 create table t1 as select trial_ends_at from public.subscriptions where shop_id='cc000001-0000-4000-8000-000000000001';
 select svc();
-select public.admin_apply_payment('cc000001-0000-4000-8000-000000000001','months_6',38000,'wayl','REF-1','test');
+select public.admin_apply_payment('cc000001-0000-4000-8000-000000000001','months_6',5000,'wayl','REF-1','test');
 
 select chk('13 six months bought mid-trial runs from the trial end, not from today',
   (select (sub.expires_at = t1.trial_ends_at + interval '6 months')::text
      from public.subscriptions sub, t1 where sub.shop_id='cc000001-0000-4000-8000-000000000001'),'true');
-select chk('14 the free month is not thrown away: trial_ends_at is untouched',
+select chk('14 the free period is not thrown away: trial_ends_at is untouched',
   (select (sub.trial_ends_at = t1.trial_ends_at)::text from public.subscriptions sub, t1
     where sub.shop_id='cc000001-0000-4000-8000-000000000001'),'true');
-select chk('15 the seller is still on the free month today',
+select chk('15 the seller is still on the free period today',
   app.on_trial('cc000001-0000-4000-8000-000000000001')::text,'true');
 select chk('16 and the plan reads as scheduled, not running',
   app.paid_scheduled('cc000001-0000-4000-8000-000000000001')::text,'true');
-select chk('17 the tier stays trial until the free month ends',
+select chk('17 the tier stays trial until the free period ends',
   app.plan_tier('cc000001-0000-4000-8000-000000000001'),'trial');
 
 -- ===== 18-19: no stacking =====
@@ -102,11 +106,11 @@ insert into auth.users (id, email) values ('aa000003-0000-4000-8000-000000000003
 select seller('aa000003-0000-4000-8000-000000000003');
 insert into public.shops (id, owner_id, name, slug, whatsapp, status)
 values ('cc000003-0000-4000-8000-000000000003','aa000003-0000-4000-8000-000000000003','Paid','paid-shop','9647510000013','active');
--- Put it past its free month and on a running paid plan.
+-- Put it past its free period and on a running paid plan.
 update public.subscriptions set trial_ends_at = now() - interval '2 days',
   plan='months_6', status='active', expires_at = now() + interval '170 days'
  where shop_id='cc000003-0000-4000-8000-000000000003';
-select chk('20 a shop past its free month on a paid plan reads paid',
+select chk('20 a shop past its free period on a paid plan reads paid',
   app.plan_tier('cc000003-0000-4000-8000-000000000003'),'paid');
 select chk('21 and is not on a trial any more',
   app.on_trial('cc000003-0000-4000-8000-000000000003')::text,'false');
@@ -130,7 +134,7 @@ end $$;
 
 
 
--- ===== the free month running out takes nothing with it =====
+-- ===== the free period running out takes nothing with it =====
 insert into auth.users (id, email) values ('aa000004-0000-4000-8000-000000000004','exp@e.com');
 select seller('aa000004-0000-4000-8000-000000000004');
 insert into public.shops (id, owner_id, name, slug, whatsapp, status)
@@ -144,7 +148,7 @@ values ('dd000001-0000-4000-8000-000000000001','cc000004-0000-4000-8000-00000000
         'products/cc000004-0000-4000-8000-000000000004/a.webp',
         'products/cc000004-0000-4000-8000-000000000004/a-full.webp',1,'image/webp');
 
--- Wind the clock past the free month AND past the grace days.
+-- Wind the clock past the free period AND past the grace days.
 update public.subscriptions
    set trial_ends_at = now() - interval '5 days', expires_at = now() - interval '5 days'
  where shop_id='cc000004-0000-4000-8000-000000000004';
@@ -152,7 +156,7 @@ update public.subscriptions
 select svc();
 select public.expire_lapsed_subscriptions();
 
-select chk('25 the free month running out marks the shop expired',
+select chk('25 the free period running out marks the shop expired',
   (select status from public.subscriptions where shop_id='cc000004-0000-4000-8000-000000000004'),'expired');
 select chk('26 no product was deleted',
   (select count(*)::text from public.products where shop_id='cc000004-0000-4000-8000-000000000004'),'3');
@@ -170,7 +174,7 @@ select chk('32 and no new product may be posted while nobody is paying',
   app.can_publish('cc000004-0000-4000-8000-000000000004')::text,'false');
 select chk('33 the tier reads expired', app.plan_tier('cc000004-0000-4000-8000-000000000004'),'expired');
 
--- ===== buying after the free month ended =====
+-- ===== buying after the free period ended =====
 select chk('34 an expired shop holds no entitlement, so it may buy',
   app.has_paid_entitlement('cc000004-0000-4000-8000-000000000004')::text,'false');
 select seller('aa000004-0000-4000-8000-000000000004');
@@ -179,12 +183,12 @@ create table intent4 as
 select chk('35 and a checkout really does start',
   (select (id is not null)::text from intent4),'true');
 select chk('36 priced by the server at 38,000, whatever the browser said',
-  (select (amount = 38000)::text from intent4), 'true');
+  (select (amount = 5000)::text from intent4), 'true');
 
 -- ===== the duplicate webhook =====
 select svc();
 create table applied1 as
-  select * from public.wayl_apply_payment((select id from intent4), 'REF-AFTER', 38000, 'FIB', 'first');
+  select * from public.wayl_apply_payment((select id from intent4), 'REF-AFTER', 5000, 'FIB', 'first');
 select chk('37 the first confirmation activates the plan',
   (select activated::text from applied1),'true');
 create table exp1 as select expires_at from public.subscriptions where shop_id='cc000004-0000-4000-8000-000000000004';
@@ -192,7 +196,7 @@ select chk('38 paying after expiry runs from today, not from the old date',
   (select (e.expires_at > now() + interval '175 days')::text from exp1 e),'true');
 
 create table applied2 as
-  select * from public.wayl_apply_payment((select id from intent4), 'REF-AFTER', 38000, 'FIB', 'duplicate');
+  select * from public.wayl_apply_payment((select id from intent4), 'REF-AFTER', 5000, 'FIB', 'duplicate');
 select chk('39 a duplicate webhook does not activate a second time',
   (select activated::text from applied2),'false');
 select chk('40 it reports the plan as already active',
@@ -209,7 +213,7 @@ select chk('44 all three of them, still active',
 
 
 
--- ===== the free month cannot be restarted =====
+-- ===== the free period cannot be restarted =====
 -- The schema allows one shop per owner, so the only way to try for a
 -- second trial is to delete the shop and make another. That is exactly
 -- what trial_grants is keyed on auth.users.id to stop.
@@ -230,7 +234,7 @@ delete from public.shops where id='cc000005-0000-4000-8000-000000000005';
 insert into public.shops (id, owner_id, name, slug, whatsapp, status)
 values ('cc000006-0000-4000-8000-000000000006','aa000005-0000-4000-8000-000000000005','Again','again-shop','9647510000016','active');
 
-select chk('45 deleting the shop and making another does not restart the free month',
+select chk('45 deleting the shop and making another does not restart the free period',
   (select round(extract(epoch from (trial_ends_at - now()))/86400)::text
      from public.subscriptions where shop_id='cc000006-0000-4000-8000-000000000006'),'3');
 select chk('46 the ledger still holds exactly one grant for that account',
@@ -255,7 +259,7 @@ select chk('51 and still see every product in it',
 -- ===== the admin grant path is untouched =====
 -- The anti-stacking guard is deliberately NOT on admin_apply_payment:
 -- a goodwill month or a refund is the owner's to give, and it must keep
--- working on a shop that is already on its free month.
+-- working on a shop that is already on its free period.
 select svc();
 create table before_grant as select expires_at from public.subscriptions where shop_id='cc000006-0000-4000-8000-000000000006';
 select public.admin_apply_payment('cc000006-0000-4000-8000-000000000006','month_1',0,'manual_grant','G-1','goodwill');
@@ -270,8 +274,8 @@ select chk('54 a granted month is still not something a seller can buy',
 
 
 
--- ===== the free month ends when it ends =====
--- A paid subscription keeps its three grace days. The free month has
+-- ===== the free period ends when it ends =====
+-- A paid subscription keeps its three grace days. The free period has
 -- none: thirty days free means thirty, so the day after it ends the
 -- products stop being public. Section b6 proves both halves against the
 -- same function; this one checks it end to end through shop_is_public.
@@ -285,7 +289,7 @@ values ('dd000007-0000-4000-8000-000000000007','cc000007-0000-4000-8000-00000000
 update public.subscriptions set status='trialing', plan='trial',
        trial_ends_at = now() - interval '1 day', expires_at = now() - interval '1 day'
  where shop_id='cc000007-0000-4000-8000-000000000007';
-select chk('55 one day after the free month the products are NOT public',
+select chk('55 one day after the free period the products are NOT public',
   app.shop_is_public('cc000007-0000-4000-8000-000000000007')::text,'false');
 select chk('56 and nothing new may be posted',
   app.can_publish('cc000007-0000-4000-8000-000000000007')::text,'false');
@@ -304,7 +308,7 @@ select chk('59 subscriptions.grace_days is still 3 for every row',
 
 
 -- ============================================================
--- The free month is exactly thirty days, and a paid plan still has its
+-- The free period is exactly thirty days, and a paid plan still has its
 -- grace days. Same table, two rows, one function telling them apart.
 -- ============================================================
 insert into auth.users (id, email) values
@@ -322,7 +326,7 @@ insert into public.shops (id, owner_id, name, slug, whatsapp, status)
 values ('cc00000b-0000-4000-8000-00000000000b','aa00000b-0000-4000-8000-00000000000b','PaidGrace','paid-grace','9647510000022','active');
 insert into public.products (id, shop_id, title, price, currency, status)
 values ('dd00000b-0000-4000-8000-00000000000b','cc00000b-0000-4000-8000-00000000000b','Paid Item',1000,'IQD','active');
--- A shop that paid, past its free month, whose plan is about to lapse.
+-- A shop that paid, past its free period, whose plan is about to lapse.
 update public.subscriptions
    set plan='year_1', status='active', trial_ends_at = now() - interval '400 days'
  where shop_id='cc00000b-0000-4000-8000-00000000000b';
@@ -331,7 +335,7 @@ update public.subscriptions
 update public.subscriptions set status='trialing', plan='trial',
        trial_ends_at = now() + interval '1 minute', expires_at = now() + interval '1 minute'
  where shop_id='cc00000a-0000-4000-8000-00000000000a';
-select chk('60 a minute before the free month ends the shop is public',
+select chk('60 a minute before the free period ends the shop is public',
   app.shop_is_public('cc00000a-0000-4000-8000-00000000000a')::text,'true');
 select chk('61 and the seller may still publish',
   app.can_publish('cc00000a-0000-4000-8000-00000000000a')::text,'true');
@@ -357,11 +361,11 @@ select chk('66b while a paid plan at the very same instant is not',
 select chk('67 visibility_ends_at for a trial IS its expiry, with nothing added',
   (app.visibility_ends_at('trialing', timestamptz '2027-01-01 00:00:00+00', 3)
      = timestamptz '2027-01-01 00:00:00+00')::text,'true');
-select chk('68 so the trial window is exactly 30 days, not 33',
+select chk('68 so the trial window is exactly 60 days, not 63',
   (select round(extract(epoch from (
      app.visibility_ends_at('trialing', g.started_at + make_interval(days => app.trial_days()), 3)
      - g.started_at)) / 86400)::text
-   from (select now() as started_at) g),'30');
+   from (select now() as started_at) g),'60');
 
 /* ---------- 3. the product survived all of it ---------- */
 select chk('69 the trial shop keeps its product row, still active',
@@ -407,23 +411,133 @@ select chk('77 and expires it once they are spent',
   (select status from public.subscriptions where shop_id='cc00000b-0000-4000-8000-00000000000b'),'expired');
 
 /* ---------- 6. a plan bought during the trial moves onto the paid rule ---------- */
--- The same row, the same free month, but now a paid entitlement: it gets
+-- The same row, the same free period, but now a paid entitlement: it gets
 -- the grace days, because what is running out is something paid for.
 insert into auth.users (id, email) values ('aa00000c-0000-4000-8000-00000000000c','sched@e.com');
 select seller('aa00000c-0000-4000-8000-00000000000c');
 insert into public.shops (id, owner_id, name, slug, whatsapp, status)
 values ('cc00000c-0000-4000-8000-00000000000c','aa00000c-0000-4000-8000-00000000000c','Sched','sched-shop','9647510000023','active');
 select svc();
-select public.admin_apply_payment('cc00000c-0000-4000-8000-00000000000c','months_6',38000,'wayl','REF-G','t');
-select chk('78 buying during the free month moves the row to status active',
+select public.admin_apply_payment('cc00000c-0000-4000-8000-00000000000c','months_6',5000,'wayl','REF-G','t');
+select chk('78 buying during the free period moves the row to status active',
   (select status from public.subscriptions where shop_id='cc00000c-0000-4000-8000-00000000000c'),'active');
 select chk('79 so the grace days apply to it, as a paid entitlement',
   (select (app.visibility_ends_at(sub.status, sub.expires_at, sub.grace_days)
              = sub.expires_at + interval '3 days')::text
      from public.subscriptions sub where sub.shop_id='cc00000c-0000-4000-8000-00000000000c'),'true');
-select chk('80 and the free month is still recorded, unmoved',
+select chk('80 and the free period is still recorded, unmoved',
   (select (trial_ends_at is not null)::text from public.subscriptions
     where shop_id='cc00000c-0000-4000-8000-00000000000c'),'true');
+
+
+
+-- ============================================================
+-- The launch numbers, enforced rather than merely declared.
+-- ============================================================
+insert into auth.users (id, email) values ('aa00000d-0000-4000-8000-00000000000d','limits@e.com');
+select seller('aa00000d-0000-4000-8000-00000000000d');
+insert into public.shops (id, owner_id, name, slug, whatsapp, status)
+values ('cc00000d-0000-4000-8000-00000000000d','aa00000d-0000-4000-8000-00000000000d','Limits','limits-shop','9647510000024','active');
+
+/* ---------- 60 days, and no sixty-first ---------- */
+select chk('81 a new shop is given exactly 60 days',
+  (select round(extract(epoch from (trial_ends_at - started_at))/86400)::text
+     from public.subscriptions where shop_id='cc00000d-0000-4000-8000-00000000000d'),'60');
+select chk('82 on day 60 it is still public',
+  app.subscription_visible('trialing', now() + interval '1 minute', 3)::text,'true');
+select chk('83 on day 61 it is not',
+  app.subscription_visible('trialing', now() - interval '1 day', 3)::text,'false');
+select chk('84 and not on day 62, 63 or 64 either — there is no tail',
+  (app.subscription_visible('trialing', now() - interval '2 days', 3)
+   or app.subscription_visible('trialing', now() - interval '3 days', 3)
+   or app.subscription_visible('trialing', now() - interval '4 days', 3))::text,'false');
+
+/* ---------- 30 products, enforced by the trigger ---------- */
+-- Thirty go in. The thirty-first is refused by the database, not by a
+-- screen: SW001 is what a seller posting the form directly meets.
+insert into public.products (shop_id, title, price, currency, status)
+select 'cc00000d-0000-4000-8000-00000000000d', 'Item number ' || g, 1000, 'IQD', 'active'
+  from generate_series(1, 30) g;
+select chk('85 thirty products fit inside the free period',
+  (select count(*)::text from public.products where shop_id='cc00000d-0000-4000-8000-00000000000d'),'30');
+select chk('86 and the shop has no slots left',
+  (select slots_left::text from public.subscription_state('cc00000d-0000-4000-8000-00000000000d')),'0');
+select chk('87 nor may it publish another',
+  app.can_publish('cc00000d-0000-4000-8000-00000000000d')::text,'false');
+do $$ begin
+  insert into public.products (shop_id, title, price, currency, status)
+  values ('cc00000d-0000-4000-8000-00000000000d','One too many',1000,'IQD','active');
+  perform chk('88 the database refuses the thirty-first product','no error','SW001');
+exception when sqlstate 'SW001' then perform chk('88 the database refuses the thirty-first product','SW001','SW001');
+end $$;
+select chk('89 and nothing was written',
+  (select count(*)::text from public.products where shop_id='cc00000d-0000-4000-8000-00000000000d'),'30');
+select chk('90 the free period is not unlimited: the cap is a real number',
+  (app.free_product_limit() is not null and app.free_product_limit() = 30)::text,'true');
+
+/* ---------- 5 images, and no sixth, for trial and paid alike ---------- */
+insert into public.product_images (product_id, shop_id, r2_key, r2_key_full, position, content_type)
+select p.id, p.shop_id,
+       'products/cc00000d-0000-4000-8000-00000000000d/i' || g || '.webp',
+       'products/cc00000d-0000-4000-8000-00000000000d/i' || g || '-full.webp',
+       g, 'image/webp'
+  from (select id, shop_id from public.products
+         where shop_id='cc00000d-0000-4000-8000-00000000000d' limit 1) p,
+       generate_series(1, 5) g;
+select chk('91 a product on the free period may hold five images',
+  (select count(*)::text from public.product_images
+    where shop_id='cc00000d-0000-4000-8000-00000000000d'),'5');
+do $$
+declare v_p uuid;
+begin
+  select id into v_p from public.products where shop_id='cc00000d-0000-4000-8000-00000000000d' limit 1;
+  insert into public.product_images (product_id, shop_id, r2_key, r2_key_full, position, content_type)
+  values (v_p,'cc00000d-0000-4000-8000-00000000000d',
+          'products/cc00000d-0000-4000-8000-00000000000d/i6.webp',
+          'products/cc00000d-0000-4000-8000-00000000000d/i6-full.webp',6,'image/webp');
+  perform chk('92 but never a sixth','no error','refused');
+exception when others then perform chk('92 but never a sixth','refused','refused');
+end $$;
+select chk('93 five is also what a paid plan gets, so the ceiling is one number',
+  (app.free_image_limit() = 5)::text,'true');
+
+/* ---------- Wayl checks the authoritative amounts ---------- */
+insert into auth.users (id, email) values ('aa00000e-0000-4000-8000-00000000000e','pay@e.com');
+select seller('aa00000e-0000-4000-8000-00000000000e');
+insert into public.shops (id, owner_id, name, slug, whatsapp, status)
+values ('cc00000e-0000-4000-8000-00000000000e','aa00000e-0000-4000-8000-00000000000e','Pay','pay-shop','9647510000025','active');
+create table intent_new as
+  select * from public.wayl_start_intent('cc00000e-0000-4000-8000-00000000000e','months_6','REF-NEW','live',repeat('s',40));
+select chk('94 the server prices a six-month checkout at 5,000, not at whatever was posted',
+  (select (amount = 5000)::text from intent_new),'true');
+select svc();
+-- The old price is not honoured, even with a matching reference.
+do $$ begin
+  perform public.wayl_apply_payment((select id from intent_new), 'REF-NEW', 38000, 'FIB', 'old price');
+  perform chk('95 a payment at the OLD price is refused','no error','refused');
+exception when sqlstate '22023' then perform chk('95 a payment at the OLD price is refused','refused','refused');
+end $$;
+do $$ begin
+  perform public.wayl_apply_payment((select id from intent_new), 'REF-NEW', 4999, 'FIB', 'short');
+  perform chk('96 and so is one dinar short','no error','refused');
+exception when sqlstate '22023' then perform chk('96 and so is one dinar short','refused','refused');
+end $$;
+select chk('97 neither attempt activated anything',
+  (select (activated_at is null)::text from public.payment_intents
+    where id = (select id from intent_new)),'true');
+select chk('98 the exact amount is accepted',
+  (select activated::text from public.wayl_apply_payment(
+     (select id from intent_new), 'REF-NEW', 5000, 'FIB', 'right price')),'true');
+
+/* ---------- a year, at 9,000 ---------- */
+insert into auth.users (id, email) values ('aa00000f-0000-4000-8000-00000000000f','year@e.com');
+select seller('aa00000f-0000-4000-8000-00000000000f');
+insert into public.shops (id, owner_id, name, slug, whatsapp, status)
+values ('cc00000f-0000-4000-8000-00000000000f','aa00000f-0000-4000-8000-00000000000f','Year','year-shop','9647510000026','active');
+create table intent_year as
+  select * from public.wayl_start_intent('cc00000f-0000-4000-8000-00000000000f','year_1','REF-YEAR','live',repeat('s',40));
+select chk('99 a year is priced at 9,000 by the server',
+  (select (amount = 9000)::text from intent_year),'true');
 
 -- ---------- the report ----------
 select case when got is not distinct from want then 'PASS  ' else 'FAIL  ' end || name ||

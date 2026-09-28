@@ -378,17 +378,17 @@ export const PRODUCT = {
   // stuck: hiding one of the five makes room for this one, and nothing
   // they own is going anywhere in the meantime.
   errPublicFull: (n) =>
-    `لە پلانی بەخۆڕاییدا تەنها ${n} بەرهەم دەتوانن ئاشکرا بن. ` +
+    `لە ماوە بەخۆڕاییەکەدا تەنها ${n} بەرهەم دەتوانن ئاشکرا بن. ` +
     'یەکێکیان بشارەوە، یان پلانێک بکڕە. هیچ بەرهەمێکت نەسڕاوەتەوە.',
 
   // The trial limit. A refusal on its own leaves the seller stuck, so
   // the message says what to do next and the screen carries the link.
-  trialLimitTitle: 'پلانی بەخۆڕایی پڕە',
+  trialLimitTitle: 'سنووری بەرهەمەکان پڕە',
   trialLimitBody: (max) =>
-    `لە پلانی بەخۆڕاییدا تا ${max} بەرهەم لە هەژمارەکەتدا دەتوانیت هەبێت. ` +
+    `لە ماوە بەخۆڕاییەکەدا تا ${max} بەرهەم لە هەژمارەکەتدا دەتوانیت هەبێت. ` +
     'بۆ زیادکردنی بەرهەمێکی نوێ، یەکێک بسڕەوە یان پلانێک بکڕە. بەرهەمە ئێستاکانت پارێزراون.',
   trialLimitAction: 'بینینی پلانەکان',
-  trialLeft: (n, max) => `${n} لە ${max} شوێنی پلانی بەخۆڕاییت ماوە.`,
+  trialLeft: (n, max) => `${n} لە ${max} شوێنت ماوە.`,
 
   emptyTitle: 'هێشتا هیچ بەرهەمێکت نییە',
   emptyBody: 'یەکەم بەرهەمت زیاد بکە و لینکەکەت بڵاوبکەرەوە.',
@@ -540,8 +540,8 @@ export const SUBSCRIPTION = {
 
   // The five states a seller can be in. Only trial, pending and active
   // are stored; grace and expired are read off the expiry date.
-  stateTrial: () => 'پلانی بەخۆڕایی',
-  stateTrialLast: 'پلانی بەخۆڕایی',
+  stateTrial: () => '٢ مانگ بەخۆڕایی',
+  stateTrialLast: '٢ مانگ بەخۆڕایی',
   statePending: 'چاوەڕوانی پشتڕاستکردنەوە',
   stateActive: (d) => `چالاکە تا ${d}`,
   stateGrace: (n) => `بەسەرچووە — ${n} ڕۆژ ماوە پێش شاردنەوەی بەرهەمەکان`,
@@ -551,31 +551,31 @@ export const SUBSCRIPTION = {
   // ---- the free month ----
   //
   // One month free, then a paid plan. Never drawn as a discount: there
-  // is no 38,000 crossed out and no 0 د.ع, because nothing was ever
+  // is no 5,000 crossed out and no 0 د.ع, because nothing was ever
   // marked down. The seller is at the beginning of something, not
   // holding a coupon.
-  trialName: 'یەکەم مانگ بەخۆڕایی',
-  trialDaysLeft: (n) => `${n} ڕۆژ لە مانگی بەخۆڕاییت ماوە.`,
-  trialLastDay: 'ئەمڕۆ ڕۆژی کۆتایی مانگی بەخۆڕاییتە.',
-  trialThenPay: 'پاش کۆتایی مانگی بەخۆڕایی، بۆ بەردەوامبوون پلانێک هەڵبژێرە.',
+  trialName: '٢ مانگ بەخۆڕایی',
+  trialDaysLeft: (n) => `${n} ڕۆژ لە ماوە بەخۆڕاییەکەت ماوە.`,
+  trialLastDay: 'ئەمڕۆ ڕۆژی کۆتایی ماوە بەخۆڕاییەکەتە.',
+  trialThenPay: 'دوو مانگ بەخۆڕایی. پاش کۆتاییهاتنی، بۆ بەردەوامبوون پلانێک هەڵبژێرە.',
 
   // Bought during the free month. The plan is theirs; it simply has not
   // started yet, and saying which day it starts is the whole point.
   trialScheduled: (planLabel) =>
-    `پلانی ${planLabel}ت ئامادەیە و پاش کۆتایی مانگی بەخۆڕایی دەست پێدەکات.`,
+    `پلانی ${planLabel}ت ئامادەیە و پاش کۆتایی ماوە بەخۆڕاییەکەت دەست پێدەکات.`,
   trialScheduledFrom: (date) => `دەست پێدەکات لە ${date}`,
 
   // The free month has ended and nothing was bought. The first thing
   // this has to say is that the products are still there: a seller who
   // thinks their work was deleted does not come back to pay.
-  trialOverTitle: 'مانگی بەخۆڕاییت تەواو بووە',
-  trialOverBody: 'مانگی بەخۆڕاییت تەواو بووە. بەرهەمەکانت پارێزراون؛ ' +
+  trialOverTitle: 'ماوە بەخۆڕاییەکەت تەواو بووە',
+  trialOverBody: 'ماوە بەخۆڕاییەکەت تەواو بووە. بەرهەمەکانت پارێزراون؛ ' +
     'بۆ دووبارە دەرکەوتنیان پلانێک هەڵبژێرە.',
   trialOverKept: 'هیچ بەرهەمێک نەسڕدراوەتەوە. هەموو وێنەکان و زانیارییەکان لە جێی خۆیان ماون.',
 
   // Said where the two trial limits are met. They are the same two
   // numbers the old Free plan carried.
-  trialAllowance: (n, i) => `لە مانگی بەخۆڕاییدا تا ${n} بەرهەم، هەر بەرهەمێک ${i} وێنە.`,
+  trialAllowance: (n, i) => `لە ماوە بەخۆڕاییەکەدا تا ${n} بەرهەم، هەر بەرهەمێک ${i} وێنە.`,
 
   // Said under the prices to a shop that already holds a plan. It may
   // not stack a second one, so this is what it is waiting for.
@@ -593,12 +593,11 @@ export const SUBSCRIPTION = {
    * should meet a number for the first time on somebody else's site.
    */
   chargeNotice: (iqd) => `${iqd} د.ع لە Wayl دەدەیت`,
-  priceUsdNote: (usd) => `نزیکەی $${usd}`,
   savings: 'لە بەرامبەر ٦ مانگ پاشەکەوت دەکەیت',
 
   // The free month, named at the bottom of the plans, small. It is
   // what a seller is already on, not something to sell them.
-  freeTitle: 'پلانی بەخۆڕایی',
+  freeTitle: '٢ مانگ بەخۆڕایی',
   freeBody: (n) => `تا ${n} بەرهەم.`,
 
   whatYouGet: 'چی وەردەگریت',
@@ -615,24 +614,24 @@ export const SUBSCRIPTION = {
   // ---- the Free plan, said where a seller meets one of its two
   // limits: five products, one image each. Nothing here starts or ends
   // anything — Free is where every shop already is. ----
-  freeName: 'مانگی بەخۆڕایی',
-  freeAllowance: (n, i) => `لە مانگی بەخۆڕاییدا تا ${n} بەرهەم، هەر بەرهەمێک ${i} وێنە.`,
+  freeName: '٢ مانگ بەخۆڕایی',
+  freeAllowance: (n, i) => `لە ماوە بەخۆڕاییەکەدا تا ${n} بەرهەم، هەر بەرهەمێک ${i} وێنە.`,
   freeSlotsLeft: (n) => `${n} شوێنی بەتاڵت ماوە.`,
-  freeFull: (n) => `سنووری ${n} بەرهەمی مانگی بەخۆڕایی پڕە. ` +
+  freeFull: (n) => `سنووری ${n} بەرهەمی ماوە بەخۆڕاییەکەت پڕە. ` +
     'بەرهەمێک بسڕەوە، یان پلانێک بکڕە.',
-  freeImageOnly: (i) => `لە مانگی بەخۆڕاییدا هەر بەرهەمێک ${i} وێنەی هەیە.`,
-  errFreeFull: 'مانگی بەخۆڕایی پڕە. بەرهەمێک بسڕەوە یان پلانێک بکڕە.',
+  freeImageOnly: (i) => `هەر بەرهەمێک تا ${i} وێنەی هەیە.`,
+  errFreeFull: 'سنووری بەرهەمەکانت پڕە. بەرهەمێک بسڕەوە یان پلانێک بکڕە.',
   errSuspended: 'دوکانەکەت ناچالاکە. پەیوەندیمان پێوە بکە.',
 
   // ---- the plan gate, met on the way in to Add Product. Looking at it
   // starts nothing and writes nothing. ----
   gateTitle: 'بۆ زیادکردنی بەرهەم پلانێک هەڵبژێرە',
-  gateBody: 'پاش کۆتایی مانگی بەخۆڕایی، بۆ بەردەوامبوون پلانێک هەڵبژێرە.',
-  gateTrialTitle: () => 'پلانی بەخۆڕایی',
+  gateBody: 'پاش کۆتایی ماوە بەخۆڕاییەکەت، بۆ بەردەوامبوون پلانێک هەڵبژێرە.',
+  gateTrialTitle: () => '٢ مانگ بەخۆڕایی',
   gateTrialBody: (n) => `تا ${n} بەرهەم. هیچ پارەیەک وەرناگیرێت.`,
   gateTrialAction: 'بەردەوامبوون بەخۆڕایی',
-  gateTrialOnce: 'پلانی بەخۆڕایی.',
-  gateTrialUsed: 'پلانی بەخۆڕایی پڕە. بەرهەمێک بسڕەوە یان پلانێک بکڕە.',
+  gateTrialOnce: '٢ مانگ بەخۆڕایی.',
+  gateTrialUsed: 'سنووری بەرهەمەکانت پڕە. بەرهەمێک بسڕەوە یان پلانێک بکڕە.',
   gatePlans: 'پلانەکان',
   gateBack: 'گەڕانەوە',
 
@@ -648,7 +647,7 @@ export const SUBSCRIPTION = {
   renewManual: 'نوێکردنەوە دەستییە: کاتێک پلانەکە تەواو دەبێت خۆت پارەکە دەدەیتەوە.',
 
   errTrial: 'بەردەوامبوون سەرکەوتوو نەبوو. تکایە دووبارە هەوڵ بدەوە.',
-  errTrialUsed: 'بۆ بەردەوامبوون، پلانی بەخۆڕایی یان پلانێکی پارەدراو هەڵبژێرە.',
+  errTrialUsed: 'بۆ بەردەوامبوون پلانێک هەڵبژێرە.',
   errTrialActive: 'پلانێکی چالاکت هەیە.',
 
   // ---- the instructions screen ----
@@ -753,19 +752,22 @@ export const FIB_NUMBER = '07515298365';
  * hold the same two numbers and are what actually refuse the write;
  * scripts/plan-limits-test.mjs fails if they drift apart.
  */
-export const FREE_PRODUCT_LIMIT = 5;
-export const FREE_IMAGE_LIMIT = 1;
+export const FREE_PRODUCT_LIMIT = 30;
 
 /**
- * Kept only because the subscription screens still import them, and
- * those screens are being rewritten elsewhere. Nothing in the backend
- * reads either one: there is no trial to count days of, and the product
- * cap is FREE_PRODUCT_LIMIT above. Both go when the copy does.
- *
- * @deprecated
+ * Five images, the same number a paid plan gets — and the same number
+ * that is the hard ceiling for everybody, enforced by MAX_IMAGES here
+ * and by app.enforce_image_limit and public.save_product_images in the
+ * database. Raising the free period to it removes a second, lower wall
+ * that existed only to make Free feel small; it does not make anything
+ * unlimited, and there is no configuration in which a product may hold
+ * a sixth image.
  */
+export const FREE_IMAGE_LIMIT = 5;
+
+/** The free period, in days. app.trial_days() must say the same. */
 export const TRIAL_PRODUCT_LIMIT = FREE_PRODUCT_LIMIT;
-export const TRIAL_DAYS = 30;
+export const TRIAL_DAYS = 60;
 
 /**
  * Renewal banners on the seller's own screens.
@@ -816,13 +818,18 @@ export const PLAN_BANNER = {
  * price before a single day is added. scripts/plan-limits-test.mjs
  * fails if these two numbers drift from the database.
  *
- * `usd` is the round number the plan is talked about in. It is never
- * charged and never sent to Wayl — the seller pays IQD, and the IQD
- * figure is on the button before they leave for Wayl.
+ * There is no dollar figure here any more. The plans used to carry a
+ * round `usd` number that nothing rendered, and keeping one would mean
+ * keeping an exchange rate — which this app does not have, anywhere, by
+ * decision. A seller pays dinars and is shown dinars.
+ *
+ * `monthly` is the amount divided by the months, for the small line
+ * under the price. It is arithmetic on the number above it, not a
+ * second price, and nothing is ever charged from it.
  */
 export const PLANS = [
-  { key: 'year_1',   name: '١ ساڵ', amount: 72000, monthly: 6000, usd: 55, best: true  },
-  { key: 'months_6', name: '٦ مانگ', amount: 38000, monthly: 6300, usd: 29, best: false },
+  { key: 'year_1',   name: '١ ساڵ', amount: 9000, monthly: 750, best: true  },
+  { key: 'months_6', name: '٦ مانگ', amount: 5000, monthly: 833, best: false },
 ];
 
 /**

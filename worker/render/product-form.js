@@ -46,7 +46,7 @@ export function productForm({ mode, draftId, categories, values, error, trialLef
     `<p>تا ${imageLimit} وێنە زیاد بکە. وێنەیەک هەڵبژێرە بۆ کاڤەر؛ بە دوگمەکانی ڕیزکردن شوێنی وێنەکان بگۆڕە.</p></details></header>` +
     `<p class="publish-sub">زانیارییەکانی بەرهەمەکەت زیاد بکە و بڵاوی بکەرەوە.</p>` +
     alert(error) +
-    (isEdit && images.length > imageLimit ? `<p class="publish-free-left">وێنە پێشووەکانت پارێزراون. لە پلانی بەخۆڕاییدا تەنها ${FREE_IMAGE_LIMIT} وێنە بۆ بەرهەمی نوێ بەردەستە.</p>` : '') +
+    (isEdit && images.length > imageLimit ? `<p class="publish-free-left">وێنە پێشووەکانت پارێزراون. هەر بەرهەمێکی نوێ تا ${FREE_IMAGE_LIMIT} وێنەی هەیە.</p>` : '') +
     // Remaining account slots come from the existing server read.
     (trialLeft === null
       ? ''
@@ -63,7 +63,7 @@ export function productForm({ mode, draftId, categories, values, error, trialLef
     (isEdit ? `<div class="field"><label class="field__label" for="status-field">دۆخی بەرهەم</label>` +
       `<select class="field__input" name="status" id="status-field"><option value="active"${values.status === 'active' ? ' selected' : ''}>ئاشکرا</option>` +
       `<option value="hidden"${values.status === 'hidden' ? ' selected' : ''}>شاراوە</option></select>` +
-      `<p class="field__hint">بۆ گۆڕینی بەرهەمە ئاشکراکان لە پلانی بەخۆڕاییدا، سەرەتا یەکێک بشارەوە و پاشەکەوتی بکە، پاشان ئەوی تر ئاشکرا بکە.</p></div>`
+      `<p class="field__hint">بۆ گۆڕینی بەرهەمە ئاشکراکان، سەرەتا یەکێک بشارەوە و پاشەکەوتی بکە، پاشان ئەوی تر ئاشکرا بکە.</p></div>`
       : `<input type="hidden" name="status" id="status-field" value="${esc(values.status ?? 'active')}">`) +
     `<section class="gallery" aria-label="${esc(T.photos)}">` +
     `<div class="gallery__head"><span class="field__label">وێنەکان <small>(تا ${imageLimit} وێنە)</small></span>` +

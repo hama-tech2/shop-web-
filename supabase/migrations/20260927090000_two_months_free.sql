@@ -1,24 +1,24 @@
 -- ============================================================
--- Shop Web — 0044: the first month is free, and then you pay
+-- Shop Web — 0044: the first two months are free, and then you pay
 --
 -- Free stops being a plan and becomes a beginning. Every shop gets
--- thirty days with the product working properly, and after that a shop
--- stays public only if somebody paid for it.
+-- sixty days with the product working properly, and after that it stays
+-- public only if somebody paid for it.
 --
 -- This is close to what the app did before migration 0031 made Free
 -- permanent, and it deliberately reuses what 0031 left standing rather
 -- than building a second calendar beside it:
 --
 --   * public.trial_grants   already one row per user, for good. It is
---                           what stops a second trial, and it survives
---                           deleting the shop, clearing the browser,
---                           changing the email and replacing the
---                           session, because it is keyed on
+--                           what stops a second free period, and it
+--                           survives deleting the shop, clearing the
+--                           browser, changing the email and replacing
+--                           the session, because it is keyed on
 --                           auth.users.id.
 --   * admin_apply_payment   already writes greatest(now(), expires_at)
 --                           + the plan. That one line is exactly the
---                           rule "a plan bought during the free month
---                           starts when the free month ends", and it is
+--                           rule "a plan bought during the free period
+--                           starts when the free period ends", and it is
 --                           not touched here.
 --   * subscription_visible  already hides an expired shop's products
 --                           through RLS, without writing to any product
@@ -27,9 +27,9 @@
 --
 -- What is genuinely new is one column and one rule.
 --
--- The column is subscriptions.trial_ends_at: when the free month ends.
+-- The column is subscriptions.trial_ends_at: when the free period ends.
 -- It is set once and a purchase never moves it, which is what lets a
--- screen say "your six months is ready and starts when the free month
+-- screen say "your six months is ready and starts when the free period
 -- ends" instead of showing one blurred date. expires_at keeps its old
 -- meaning — when entitlement ends, whatever the entitlement is — so
 -- there is still exactly one date that decides whether a shop is
@@ -37,19 +37,24 @@
 --
 -- The rule is that a shop may hold one paid entitlement at a time. Six
 -- months bought twice was six months added twice, which made a year
--- cost 76,000 instead of 72,000 by accident and was reachable by
--- posting the checkout form again.
+-- cost less than a year by accident and was reachable by posting the
+-- checkout form again.
+--
+-- This migration also sets the launch numbers, because every one of
+-- them is a thing the database is authoritative for and the browser is
+-- not: sixty days, thirty products, five images, 5,000 IQD for six
+-- months and 9,000 for a year.
 --
 -- NOTHING IS DELETED BY THIS MIGRATION. No product, no image, no R2
 -- key, no shop, no account. Existing paid subscriptions keep their
 -- exact expiry date. Suspended and non-active shops are not given a
--- trial and are not touched at all.
+-- free period and are not touched at all.
 -- ============================================================
 
 -- ------------------------------------------------------------
--- 1. when the free month ends
+-- 1. when the free period ends
 --
--- Nullable, and null means "no free month": a shop that was already
+-- Nullable, and null means "no free period": a shop that was already
 -- paying when this landed never had one, and reading null as "the
 -- trial ended at the epoch" would be true but useless. Every function
 -- below asks `now() < trial_ends_at`, which is false for null, so null
@@ -59,7 +64,7 @@ alter table public.subscriptions
   add column if not exists trial_ends_at timestamptz;
 
 comment on column public.subscriptions.trial_ends_at is
-  'End of this shop''s one free month, or null if it never had one. Set once; a purchase never moves it. expires_at is still the single date that decides whether the shop is public.';
+  'End of this shop''s one free period, or null if it never had one. Set once; a purchase never moves it. expires_at is still the single date that decides whether the shop is public.';
 
 -- 'free' stays in both CHECKs. No new row will carry it, and the rows
 -- that do are history — the months when Free was a permanent plan.
@@ -67,7 +72,7 @@ comment on column public.subscriptions.trial_ends_at is
 -- read the dates, not the word.
 
 -- ------------------------------------------------------------
--- 2. how long the free month is
+-- 2. how long the free period is
 --
 -- Restored from migration 0029, which 0031 dropped. Named here rather
 -- than written into each expression so the Worker can be checked
@@ -75,20 +80,96 @@ comment on column public.subscriptions.trial_ends_at is
 -- fails if TRIAL_DAYS in worker/config.js disagrees.
 -- ------------------------------------------------------------
 create or replace function app.trial_days()
-returns int language sql immutable as $$ select 30; $$;
+returns int language sql immutable as $$ select 60; $$;
 
 comment on function app.trial_days() is
-  'Days in the free month. Must match TRIAL_DAYS in worker/config.js.';
+  'Days in the free period — two months. Must match TRIAL_DAYS in worker/config.js; scripts/plan-limits-test.mjs reads this definition and fails if they disagree.';
+
+-- ------------------------------------------------------------
+-- 2b. what the free period allows
+--
+-- Thirty products, five images each — up from the five and the one the
+-- permanent Free plan carried, because sixty days is meant to be long
+-- enough and roomy enough to actually run a shop on, not a sampler.
+--
+-- Five images is the same number a paid plan gets, and that is the
+-- whole of the change: the hard ceiling is still five, enforced by
+-- app.enforce_image_limit and by public.save_product_images and by
+-- products_limit_1000 above them. Nothing here becomes unlimited. A
+-- seller on the free period simply stops meeting a second, lower wall
+-- that existed only to make Free feel small.
+--
+-- Both are functions rather than literals so the Worker can be checked
+-- against them: scripts/plan-limits-test.mjs reads these definitions
+-- and fails if worker/config.js disagrees.
+-- ------------------------------------------------------------
+create or replace function app.free_product_limit()
+returns int language sql immutable as $$ select 30; $$;
+
+comment on function app.free_product_limit() is
+  'Products a shop may have during its free period. Must match FREE_PRODUCT_LIMIT in worker/config.js.';
+
+create or replace function app.free_image_limit()
+returns int language sql immutable as $$ select 5; $$;
+
+comment on function app.free_image_limit() is
+  'Images per product during the free period — the same five a paid plan gets, and the same five that is the hard ceiling. Must match FREE_IMAGE_LIMIT in worker/config.js.';
+
+-- ------------------------------------------------------------
+-- 2c. the launch prices
+--
+-- 5,000 IQD for six months, 9,000 for a year. This is the one
+-- authoritative statement of what a plan costs: app.plan_price_for()
+-- (both overloads — the per-shop override from 0035 and the test
+-- environment from 0036) reads this function as its base, the
+-- set_intent_price trigger writes the amount from it, wayl_start_intent
+-- compares against it, and wayl_apply_payment refuses anything that is
+-- not exactly it. The browser is told the number and is never asked
+-- for it.
+--
+-- There is no public one-month plan, and this is where that is true:
+-- month_1 has no price, so a checkout for it cannot be priced and
+-- wayl_start_intent refuses the plan outright. The owner's hand grant
+-- from /admin still works, because a grant sets the amount to zero and
+-- never asks for a price at all.
+-- ------------------------------------------------------------
+create or replace function app.plan_price(p_plan text)
+returns numeric
+language sql
+immutable
+as $$
+  select case p_plan
+           when 'months_6' then 5000::numeric
+           when 'year_1'   then 9000::numeric
+         end;
+$$;
+
+comment on function app.plan_price(text) is
+  'IQD price per plan, authoritative. PLANS in worker/config.js must be edited to match, and scripts/plan-limits-test.mjs asserts they do.';
+
+-- Close anything still open at the old price, so no link is left that
+-- nobody can pay into. wayl_start_intent would cancel and replace such
+-- an attempt on the next tap anyway, and wayl_apply_payment would
+-- refuse to activate it — but an attempt that already has a Wayl
+-- checkout_url could still be PAID at the old number and then refused
+-- here, which is somebody's money in limbo. Closing them now is the
+-- same thing migration 0039 did when the price last moved.
+update public.payment_intents pi
+   set status     = 'cancelled',
+       handled_at = now()
+ where pi.source = 'payment'
+   and pi.status in ('open', 'pending')
+   and pi.amount is distinct from app.plan_price(pi.plan);
 
 -- ------------------------------------------------------------
 -- 3. the three questions everything else is built from
 --
 -- One definition each, in one place. A screen, an RLS predicate and a
--- trigger that disagree about whether a shop is on its free month is
+-- trigger that disagree about whether a shop is on its free period is
 -- the failure this shape exists to make impossible.
 -- ------------------------------------------------------------
 
--- Is the free month running right now?
+-- Is the free period running right now?
 create or replace function app.on_trial(p_shop uuid)
 returns boolean
 language sql
@@ -109,7 +190,7 @@ revoke all on function app.on_trial(uuid) from public, anon;
 grant execute on function app.on_trial(uuid) to authenticated, service_role;
 
 -- Is there a paid plan, bought and not yet run out? True while it is
--- still waiting for the free month to end as well as while it is
+-- still waiting for the free period to end as well as while it is
 -- running: that is the whole point of the word "entitlement".
 create or replace function app.has_paid_entitlement(p_shop uuid)
 returns boolean
@@ -130,7 +211,7 @@ $$;
 revoke all on function app.has_paid_entitlement(uuid) from public, anon;
 grant execute on function app.has_paid_entitlement(uuid) to authenticated, service_role;
 
--- Bought, and not started yet, because the free month is still running.
+-- Bought, and not started yet, because the free period is still running.
 create or replace function app.paid_scheduled(p_shop uuid)
 returns boolean
 language sql
@@ -148,17 +229,17 @@ grant execute on function app.paid_scheduled(uuid) to authenticated, service_rol
 -- 4. which side of the line a shop is on
 --
 --   paid     somebody paid and the plan is running
---   trial    the free month, whether or not a plan is already bought
+--   trial    the free period, whether or not a plan is already bought
 --   expired  neither
 --
 -- 'trial' replaces 'free' as the name of the unpaid tier. The limits it
 -- carries are the same two numbers Free carried, unchanged by this
 -- migration: five products, one image each.
 --
--- A shop whose free month is still running reads 'trial' even when it
+-- A shop whose free period is still running reads 'trial' even when it
 -- has already bought six months, because that is what it is entitled to
 -- today and the limits that apply today are the trial's. The moment the
--- free month ends the same shop reads 'paid' with nothing to write.
+-- free period ends the same shop reads 'paid' with nothing to write.
 -- ------------------------------------------------------------
 create or replace function app.plan_tier(p_shop uuid)
 returns text
@@ -190,7 +271,7 @@ revoke all on function app.plan_tier(uuid) from public, anon;
 grant execute on function app.plan_tier(uuid) to authenticated, service_role;
 
 -- ------------------------------------------------------------
--- 5. an expired shop is not a public shop, and the free month gets no
+-- 5. an expired shop is not a public shop, and the free period gets no
 --    grace days
 --
 -- Two changes to one function, and no change anywhere that calls it.
@@ -198,18 +279,18 @@ grant execute on function app.plan_tier(uuid) to authenticated, service_role;
 -- The 'free' branch 0031 added is gone: there is no plan that is public
 -- forever.
 --
--- And the free month ends when it ends. A paid subscription keeps its
+-- And the free period ends when it ends. A paid subscription keeps its
 -- three grace days, exactly as it always had them — a seller who has
 -- been paying for a year and is four days late does not deserve to have
 -- their shop go dark over a bank transfer. Somebody who has not paid at
--- all is a different case: thirty days free means thirty, not
--- thirty-three, and the day after the month ends the products stop
+-- all is a different case: sixty days free means sixty, not
+-- sixty-three, and the day after the free period ends the products stop
 -- being public.
 --
 -- The rule needs no new argument, because `status` already carries it.
--- 'trialing' is the free month and nothing else: 0031 rewrote every old
+-- 'trialing' is the free period and nothing else: 0031 rewrote every old
 -- trialing row to 'free', and section 10 below writes 'trialing' only
--- for a shop on its free month. The moment a plan is bought,
+-- for a shop on its free period. The moment a plan is bought,
 -- admin_apply_payment sets the status to 'active' — so the same row
 -- moves onto the paid rule, with its grace days, the instant it becomes
 -- a paid entitlement.
@@ -239,7 +320,7 @@ as $$
            -- in section 10 has run. Kept so this migration is safe to
            -- apply before the Worker that goes with it.
            when p_status = 'free' then true
-           -- The free month: no grace. Exactly thirty days.
+           -- The free period: no grace. Exactly sixty days.
            when p_status = 'trialing' then now() < p_expires_at
            -- A paid plan: its grace days, unchanged.
            else now() < p_expires_at + make_interval(days => p_grace_days)
@@ -247,7 +328,7 @@ as $$
 $$;
 
 comment on function app.subscription_visible(text, timestamptz, int) is
-  'Is this subscription publicly visible? A paid plan keeps its grace days; the free month (status trialing) gets none, so thirty days free means thirty.';
+  'Is this subscription publicly visible? A paid plan keeps its grace days; the free period (status trialing) gets none, so sixty days free means sixty.';
 
 -- ------------------------------------------------------------
 -- 5b. and the same rule, said once, for everything that needs the date
@@ -272,12 +353,12 @@ as $$
 $$;
 
 comment on function app.visibility_ends_at(text, timestamptz, int) is
-  'When public visibility stops: the expiry for the free month, the expiry plus the grace days for a paid plan.';
+  'When public visibility stops: the expiry for the free period, the expiry plus the grace days for a paid plan.';
 
 -- ------------------------------------------------------------
 -- 6. may this shop post right now?
 --
--- During the free month: yes, up to the trial's product limit.
+-- During the free period: yes, up to the trial's product limit.
 -- On a paid plan: yes.
 -- Expired: no. The shop and every product stay exactly where they are
 -- and stay editable; what stops is adding more while nobody is paying.
@@ -303,12 +384,12 @@ revoke all on function app.can_publish(uuid) from public, anon;
 grant execute on function app.can_publish(uuid) to authenticated, service_role;
 
 -- ------------------------------------------------------------
--- 7. a new shop gets its free month, once per account
+-- 7. a new shop gets its free period, once per account
 --
 -- The insert into trial_grants is the whole guard, and it is deliberate
 -- that the new shop then reads its dates back OUT of that table. A
 -- seller who deletes their shop and makes another does not get another
--- thirty days: they get the window they were already given, which by
+-- sixty days: they get the window they were already given, which by
 -- then may well be over, and the new shop is expired the moment it is
 -- created. That is the honest answer and it needs no flag anywhere.
 --
@@ -353,7 +434,7 @@ end;
 $$;
 
 comment on function app.start_trial_for_new_shop() is
-  'Gives a new shop the account''s one free month, reading the window from public.trial_grants so a second shop cannot earn a second trial.';
+  'Gives a new shop the account''s one free period, reading the window from public.trial_grants so a second shop cannot earn a second trial.';
 
 -- ------------------------------------------------------------
 -- 8. a lapsed plan expires, and takes nothing with it
@@ -384,7 +465,7 @@ begin
     raise exception 'admin only' using errcode = '42501';
   end if;
 
-  -- The free month is swept the moment it ends; a paid plan once its
+  -- The free period is swept the moment it ends; a paid plan once its
   -- grace days are also gone. Same rule as visibility, from the same
   -- function, so a row is never left saying 'trialing' over products
   -- that stopped being public three days ago.
@@ -414,7 +495,7 @@ comment on function public.expire_lapsed_subscriptions() is
 -- 9. one paid entitlement at a time
 --
 -- The seller's checkout refuses to start when a paid plan is already
--- held, whether it is running or waiting for the free month to end.
+-- held, whether it is running or waiting for the free period to end.
 -- After it runs out, buying again is allowed and is the normal case.
 --
 -- This is a guard on wayl_start_intent and on wayl_apply_payment, NOT
@@ -676,20 +757,20 @@ comment on function public.wayl_apply_payment(uuid, text, numeric, text, text) i
 --
 -- Read this as three sentences, because it is three sentences.
 --
--- A shop on the old permanent Free plan gets thirty days from today.
--- It loses nothing today, and payment is needed thirty days from now.
--- The trial_grants row is written too, so this transition month is the
--- one free month that account gets and not a fresh one on top of a
+-- A shop on the old permanent Free plan gets sixty days from today.
+-- It loses nothing today, and payment is needed sixty days from now.
+-- The trial_grants row is written too, so this transition period is the
+-- one free period that account gets and not a fresh one on top of a
 -- trial it may have taken back in September.
 --
 -- A shop with a live paid subscription is not touched. Its plan, its
 -- status and its expires_at are exactly what they were a moment ago,
--- and trial_ends_at stays null: it never had a free month under this
+-- and trial_ends_at stays null: it never had a free period under this
 -- model and pretending otherwise would move its paid expiry.
 --
 -- A suspended shop, a banned shop, or a shop whose own status is not
 -- 'active' is not touched and is not given a trial. Suspension is the
--- owner's stop button; handing it a free month would be overruling
+-- owner's stop button; handing it a free period would be overruling
 -- them from inside a migration.
 -- ------------------------------------------------------------
 do $$
@@ -709,7 +790,7 @@ begin
   -- a seller who deletes their shop and makes another during the
   -- transition month inherits the days they can actually see.
   --
-  -- It is still one free month per account. This moves a window; it
+  -- It is still one free period per account. This moves a window; it
   -- does not add a second one, and after today the grant is once more
   -- the thing that refuses a second trial for good.
   insert into public.trial_grants (user_id, shop_id, expires_at)
@@ -740,7 +821,7 @@ begin
   )
   select count(*) into v_moved from moved;
 
-  raise notice 'first-month-free: % existing Free shop(s) given 30 days to %', v_moved, v_ends;
+  raise notice 'two-months-free: % existing Free shop(s) given 60 days to %', v_moved, v_ends;
 end;
 $$;
 
@@ -751,14 +832,14 @@ $$;
 -- ------------------------------------------------------------
 -- 11. what the seller's screens are told
 --
--- The same function, with the free month added to it. Everything a
+-- The same function, with the free period added to it. Everything a
 -- screen needs to draw any of the five states is one row from here, and
 -- nothing about a trial, a scheduled plan or an expiry is computed in a
 -- browser.
 --
---   trial_ends_at     when the free month ends, or null
+--   trial_ends_at     when the free period ends, or null
 --   trial_days_left   whole days left in it, 0 once it is over
---   on_trial          the free month is running
+--   on_trial          the free period is running
 --   paid_scheduled    a plan is bought and waiting for it to end
 --   tier              paid | trial | expired
 -- ------------------------------------------------------------
@@ -793,7 +874,7 @@ as $$
     sub.status,
     sub.started_at,
     sub.expires_at,
-    -- For the free month this is the expiry itself: it has no grace days,
+    -- For the free period this is the expiry itself: it has no grace days,
     -- so there is no later moment at which its products go dark. The
     -- Worker reads this to decide between 'grace' and 'expired', which is
     -- why it must not report a window the database will not honour.

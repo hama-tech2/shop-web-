@@ -185,14 +185,19 @@ check('daysUntil on nonsense', daysUntil('not a date', NOW), null);
 */
 
 const priceOf = (key) => PLANS.find((p) => p.key === key)?.amount;
-check('6 months costs 38,000 IQD', priceOf('months_6'), 38000);
-check('1 year costs 72,000 IQD', priceOf('year_1'), 72000);
+check('6 months costs 5,000 IQD', priceOf('months_6'), 5000);
+check('1 year costs 9,000 IQD', priceOf('year_1'), 9000);
 check('there are exactly two paid plans', PLANS.length, 2);
 
 // The plans are talked about in dollars and charged in dinars, so the
 // dollar figure is carried too — display only, never sent to Wayl.
-check('6 months is talked about as $29', priceOf('months_6') && PLANS.find((p) => p.key === 'months_6').usd, 29);
-check('1 year is talked about as $55', PLANS.find((p) => p.key === 'year_1').usd, 55);
+// The plans carry no dollar figure any more. Keeping one would mean
+// keeping an exchange rate, and this app does not have one anywhere —
+// a seller pays dinars and is shown dinars.
+check('no plan carries a dollar figure',
+      PLANS.some((p) => 'usd' in p), false);
+check('and every plan carries a dinar amount',
+      PLANS.every((p) => Number.isInteger(p.amount) && p.amount > 0), true);
 
 // A year must be the better monthly rate, or the badge on it lies.
 const monthlyOf = (key) => PLANS.find((p) => p.key === key).monthly;
@@ -205,7 +210,7 @@ const ordered = PLANS.slice().sort(
 check('the year comes first', ordered[0].key, 'year_1');
 check('then six months', ordered[1].key, 'months_6');
 
-check('the free trial allows five products', TRIAL_PRODUCT_LIMIT, 5);
+check('the free period allows thirty products', TRIAL_PRODUCT_LIMIT, 30);
 
 /* ============================================================ */
 

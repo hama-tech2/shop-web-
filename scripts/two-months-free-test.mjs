@@ -1,7 +1,7 @@
 /**
- * Bazaro — the seller's side of "the first month is free".
+ * Bazaro — the seller's side of "the first two months are free".
  *
- * supabase/tests/first_month_free_test.sql proves the calendar: thirty
+ * supabase/tests/two_months_free_test.sql proves the calendar: sixty
  * days, one per account, a plan bought mid-trial starting when the
  * trial ends, and nothing stacking. This proves the screens that sit on
  * top of it, and one thing the database cannot: that the Worker never
@@ -15,7 +15,7 @@
  *
  *   node scripts/stub-supabase.mjs
  *   npx wrangler dev --port 8810 --local
- *   node scripts/first-month-free-test.mjs
+ *   node scripts/two-months-free-test.mjs
  */
 const APP = process.argv[2] || 'http://127.0.0.1:8810';
 const STUB = process.argv[3] || 'http://127.0.0.1:8899';
@@ -44,34 +44,41 @@ await set('/__rows/1');
 await set('/__products/1');
 
 /* ================================================================
-   1. the free month, running, nothing bought
+   1. the free period, running, nothing bought
    ================================================================ */
 await set('/__plan/trial');
 await set('/__trial/23');
 await set('/__sub/23');
 
 let html = await plans();
-check('the screen is headed by the free month', has(html, 'یەکەم مانگ بەخۆڕایی'));
-check('it says how many days are left', has(html, '23 ڕۆژ لە مانگی بەخۆڕاییت ماوە.'));
-check('and what happens when they run out', has(html, 'پاش کۆتایی مانگی بەخۆڕایی، بۆ بەردەوامبوون پلانێک هەڵبژێرە.'));
+check('the screen is headed by the free period', has(html, '٢ مانگ بەخۆڕایی'));
+check('it says how many days are left', has(html, '23 ڕۆژ لە ماوە بەخۆڕاییەکەت ماوە.'));
+check('and what happens when they run out', has(html, 'دوو مانگ بەخۆڕایی. پاش کۆتاییهاتنی، بۆ بەردەوامبوون پلانێک هەڵبژێرە.'));
 check('the state the markup declares is the trial', stateAttr(html), 'trial');
 check('and the days it declares are the trial days', html.includes('data-plan-days="23"'));
 
 /* ---- the two paid plans, at the two prices, and no third ---- */
-check('six months is offered', has(html, '38,000'));
-check('one year is offered', has(html, '72,000'));
+check('six months is offered', has(html, '5,000'));
+check('one year is offered', has(html, '9,000'));
 check('there is no public one-month plan', /name="plan"[^>]*value="month_1"/.test(html), false);
 check('and no third price appears', (html.match(/billing-amount/g) || []).length, 2);
 
+// The old model must be gone from the screen, not merely unreachable.
+// A seller who sees 38,000 anywhere has been told the wrong number.
+check('the old six-month price is nowhere on the page', has(html, '38,000'), false);
+check('nor the old yearly price', has(html, '72,000'), false);
+check('no permanent Free plan is offered any more', has(html, 'پلانی بەخۆڕایی'), false);
+check('and nothing is sold by the month', has(html, '١ مانگ') || has(html, '1 مانگ'), false);
+
 /* ---- this is not a discount, and must never look like one ---- */
-check('the free month is not dressed as a price cut', /<del|<s>|line-through/.test(html), false);
+check('the free period is not dressed as a price cut', /<del|<s>|line-through/.test(html), false);
 check('nothing claims a plan costs 0', /\b0\s*د\.ع/.test(html), false);
 
 /* ---- the buy form is there, because nothing is held yet ---- */
-check('a seller on the free month can still buy early', has(html, 'id="plan-form"'));
+check('a seller on the free period can still buy early', has(html, 'id="plan-form"'));
 
 /* ================================================================
-   2. a plan bought DURING the free month
+   2. a plan bought DURING the free period
    ================================================================ */
 await set('/__plan/months_6');
 await set('/__trial/23');
@@ -80,11 +87,11 @@ await set('/__trial/23');
 await set('/__sub/' + (23 + 182));
 
 html = await plans();
-check('the screen says the plan is ready and starts after the free month',
-  has(html, 'پلانی ٦ مانگت ئامادەیە و پاش کۆتایی مانگی بەخۆڕایی دەست پێدەکات.'));
+check('the screen says the plan is ready and starts after the free period',
+  has(html, 'پلانی ٦ مانگت ئامادەیە و پاش کۆتایی ماوە بەخۆڕاییەکەت دەست پێدەکات.'));
 check('the state is scheduled, not active', stateAttr(html), 'scheduled');
-check('the heading is still the free month, because that is what is running',
-  has(html, 'یەکەم مانگ بەخۆڕایی'));
+check('the heading is still the free period, because that is what is running',
+  has(html, '٢ مانگ بەخۆڕایی'));
 check('and it names the day the plan starts', has(html, 'دەست پێدەکات لە'));
 
 /* ---- and there is nothing left to buy ---- */
@@ -92,7 +99,7 @@ check('no second plan is offered while one is scheduled', has(html, 'id="plan-fo
 check('and no button offers to take another payment', has(html, 'id="pay-btn"'), false);
 // Not buyable is not the same as not knowable. A seller whose plan ends
 // next week still needs the price of the next one.
-check('but the prices are still on the screen', has(html, '38,000') && has(html, '72,000'));
+check('but the prices are still on the screen', has(html, '5,000') && has(html, '9,000'));
 check('with nothing on them that can be posted',
   /billing-options--info/.test(html) && !/name="plan"/.test(html), true);
 check('and a line saying when a new plan can be bought',
@@ -120,7 +127,7 @@ check('and they are not shown a checkout failure they did not cause',
   /[?&]e=err/.test(stacked.headers.get('location') || ''), false);
 
 /* ================================================================
-   3. a paid plan running, past the free month
+   3. a paid plan running, past the free period
    ================================================================ */
 await set('/__plan/year_1');
 await set('/__trial/-');
@@ -129,11 +136,11 @@ await set('/__sub/200');
 html = await plans();
 check('a running paid plan reads as active', stateAttr(html), 'active');
 check('it counts down the paid days', has(html, '200 ڕۆژ ماوە'));
-check('the free-month heading is gone', has(html, 'یەکەم مانگ بەخۆڕایی'), false);
+check('the free-period heading is gone', has(html, '٢ مانگ بەخۆڕایی'), false);
 check('and a running plan is not offered another', has(html, 'id="plan-form"'), false);
 
 /* ================================================================
-   4. the free month has ended and nothing was bought
+   4. the free period has ended and nothing was bought
    ================================================================ */
 await set('/__plan/trial');
 // The free month ended five days ago, which is past the three grace
@@ -143,17 +150,17 @@ await set('/__trial/-5');
 await set('/__sub/-5');
 
 html = await plans();
-check('the screen says the free month is over', has(html, 'مانگی بەخۆڕاییت تەواو بووە'));
+check('the screen says the free period is over', has(html, 'ماوە بەخۆڕاییەکەت تەواو بووە'));
 check('it says the products were kept', has(html, 'بەرهەمەکانت پارێزراون'));
 check('it says so again, plainly, in its own line',
   has(html, 'هیچ بەرهەمێک نەسڕدراوەتەوە'));
 check('it never says anything was deleted',
   /سڕاوە|سڕدرا|لەناوچوو/.test(html.replace('نەسڕدراوەتەوە', '')), false);
 check('and it offers the two plans again', has(html, 'id="plan-form"'));
-check('at the same two prices', has(html, '38,000') && has(html, '72,000'));
+check('at the same two prices', has(html, '5,000') && has(html, '9,000'));
 
 /* ---- the seller is still signed in and their shop still works ---- */
-check('the Account screen still opens after the free month ended',
+check('the Account screen still opens after the free period ended',
   (await raw('/app')).status, 200);
 check('the product manager still opens', (await raw('/app/products')).status !== 500, true);
 const acct = await account();
@@ -179,10 +186,10 @@ check('a shop the database calls expired is drawn as expired',
 // same screen, so the two rules cannot quietly become one.
 await set('/__trial/-1');
 await set('/__sub/-1');
-check('the day after the free month ends the shop is expired, not in grace',
+check('the day after the free period ends the shop is expired, not in grace',
   stateAttr(await plans()), 'expired');
-check('and the screen says the free month is over',
-  has(await plans(), 'مانگی بەخۆڕاییت تەواو بووە'));
+check('and the screen says the free period is over',
+  has(await plans(), 'ماوە بەخۆڕاییەکەت تەواو بووە'));
 
 // The same day, but for a plan somebody paid for: still in grace, still
 // public, still warned rather than cut off.
@@ -209,7 +216,7 @@ await set('/__sub/1');
 check('a shop the database calls on-trial is drawn as on-trial',
   stateAttr(await plans()), 'trial');
 check('on its last day it says so rather than counting one day',
-  has(await plans(), 'ئەمڕۆ ڕۆژی کۆتایی مانگی بەخۆڕاییتە.'));
+  has(await plans(), 'ئەمڕۆ ڕۆژی کۆتایی ماوە بەخۆڕاییەکەتە.'));
 
 /* ================================================================
    6. a suspended shop is not offered a free month
@@ -217,7 +224,7 @@ check('on its last day it says so rather than counting one day',
 await set('/__suspended/1');
 html = await plans();
 check('a suspended shop is told it is suspended', stateAttr(html), 'suspended');
-check('and is not offered the free month', has(html, 'ڕۆژ لە مانگی بەخۆڕاییت ماوە'), false);
+check('and is not offered the free period', has(html, 'ڕۆژ لە ماوە بەخۆڕاییەکەت ماوە'), false);
 await set('/__suspended/0');
 
 /* ================================================================
@@ -226,10 +233,10 @@ await set('/__suspended/0');
 await set('/__plan/trial');
 await set('/__trial/20');
 await set('/__sub/20');
-await set('/__products/5');
+await set('/__products/30');
 const gate = await page('/app/new');
-check('a seller who has used all five trial slots is stopped',
-  /مانگی بەخۆڕایی|پلانێک/.test(gate));
+check('a seller who has used all thirty trial slots is stopped',
+  /بەخۆڕایی|پلانێک/.test(gate));
 check('the trial is never described as unlimited',
   /بێ ?سنوور/.test(gate) && !/ت١٠٠٠|1000/.test(gate), false);
 await set('/__products/1');

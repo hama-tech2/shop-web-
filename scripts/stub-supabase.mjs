@@ -40,7 +40,9 @@ const CAT_B = 'dddddddd-2222-4222-8222-222222222222';
 const CAT_NEW = 'dddddddd-3333-4333-8333-333333333333';
 
 /** app.plan_price(): the only prices this app bills. */
-const PRICE = { year_1: 72000, months_6: 38000 };
+// app.plan_price(): the launch prices. The Worker never sends an
+// amount, so these are what the database would have written.
+const PRICE = { year_1: 9000, months_6: 5000 };
 
 const rateEvents = {};            // bucket -> key -> timestamps, for the throttle
 let rows = 1;                     // how many rows a write reports
@@ -57,7 +59,10 @@ let subPlan = 'trial';            // trial | month_1 | months_6 | year_1 | free 
 // separate from subDays because that is the point of the model: the
 // free month and the entitlement are two dates, and a plan bought
 // during the month moves only the second one.
-let trialDays = 20;
+let trialDays = 40;
+
+// app.free_product_limit(): products allowed during the free period.
+const FREE_PRODUCTS = 30;
 let suspended = false;            // the admin's stop button
 let productCount = 0;             // how many products the shop has
 let publicCount = 0;              // how many of them are active
@@ -164,7 +169,7 @@ http.createServer(async (req, res) => {
   if (p.startsWith('/__plan/')) {
     subPlan = p.split('/')[2];
     if (['month_1', 'months_6', 'year_1'].includes(subPlan)) trialDays = null;
-    else if (trialDays === null) trialDays = 20;
+    else if (trialDays === null) trialDays = 40;
     return send({ subPlan, trialDays });
   }
   // Days left in the free month. '-' is a shop that never had one.
@@ -429,7 +434,7 @@ http.createServer(async (req, res) => {
     if (url.searchParams.get('method') === 'eq.manual_grant') return send([...manualGrants.values()]);
     return send([
       { id: '11111111-1111-4111-8111-111111111111', plan: 'months_6',
-        amount: 38000, status: 'confirmed', reference: 'SW-1234',
+        amount: PRICE.months_6, status: 'confirmed', reference: 'SW-1234',
         paid_at: '2026-08-01T10:00:00Z', created_at: '2026-08-01T10:00:00Z' },
     ]);
   }
@@ -462,14 +467,15 @@ http.createServer(async (req, res) => {
     // has to answer the refusal it gets with the right way out.
     //
     //   SW005  suspended               (insert)
-    //   SW001  five products already   (insert)
+    //   SW001  the free period is full  (insert)
     //   SW007  five already public     (update)
     const onPaid = ['month_1', 'months_6', 'year_1'].includes(subPlan) && subDays > 0;
     if (write && req.method === 'POST' && suspended) {
       return send({ code: 'SW005', message: 'shop is suspended' }, 400);
     }
-    if (write && req.method === 'POST' && !onPaid && productCount >= 5) {
-      return send({ code: 'SW001', message: 'free plan allows 5 products' }, 400);
+    if (write && req.method === 'POST' && !onPaid && productCount >= FREE_PRODUCTS) {
+      return send({ code: 'SW001',
+                    message: `free period allows ${FREE_PRODUCTS} products` }, 400);
     }
     if (write && req.method === 'PATCH' && !onPaid
         && lastBody.status === 'active' && publicCount >= 5) {
@@ -610,9 +616,9 @@ http.createServer(async (req, res) => {
         && (legacyFree || entitlementDays > -graceDays || entitlementDays > 0),
       // app.can_publish: paid, or on the free month with a slot left.
       can_publish: !suspended
-        && ((tier === 'paid') || (tier === 'trial' && productCount < 5)),
+        && ((tier === 'paid') || (tier === 'trial' && productCount < FREE_PRODUCTS)),
       tier,
-      slots_left: tier === 'paid' ? null : Math.max(0, 5 - productCount),
+      slots_left: tier === 'paid' ? null : Math.max(0, FREE_PRODUCTS - productCount),
       trial_ends_at: trialDays === null
         ? null
         : new Date(Date.now() + trialDays * 86400000).toISOString(),
@@ -624,7 +630,7 @@ http.createServer(async (req, res) => {
   // Null on a paid plan means unlimited, which is what the app checks.
   if (table === 'rpc/product_slots_left') {
     const paidNow = ['month_1', 'months_6', 'year_1'].includes(subPlan) && subDays > 0;
-    return send(paidNow ? null : Math.max(0, 5 - productCount));
+    return send(paidNow ? null : Math.max(0, FREE_PRODUCTS - productCount));
   }
   if (table === 'rpc/admin_grant_plan' && !GRANT_PLANS.includes(lastBody.p_plan)) {
     return send({ code: '22023' }, 400);

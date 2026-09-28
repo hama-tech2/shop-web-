@@ -87,8 +87,8 @@ let html = await page('/app/subscription');
 // shop on it, renewal for one past it. What must always be true is that
 // the screen is the plan screen and carries both prices.
 check('the plan screen renders',
-      html.includes('یەکەم مانگ بەخۆڕایی') || html.includes('نوێکردنەوەی پلان'), true);
-check('and it is priced', html.includes('38,000') && html.includes('72,000'), true);
+      html.includes('٢ مانگ بەخۆڕایی') || html.includes('نوێکردنەوەی پلان'), true);
+check('and it is priced', html.includes('5,000') && html.includes('9,000'), true);
 check('both plans are offered', PLANS.every((p) => html.includes(String(p.amount).replace(/\B(?=(\d{3})+(?!\d))/g, ','))), true);
 check('6 months is priced from config', html.includes(priced('months_6')), true);
 check('1 year is priced from config', html.includes(priced('year_1')), true);
@@ -356,8 +356,11 @@ await setProducts(2);
 // parameter is what they come back through once they have chosen to
 // carry on for nothing; it grants nothing on its own.
 html = await page('/app/new?plan=free');
+// Two products are in use, so the count is the limit minus two —
+// derived from the constant rather than written out, so the assertion
+// survives the next time the allowance moves.
 check('the form says how many slots are left',
-      html.includes(`3 لە ${FREE_PRODUCT_LIMIT}`), true);
+      html.includes(`${FREE_PRODUCT_LIMIT - 2} لە ${FREE_PRODUCT_LIMIT}`), true);
 check('and the form is there to use', html.includes('id="product-form"'), true);
 
 await setProducts(FREE_PRODUCT_LIMIT);
