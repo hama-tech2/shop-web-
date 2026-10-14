@@ -8,10 +8,11 @@
 import { APP_NAME, APP_UI, PLAN_BANNER, PRODUCT, VISITOR } from '../config.js';
 import { layout } from '../render/layout.js';
 import { appShell, visitorPage } from '../render/appshell.js';
-import { asUser } from '../supabase.js';
+import { asUser, getCategories, toCard } from '../supabase.js';
 import { bannerFor, planState } from '../plan-state.js';
 import { getOwnShop, resolveSession, sameOrigin, setSessionCookies } from '../auth.js';
 import { redirect } from './auth.js';
+import { shopPage } from '../render/shop.js';
 
 /**
  * How close the plan is to running out, for the banner.
@@ -121,6 +122,14 @@ export async function appGet(request, env, url) {
   // text on the seller's screen.
   const errorKey = url.searchParams.get('e');
   const error = errorKey && PRODUCT[errorKey] ? PRODUCT[errorKey] : null;
+  let published = null;
+  const candidate = url.searchParams.get('published');
+  if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(candidate || '')) {
+    const saved = await asUser(env, token, 'products', {
+      search: { select: 'id', id: 'eq.' + candidate, shop_id: 'eq.' + shop.id, limit: '1' },
+    });
+    if (saved.ok && saved.data?.[0]?.id === candidate) published = candidate;
+  }
 
   headers.set('content-type', 'text/html; charset=utf-8');
   headers.set('cache-control', 'no-store');
@@ -129,9 +138,33 @@ export async function appGet(request, env, url) {
     layout({
       title: `${APP_UI.title} — ${APP_NAME}`,
       description: APP_NAME,
-      body: appShell({ shop, origin: url.origin, banner, subscription, error }),
-      scripts: ['/js/app.js'],
+      body: appShell({ shop, origin: url.origin, banner, subscription, error, published }),
+      scripts: ['/js/draft-store.js', '/js/app.js'],
     }),
     { headers },
   );
+}
+
+
+/** Owner-only stock uses the session token and RLS, including retained surplus. */
+export async function ownerProductsGet(request, env, url) {
+  const { user, token, refreshed } = await resolveSession(request, env);
+  const headers = new Headers({ 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' });
+  if (refreshed) setSessionCookies(headers, refreshed);
+  if (!user) return new Response('Unauthorized', { status: 401, headers });
+  const shop = await getOwnShop(env, token, user.id);
+  if (!shop) return new Response('Not found', { status: 404, headers });
+  const [stock, categories, own] = await Promise.all([
+    asUser(env, token, 'rpc/owner_products', { method: 'POST', body: { p_shop: shop.id } }),
+    getCategories(env),
+    asUser(env, token, 'categories', { search: { select: 'id,name', shop_id: 'eq.' + shop.id, order: 'sort_order.asc,name.asc' } }),
+  ]);
+  if (!stock.ok) return new Response('Stock unavailable', { status: 503, headers });
+  const activeCategory = url.searchParams.get('category') || '';
+  let rows = stock.data || [];
+  if (activeCategory.startsWith('c')) rows = rows.filter(p => p.category_id === activeCategory.slice(1));
+  else if (activeCategory) rows = rows.filter(p => p.platform_category_id === categories.find(c => c.slug === activeCategory)?.id);
+  const products = rows.map(row => ({ ...toCard({ ...row, shops: shop }), retained: !row.publicly_eligible, status: row.status }));
+  return new Response(shopPage({ shop: { ...shop, products_visible: true }, products, categories,
+    shopCategories: own.ok ? own.data : [], activeCategory, origin: url.origin, owner: true }), { headers });
 }

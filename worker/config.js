@@ -385,7 +385,7 @@ export const PRODUCT = {
   // the message says what to do next and the screen carries the link.
   trialLimitTitle: 'سنووری بەرهەمەکان پڕە',
   trialLimitBody: (max) =>
-    `لە ماوە بەخۆڕاییەکەدا تا ${max} بەرهەم لە هەژمارەکەتدا دەتوانیت هەبێت. ` +
+    `لە پلانی بەخۆڕاییدا تا ${max} بەرهەم لە هەژمارەکەتدا دەتوانیت هەبێت. ` +
     'بۆ زیادکردنی بەرهەمێکی نوێ، یەکێک بسڕەوە یان پلانێک بکڕە. بەرهەمە ئێستاکانت پارێزراون.',
   trialLimitAction: 'بینینی پلانەکان',
   trialLeft: (n, max) => `${n} لە ${max} شوێنت ماوە.`,
@@ -540,13 +540,13 @@ export const SUBSCRIPTION = {
 
   // The five states a seller can be in. Only trial, pending and active
   // are stored; grace and expired are read off the expiry date.
-  stateTrial: () => '٢ مانگ بەخۆڕایی',
-  stateTrialLast: '٢ مانگ بەخۆڕایی',
+  stateTrial: () => 'پلانی بەخۆڕایی',
+  stateTrialLast: 'پلانی بەخۆڕایی',
   statePending: 'چاوەڕوانی پشتڕاستکردنەوە',
   stateActive: (d) => `چالاکە تا ${d}`,
-  stateGrace: (n) => `بەسەرچووە — ${n} ڕۆژ ماوە پێش شاردنەوەی بەرهەمەکان`,
+  stateGrace: (n) => `پلانی پارەدراو تەواو بووە. ${n} ڕۆژ لە ماوەی زیادە ماوە؛ پاشان تا 5 بەرهەم ئاشکرا دەبن.`,
   stateExpired: 'پلانەکەت تەواو بووە. بەرهەمەکانت پارێزراون؛ ' +
-    'بۆ دووبارە دەرکەوتنیان پلانێک هەڵبژێرە.',
+    'لە پلانی بەخۆڕاییدا تا 5 بەرهەم ئاشکرا دەبن.',
 
   // ---- the free month ----
   //
@@ -554,15 +554,15 @@ export const SUBSCRIPTION = {
   // is no 5,000 crossed out and no 0 د.ع, because nothing was ever
   // marked down. The seller is at the beginning of something, not
   // holding a coupon.
-  trialName: '٢ مانگ بەخۆڕایی',
+  trialName: 'پلانی بەخۆڕایی',
   trialDaysLeft: (n) => `${n} ڕۆژ لە ماوە بەخۆڕاییەکەت ماوە.`,
   trialLastDay: 'ئەمڕۆ ڕۆژی کۆتایی ماوە بەخۆڕاییەکەتە.',
-  trialThenPay: 'دوو مانگ بەخۆڕایی. پاش کۆتاییهاتنی، بۆ بەردەوامبوون پلانێک هەڵبژێرە.',
+  trialThenPay: 'بەخۆڕایی بەبێ کۆتایی؛ تا 5 بەرهەم، هەر بەرهەمێک تا 5 وێنە.',
 
   // Bought during the free month. The plan is theirs; it simply has not
   // started yet, and saying which day it starts is the whole point.
   trialScheduled: (planLabel) =>
-    `پلانی ${planLabel}ت ئامادەیە و پاش کۆتایی ماوە بەخۆڕاییەکەت دەست پێدەکات.`,
+    `پلانی ${planLabel}ت ئامادەیە و لە بەرواری دیاریکراوی پێشوو دەست پێدەکات.`,
   trialScheduledFrom: (date) => `دەست پێدەکات لە ${date}`,
 
   // The free month has ended and nothing was bought. The first thing
@@ -597,12 +597,12 @@ export const SUBSCRIPTION = {
 
   // The free month, named at the bottom of the plans, small. It is
   // what a seller is already on, not something to sell them.
-  freeTitle: '٢ مانگ بەخۆڕایی',
+  freeTitle: 'پلانی بەخۆڕایی',
   freeBody: (n) => `تا ${n} بەرهەم.`,
 
   whatYouGet: 'چی وەردەگریت',
   benefits: [
-    'تا ١٠٠٠ بەرهەم بەبێ سنوور',
+    'تا ١٠٠٠ بەرهەم',
     'بەستەری تایبەت بۆ دوکانەکەت',
     'دەرکەوتن لە بەشی بۆ تۆ',
     'پشتگیری خێرا',
@@ -614,10 +614,10 @@ export const SUBSCRIPTION = {
   // ---- the Free plan, said where a seller meets one of its two
   // limits: five products, one image each. Nothing here starts or ends
   // anything — Free is where every shop already is. ----
-  freeName: '٢ مانگ بەخۆڕایی',
-  freeAllowance: (n, i) => `لە ماوە بەخۆڕاییەکەدا تا ${n} بەرهەم، هەر بەرهەمێک ${i} وێنە.`,
+  freeName: 'پلانی بەخۆڕایی',
+  freeAllowance: (n, i) => `بەبێ کۆتایی؛ تا ${n} بەرهەم، هەر بەرهەمێک تا ${i} وێنە.`,
   freeSlotsLeft: (n) => `${n} شوێنی بەتاڵت ماوە.`,
-  freeFull: (n) => `سنووری ${n} بەرهەمی ماوە بەخۆڕاییەکەت پڕە. ` +
+  freeFull: (n) => `سنووری ${n} بەرهەمی پلانی بەخۆڕایی پڕە. ` +
     'بەرهەمێک بسڕەوە، یان پلانێک بکڕە.',
   freeImageOnly: (i) => `هەر بەرهەمێک تا ${i} وێنەی هەیە.`,
   errFreeFull: 'سنووری بەرهەمەکانت پڕە. بەرهەمێک بسڕەوە یان پلانێک بکڕە.',
@@ -626,11 +626,11 @@ export const SUBSCRIPTION = {
   // ---- the plan gate, met on the way in to Add Product. Looking at it
   // starts nothing and writes nothing. ----
   gateTitle: 'بۆ زیادکردنی بەرهەم پلانێک هەڵبژێرە',
-  gateBody: 'پاش کۆتایی ماوە بەخۆڕاییەکەت، بۆ بەردەوامبوون پلانێک هەڵبژێرە.',
-  gateTrialTitle: () => '٢ مانگ بەخۆڕایی',
+  gateBody: 'بەخۆڕایی بەردەوام بە، یان پلانێکی پارەدراو هەڵبژێرە.',
+  gateTrialTitle: () => 'پلانی بەخۆڕایی',
   gateTrialBody: (n) => `تا ${n} بەرهەم. هیچ پارەیەک وەرناگیرێت.`,
   gateTrialAction: 'بەردەوامبوون بەخۆڕایی',
-  gateTrialOnce: '٢ مانگ بەخۆڕایی.',
+  gateTrialOnce: 'بەخۆڕایی بەبێ کۆتایی.',
   gateTrialUsed: 'سنووری بەرهەمەکانت پڕە. بەرهەمێک بسڕەوە یان پلانێک بکڕە.',
   gatePlans: 'پلانەکان',
   gateBack: 'گەڕانەوە',
@@ -639,7 +639,7 @@ export const SUBSCRIPTION = {
   warnSoon: (n) => `${n} ڕۆژ لە پلانەکەت ماوە.`,
   warnUrgent: (n) => `تەنها ${n} ڕۆژ ماوە.`,
   warnLast: 'سبەی پلانەکەت تەواو دەبێت.',
-  warnExpired: 'پلانەکەت تەواو بووە. بەرهەمەکانت پارێزراون بەڵام ئێستا بە گشتی دەرناکەون.',
+  warnExpired: 'پلانی پارەدراوت تەواو بووە. پاش ماوەی زیادە، تا 5 بەرهەم ئاشکرا دەبن؛ هەموو بەرهەمەکانت پارێزراون.',
   warnNone: 'هێشتا پلانێکت نییە.',
   warnAction: 'نوێکردنەوە / بینینی پلانەکان',
   // Renewal is a payment the seller makes, every time. Nothing here
@@ -752,7 +752,7 @@ export const FIB_NUMBER = '07515298365';
  * hold the same two numbers and are what actually refuse the write;
  * scripts/plan-limits-test.mjs fails if they drift apart.
  */
-export const FREE_PRODUCT_LIMIT = 30;
+export const FREE_PRODUCT_LIMIT = 5;
 
 /**
  * Five images, the same number a paid plan gets — and the same number
@@ -785,7 +785,7 @@ export const TRIAL_DAYS = 60;
 export const PLAN_BANNER = {
   soon: (n) => `${n} ڕۆژ لە پلانەکەت ماوە`,
   soonOne: 'سبەی پلانەکەت تەواو دەبێت',
-  grace: (n) => `پلانەکەت تەواو بووە. ${n} ڕۆژ ماوە پێش ئەوەی بەرهەمەکانت بشاردرێنەوە.`,
+  grace: (n) => `پلانی پارەدراوت تەواو بووە. ${n} ڕۆژ لە ماوەی زیادە ماوە؛ پاشان تا 5 بەرهەم ئاشکرا دەبن. هەموو بەرهەمەکانت پارێزراون.`,
   hidden: 'پلانی پارەدراوت تەواو بووە. بەرهەمە شاراوەکان پارێزراون؛ خۆت هەڵبژێرە کام بەرهەم ئاشکرا بێت.',
   pending: 'ناردنەکەت لە چاوەڕوانی پشتڕاستکردنەوەدایە.',
   action: 'پارەدان',

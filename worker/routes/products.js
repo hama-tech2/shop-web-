@@ -37,7 +37,7 @@ const PRODUCT_SELECT =
   'id,title,price,currency,visibility,description,status,platform_category_id,category_id,created_at,' +
   'product_images(r2_key,r2_key_full,position)';
 
-function page(body, title, headers, scripts = ['/js/crop.js', '/js/product.js']) {
+function page(body, title, headers, scripts = ['/js/draft-store.js', '/js/crop.js', '/js/product.js']) {
   const h = new Headers(headers || undefined);
   h.set('content-type', 'text/html; charset=utf-8');
   h.set('cache-control', 'no-store');
@@ -370,7 +370,7 @@ async function readForm(request, env, token, shopId, productId) {
   }
   if (price === null || price > 999999999) return { error: T.errPrice, values };
   if (currency === null) return { error: T.errCurrency, values };
-  if (visibility === null) return { error: T.errVisibility, values };
+  if (visibility === null || !['active','hidden','archived'].includes(values.status)) return { error: T.errVisibility, values };
 
   return {
     values,
@@ -407,11 +407,13 @@ async function readEditForm(request, shopId, productId, product, categories) {
     title: (f.title || '').replace(/\s+/g, ' ').trim(),
     category: f.category || '',
     visibility: visibility ?? original.visibility,
+    status: f.status || original.status,
     images: images || [],
   };
 
   if (!images) return { error: picked.error, values };
   if (visibility === null) return { error: T.errVisibility, values };
+  if (!['active', 'hidden', 'archived'].includes(values.status)) return { error: T.errSave, values };
   if (values.title.length < 2 || values.title.length > 200) {
     return { error: T.errTitle, values };
   }
@@ -431,8 +433,9 @@ async function readEditForm(request, shopId, productId, product, categories) {
     row: {
       title: values.title,
       // Where it shows is the seller's to change; what it costs is not.
-      // Price, currency and status still never leave this editor.
+      // Price and currency still never leave this editor.
       visibility,
+      status: values.status,
       platform_category_id: categories.find((c) => c.slug === values.category)?.id ?? null,
     },
     images,
@@ -455,7 +458,7 @@ export async function newGet(request, env, url) {
   // the count below and the database behind it are what decide.
   const { tier, canPublish, slotsLeft } = await entitlement(env, g.token, g.shop.id);
   const chosenFree = url?.searchParams?.get('plan') === 'free';
-  if (tier !== 'paid' && (!canPublish || !chosenFree)) {
+  if (tier !== 'paid' && (!canPublish || !chosenFree) && !UUID.test(url.searchParams.get('draft') || '')) {
     return gatePage(
       accessGatePage({
         trialAvailable: canPublish,
@@ -469,12 +472,13 @@ export async function newGet(request, env, url) {
   // Full, and somehow still here: the reason, and a way out of it,
   // rather than a form whose submit button cannot work.
   const left = slotsLeft ?? await trialSlotsLeft(env, g.token, g.shop.id);
-  if (left === 0) return page(trialLimitPage(), T.trialLimitTitle, g.headers);
+  if (left === 0 && !UUID.test(url.searchParams.get('draft') || '')) return page(trialLimitPage(), T.trialLimitTitle, g.headers);
 
   return page(
     productForm({
+      ownerId: g.shop.id,
       mode: 'new',
-      draftId: crypto.randomUUID(),
+      draftId: UUID.test(url.searchParams.get('draft') || '') ? url.searchParams.get('draft') : crypto.randomUUID(),
       categories: await getCategories(env),
       values: { status: 'active', images: [] },
       trialLeft: left,
@@ -492,103 +496,23 @@ export async function newPost(request, env) {
   const draftId = String(raw.get('draft_id') || '');
   if (!UUID.test(draftId)) return redirect('/app/new', g.headers);
 
-  // Checked again on the way in. A form left open while the last slot
-  // went, in another tab or on another phone, must not post through it.
-  const { tier, canPublish, slotsLeft } = await entitlement(env, g.token, g.shop.id);
-  if (!canPublish) {
-    return gatePage(
-      accessGatePage({ trialAvailable: false, error: S.freeFull(FREE_PRODUCT_LIMIT) }),
-      g.headers,
-    );
-  }
 
+  const { tier, slotsLeft } = await entitlement(env, g.token, g.shop.id);
   const parsed = await readForm(request, env, g.token, g.shop.id, draftId);
   const categories = await getCategories(env);
-  const left = slotsLeft ?? await trialSlotsLeft(env, g.token, g.shop.id);
-
-  if (left === 0) return page(trialLimitPage(), T.trialLimitTitle, g.headers);
-
-  // One image on Free. The database refuses the second either way; this
-  // is so the seller is told which rule they met, with their form still
-  // filled in, rather than meeting a save error.
-  if (tier !== 'paid' && (parsed.values?.images?.length ?? 0) > FREE_IMAGE_LIMIT) {
-    return page(
-      productForm({ mode: 'new', draftId, categories,
-                    values: parsed.values, error: S.freeImageOnly(FREE_IMAGE_LIMIT),
-                    trialLeft: left }),
-      T.newTitle, g.headers,
-    );
-  }
-
-  if (parsed.error) {
-    return page(
-      productForm({ mode: 'new', draftId, categories,
-                    values: parsed.values, error: parsed.error, trialLeft: left }),
-      T.newTitle, g.headers,
-    );
-  }
-
-  const created = await asUser(env, g.token, 'products', {
-    method: 'POST',
-    prefer: 'return=representation',
-    body: { id: draftId, shop_id: g.shop.id, ...parsed.row },
+  const redraw = (error) => page(productForm({ ownerId: g.shop.id, mode: 'new',
+    draftId, categories, values: parsed.values, error, trialLeft: slotsLeft }), T.newTitle, g.headers);
+  if (parsed.error) return redraw(parsed.error);
+  if (tier !== 'paid' && parsed.images.length > FREE_IMAGE_LIMIT) return redraw(S.freeImageOnly(FREE_IMAGE_LIMIT));
+  // The transaction checks quota under the subscription lock and saves the
+  // gallery with the product. A retry of the same draft is idempotent.
+  const created = await asUser(env, g.token, 'rpc/publish_product', {
+    method: 'POST', body: { p_product: draftId, p_shop: g.shop.id,
+      p_values: parsed.row, p_images: parsed.images },
   });
-
-  if (!created.ok) {
-    // The database is the one that actually enforces both limits, and it
-    // can refuse a request that looked fine a moment earlier — another
-    // tab, a slot used between the check and the insert, or a suspension
-    // that landed in between.
-    if (SUSPENDED(created)) {
-      return gatePage(accessGatePage({ trialAvailable: false, error: S.errSuspended }),
-                      g.headers);
-    }
-    if (FREE_FULL(created)) {
-      return page(trialLimitPage(), T.trialLimitTitle, g.headers);
-    }
-    return page(
-      productForm({ mode: 'new', draftId, categories,
-                    values: parsed.values, error: T.errSave, trialLeft: left }),
-      T.newTitle, g.headers,
-    );
-  }
-
-  const saved = await asUser(env, g.token, 'rpc/save_product_images', {
-    method: 'POST',
-    body: { p_product: draftId, p_images: parsed.images },
-  });
-
-  if (!saved.ok) {
-    // The product exists but has no gallery; send them to edit rather
-    // than leaving a half-made row behind with no way back to it.
-    return redirect(`/app/products/${draftId}`, g.headers);
-  }
-
-  // Published, images and all. Back to the seller's own manager.
-  //
-  // This used to send them to /@slug/p/<id> so they could admire the
-  // thing they had just posted. That is the customer's copy of the
-  // page, and putting it at the end of an authenticated flow broke two
-  // things at once. It renders with no owner controls, because nothing
-  // under /@ knows who is looking — so the seller who had just
-  // published was handed the anonymous view of their own product. And
-  // it is served `public, s-maxage=120, stale-while-revalidate=600`,
-  // where every screen inside /app is `no-store`: pressing Back walked
-  // from the storefront to /@slug and sat the owner in a cached,
-  // shared, customer view of their own shop with no way back into
-  // owner mode except the navigation bar.
-  //
-  // A seller who has just posted does want to see their shop — but
-  // through their own door, not the customer's. /app is that door: the
-  // owner view of the shop, with its header, its owner-controls and its
-  // products, never cached, and the public link one deliberate tap away
-  // rather than somewhere they land by accident and cannot tell apart
-  // from being logged out.
-  //
-  // There is no longer a separate management list to choose instead:
-  // /app is the only seller-facing list of these products, and this is
-  // it.
-  return redirect('/app', g.headers);
+  if (!created.ok) return redraw(FREE_FULL(created) ? S.freeFull(FREE_PRODUCT_LIMIT)
+    : SUSPENDED(created) ? S.errSuspended : T.errSave);
+  return redirect('/app?published=' + encodeURIComponent(draftId), g.headers);
 }
 
 /* ============================================================
@@ -634,7 +558,7 @@ export async function editGet(request, env, id) {
   const categories = await getCategories(env);
   const { tier } = await entitlement(env, g.token, g.shop.id);
   return page(
-    productForm({ mode: 'edit', draftId: id, categories,
+    productForm({ ownerId: g.shop.id, mode: 'edit', draftId: id, categories,
                   values: toValues(product, categories), imageLimit: tier === 'paid' ? MAX_IMAGES : FREE_IMAGE_LIMIT }),
     T.editTitle, g.headers,
   );
@@ -656,43 +580,20 @@ export async function editPost(request, env, id) {
 
   if (parsed.error) {
     return page(
-      productForm({ mode: 'edit', draftId: id, categories,
+      productForm({ ownerId: g.shop.id, mode: 'edit', draftId: id, categories,
                     values: parsed.values, error: parsed.error, imageLimit }),
       T.editTitle, g.headers,
     );
   }
 
-  const updated = await asUser(env, g.token, 'products', {
-    method: 'PATCH',
-    search: { id: `eq.${id}`, shop_id: `eq.${g.shop.id}` },
-    prefer: AFFECTED,
-    body: parsed.row,
-  });
 
-  // Zero rows is not success. The product was deleted in another tab,
-  // or the id belongs to someone else and RLS refused it — either way
-  // the images must not be written against it.
-  //
-  // A Free shop that is already showing five is its own case: nothing
-  // is wrong with the edit, there is simply no room to make this one
-  // public. Saying that, with the form still filled in, is the whole
-  // difference between a seller who hides one and carries on and a
-  // seller who thinks their product is gone.
-  if (!updated.ok || affected(updated) === 0) {
-    const error = PUBLIC_FULL(updated) ? T.errPublicFull(FREE_PRODUCT_LIMIT)
-      : updated.ok ? T.errGone
-      : T.errSave;
-    return page(
-      productForm({ mode: 'edit', draftId: id, categories,
-                    values: parsed.values, error, imageLimit }),
-      T.editTitle, g.headers,
-    );
-  }
-
-  await asUser(env, g.token, 'rpc/save_product_images', {
-    method: 'POST',
-    body: { p_product: id, p_images: parsed.images },
+  const updated = await asUser(env, g.token, 'rpc/update_product', {
+    method: 'POST', body: { p_product: id, p_values: parsed.row, p_images: parsed.images },
   });
+  if (!updated.ok) return page(
+    productForm({ ownerId: g.shop.id, mode: 'edit', draftId: id, categories,
+      values: parsed.values, error: updated.data?.code === 'P0002' ? T.errGone : T.errSave, imageLimit }),
+    T.editTitle, g.headers);
 
   // Saved. Back to the shop the edit was made to, in owner mode —
   // the same destination publishing uses, for the same reason.

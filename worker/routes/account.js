@@ -11,6 +11,7 @@ import {
   PROFILE as P, PROFILE_VARIANTS as V, SUBSCRIPTION as S,
 } from '../config.js';
 import { layout } from '../render/layout.js';
+import { esc } from '../render/html.js';
 import { profilePage } from '../render/profile.js';
 import { categoriesPage } from '../render/categories.js';
 import { accessGatePage, payPage, subscriptionPage } from '../render/subscription.js';
@@ -579,7 +580,7 @@ async function loadPayments(env, token, shopId) {
 // follows the selected plan, and the guard against a second tap while
 // the first is still on its way to Wayl.
 const subPage = (body, headers) =>
-  page(body, S.title, headers, ['/js/account.js', '/js/checkout.js']);
+  page(body, S.title, headers, ['/js/draft-store.js', '/js/account.js', '/js/checkout.js']);
 
 export async function subscriptionGet(request, env, url) {
   const g = await guard(request, env, '/app/subscription');
@@ -603,7 +604,7 @@ export async function subscriptionGet(request, env, url) {
   ]);
 
   return subPage(
-    subscriptionPage({
+    `<span hidden data-draft-owner="${esc(g.shop.id)}"></span>` + subscriptionPage({
       state, selected, intent, payments, paymentsEnabled: enabled,
       error: checkoutUnavailable
         ? S.errUnavailable

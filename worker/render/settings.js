@@ -13,7 +13,7 @@ const statusLabels = {
   grace: 'لە کاتی زیادەدایە', expired: 'بەسەرچووە', suspended: 'ناچالاک',
 };
 const planLabels = {
-  none: 'بێ پلان', free: 'مانگی بەخۆڕایی', trial: 'مانگی بەخۆڕایی',
+  none: 'بێ پلان', free: 'پلانی بەخۆڕایی', trial: 'مانگی بەخۆڕایی',
   month_1: '1 مانگ', months_6: '6 مانگ', year_1: '1 ساڵ',
 };
 
@@ -51,7 +51,7 @@ function subscriptionCard(subscription) {
   const plan = subscription?.plan && Number.isInteger(state?.days_left)
     ? { ...subscription.plan, days: state.days_left } : subscription?.plan;
   // Use the existing server-derived state. Missing data is not expiry.
-  const key = state?.status === 'suspended' ? 'suspended' : state?.tier === 'free' ? 'free' : state ? plan?.key : null;
+  const key = state?.status === 'suspended' ? 'suspended' : state ? plan?.key : null;
   const label = statusLabels[key];
   const date = !['none', 'free'].includes(key) && state?.expires_at && !Number.isNaN(Date.parse(state.expires_at))
     ? new Date(state.expires_at).toISOString().slice(0, 10) : '';
@@ -69,7 +69,7 @@ function subscriptionCard(subscription) {
       : hasTime ? `<p class="settings-plan__remaining">${plan.days} ڕۆژ ماوە</p>` : '') +
     `<p class="settings-plan__date" id="settings-plan-detail">` +
     (date ? `کۆتایی: <time datetime="${esc(date)}" dir="ltr">${date.replaceAll('-', '/')}</time>`
-      : key === 'free' ? 'بەخۆڕایی' : !key ? 'وردەکاری پلان لە ئێستادا بەردەست نییە.' : '') + `</p>` +
+      : key === 'free' ? 'بەخۆڕایی بێ کۆتایی · تا 5 بەرهەم و 5 وێنە بۆ هەر بەرهەمێک' : !key ? 'وردەکاری پلان لە ئێستادا بەردەست نییە.' : '') + `</p>` +
     `<a class="settings-plan__action" href="/app/subscription" id="settings-subscription">` +
     `${renew ? 'نوێکردنەوەی پلان' : 'بینینی پلانەکان'} ${arrow}</a></section>`;
 }

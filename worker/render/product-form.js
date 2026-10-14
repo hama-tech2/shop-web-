@@ -31,7 +31,7 @@ export function trialLimitPage() {
   );
 }
 
-export function productForm({ mode, draftId, categories, values, error, trialLeft = null, imageLimit: editImageLimit = MAX_IMAGES }) {
+export function productForm({ ownerId, mode, draftId, categories, values, error, trialLeft = null, imageLimit: editImageLimit = MAX_IMAGES }) {
   const isEdit = mode === 'edit';
   if (isEdit) return editProductForm({ draftId, categories, values, error, imageLimit: editImageLimit });
   const images = values.images ?? [];
@@ -46,13 +46,14 @@ export function productForm({ mode, draftId, categories, values, error, trialLef
     `<p>تا ${imageLimit} وێنە زیاد بکە. وێنەیەک هەڵبژێرە بۆ کاڤەر؛ بە دوگمەکانی ڕیزکردن شوێنی وێنەکان بگۆڕە.</p></details></header>` +
     `<p class="publish-sub">زانیارییەکانی بەرهەمەکەت زیاد بکە و بڵاوی بکەرەوە.</p>` +
     alert(error) +
+    (error ? '<a class="btn btn--quiet" data-draft-upgrade href="/app/subscription">بینینی پلانەکان</a>' : '') +
     (isEdit && images.length > imageLimit ? `<p class="publish-free-left">وێنە پێشووەکانت پارێزراون. هەر بەرهەمێکی نوێ تا ${FREE_IMAGE_LIMIT} وێنەی هەیە.</p>` : '') +
     // Remaining account slots come from the existing server read.
     (trialLeft === null
       ? ''
       : `<p class="publish-free-left">${esc(T.trialLeft(trialLeft, FREE_PRODUCT_LIMIT))}</p>`) +
     `<form method="post" id="product-form" action="${esc(isEdit ? `/app/products/${draftId}` : '/app/new')}"` +
-    ` data-mode="${esc(mode)}" data-restore-category="${!isEdit && !error && !values.category && !images.length}"` +
+    ` data-owner="${esc(ownerId || '')}" data-form-error="${Boolean(error)}" data-mode="${esc(mode)}" data-restore-category="${!isEdit && !error && !values.category && !images.length}"` +
     ` data-draft="${esc(draftId)}" data-max="${imageLimit}"` +
     ` data-card-w="${IMAGE_VARIANTS.card.width}" data-card-h="${IMAGE_VARIANTS.card.height}" data-card-q="${IMAGE_VARIANTS.card.quality}"` +
     ` data-full-w="${IMAGE_VARIANTS.full.width}" data-full-h="${IMAGE_VARIANTS.full.height}" data-full-q="${IMAGE_VARIANTS.full.quality}"` +
@@ -130,8 +131,13 @@ function editProductForm({ draftId, categories, values, error, imageLimit }) {
     [{ slug: '', name_ckb: T.categoryNone }, ...categories].map(c => `<option value="${esc(c.slug)}"${(values.category ?? '') === c.slug ? ' selected' : ''}>${esc(c.name_ckb)}</option>`).join('') +
     `</select></div>` +
     visibilityField(values.visibility) +
+    '<div class="field"><label class="field__label" for="status-field">دۆخی بەرهەم</label>' +
+    '<select class="field__input" id="status-field" name="status">' +
+    [['active','ئاشکرا'],['hidden','شاراوە'],['archived','ئەرشیفکراو']].map(([key,label]) =>
+      '<option value="' + key + '"' + (values.status === key ? ' selected' : '') + '>' + label + '</option>').join('') +
+    '</select><p class="field__hint">لە پلانی بەخۆڕاییدا یەکەم پێنج بەرهەمی ئاشکرا بە ڕیزی دوکان پیشان دەدرێن. بۆ گۆڕینی هەڵبژاردەکان، بەرهەمێک بشارەوە. بەرهەمە شاراوەکانیش لە سنووری پاشەکەوتدا هەژمار دەکرێن.</p></div>' +
     `<div class="publish-save"><button class="btn btn--primary" type="submit" id="save-btn" data-saving="${esc(T.saving)}">${esc(T.save)}</button>` +
-    `<p>تەنها کاڤەر، ناو، پۆل و دەرکەوتن پاشەکەوت دەکرێن.</p></div></form>` +
+    `<p>تەنها کاڤەر، ناو، پۆل، دۆخ و دەرکەوتن پاشەکەوت دەکرێن.</p></div></form>` +
     `</div>` + productCover() + `<script src="/js/product-cover.js" defer></script>`
   );
 }

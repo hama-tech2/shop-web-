@@ -50,7 +50,7 @@ check('edit form is cover-only', edit.includes('data-cover-only="true"'));
 check('title remains editable', /name="title"/.test(edit));
 check('market category remains editable', /name="category"/.test(edit));
 check('price is visible as locked context', edit.includes('edit-price__value') && edit.includes('85,000 د.ع'));
-for (const forbidden of ['price', 'currency', 'status', 'description', 'own_category', 'whatsapp', 'location']) {
+for (const forbidden of ['price', 'currency', 'description', 'own_category', 'whatsapp', 'location']) {
   check(`${forbidden} is not an editable product field`,
     !new RegExp(`<(?:input|select|textarea)[^>]*name="${forbidden}"`).test(edit));
 }
@@ -75,22 +75,24 @@ const saved = await seller(editUrl, {
 });
 check('restricted edit saves successfully', saved.status === 303 && saved.headers.get('location') === '/app');
 const writes = await control('/__writes');
-const update = writes.find((write) => write.table === 'products' && write.method === 'PATCH');
+const update = writes.find((write) => write.table === 'rpc/update_product' && write.method === 'POST');
 check('product update occurred', Boolean(update));
 // Where a product is shown joined the editor; what it costs did not.
 // The list is exact, so a fourth field cannot be added without this
 // test being changed on purpose.
-check('product update contains only title, market category and visibility',
-  JSON.stringify(Object.keys(update.body).sort())
-    === JSON.stringify(['platform_category_id', 'title', 'visibility']));
-check('the restricted edit still never writes a price, currency or status',
-  ['price', 'currency', 'status', 'description'].every((f) => !(f in update.body)));
-check('ownership remains scoped in the update query', update.search.includes(`shop_id=eq.${SHOP}`));
+check('atomic update contains only approved fields including seller status',
+  JSON.stringify(Object.keys(update.body.p_values).sort())
+    === JSON.stringify(['platform_category_id', 'status', 'title', 'visibility']));
+check('the restricted edit still never writes a price, currency or description',
+  ['price', 'currency', 'description'].every((f) => !(f in update.body.p_values)));
+check('RPC is bound to the owned product; database suite checks RLS', update.body.p_product === PRODUCT);
 
 /* Owner card menu behavior, including confirmation before deletion. */
 const browser = await chromium.launch({ executablePath: process.env.CHROME || 'C:/Program Files/Google/Chrome/Application/chrome.exe' });
 try {
   const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  await context.route('**/*', route =>
+    new URL(route.request().url()).origin === new URL(APP).origin ? route.continue() : route.abort());
   await context.addCookies([{ name: 'sb-access', value: 'TEST', url: APP }]);
   const page = await context.newPage();
   const errors = [];

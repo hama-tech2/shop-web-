@@ -543,7 +543,9 @@ export async function webhookPost(request, env, intentId) {
         p_status: readRawStatus(body),
       },
     });
-    if (!first.ok || first.data !== true) return ok();
+    if (!first.ok) return new Response('retry', { status: 503 });
+    // A recorded event may precede a failed verification attempt. Re-verify
+    // duplicates too; activated_at, under the shop lock, is the grant guard.
 
     // The body has now done everything it is allowed to do: it said
     // that something happened. What happened comes from Wayl.

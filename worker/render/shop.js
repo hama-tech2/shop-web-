@@ -103,7 +103,7 @@ export function shopHeader({ shop, origin, controls = '' }) {
    the page
    ============================================================ */
 
-export function shopPage({ shop, products, categories, shopCategories, activeCategory, origin }) {
+export function shopPage({ shop, products, categories, shopCategories, activeCategory, origin, owner = false }) {
   // Keep the complete category rail visible while browsing a filtered shop.
   const own = shopCategories ?? [];
 
@@ -144,7 +144,11 @@ export function shopPage({ shop, products, categories, shopCategories, activeCat
   } else {
     body =
       `<div class="grid">` +
-      products.map((p, i) => cardHtml(p, i, { showShop: false })).join('') +
+      products.map((p, i) => {
+        let card = cardHtml(p, i, { showShop: false });
+        if (owner && p.retained) card = card.replace(/href="[^"]*"/, 'href="/app/products/' + esc(p.id) + '"');
+        return owner && p.retained ? card.replace('</article>', '<p class="field__hint" data-retained="' + esc(p.id) + '">پارێزراوە · لە ئێستادا ئاشکرا نییە</p></article>') : card;
+      }).join('') +
       `</div>`;
   }
 
