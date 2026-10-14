@@ -12,7 +12,7 @@ import { cardsFragment, feedHtml, feedTitle } from './render/feed.js';
 import { layout } from './render/layout.js';
 import * as authRoutes from './routes/auth.js';
 import * as onboarding from './routes/onboarding.js';
-import { appGet, bannerDismissPost } from './routes/app.js';
+import { appGet, ownerProductsGet, bannerDismissPost } from './routes/app.js';
 import * as products from './routes/products.js';
 import { productGet, shopGet } from './routes/shop.js';
 import * as account from './routes/account.js';
@@ -217,6 +217,7 @@ async function routeRequest(request, env, ctx) {
         return account.categoryRenamePost(request, env, id);
       }
 
+      if (path === '/app/owner-products' && method === 'GET') return ownerProductsGet(request, env, url);
       if (path === '/app/subscription') {
         return method === 'POST'
           ? account.subscriptionPost(request, env)
@@ -296,6 +297,8 @@ async function routeRequest(request, env, ctx) {
 
 export function harden(response) {
   const headers = new Headers(response.headers);
+  // Entitlements/visibility can change between requests; never serve stale lists.
+  if (/^(text\/html|application\/(json|xml)|text\/xml)/i.test(headers.get('content-type') || '')) headers.set('cache-control', 'no-store');
   headers.set('content-security-policy', CSP);
   headers.set('strict-transport-security', 'max-age=31536000; includeSubDomains');
   headers.set('x-content-type-options', 'nosniff');

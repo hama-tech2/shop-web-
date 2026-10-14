@@ -90,17 +90,17 @@ await control('/__sub/20');
 /* ---------- the locked minimum: image + name + price only ---------- */
 
 let r = await publish(MINIMUM);
-check('minimum publishes (no description, no categories)', r.location, OWNER);
+check('minimum publishes (no description, no categories)', r.location?.split('?')[0], OWNER);
 check('minimum does not re-render the form', r.status, 303);
 
 r = await publish({ ...MINIMUM, description: '', category: '', own_category: '' });
-check('empty optional fields still publish', r.location, OWNER);
+check('empty optional fields still publish', r.location?.split('?')[0], OWNER);
 
 r = await publish({ ...MINIMUM, description: 'وەسفێکی کورت', category: 'clothing' });
-check('filled optional fields still publish', r.location, OWNER);
+check('filled optional fields still publish', r.location?.split('?')[0], OWNER);
 
 r = await publish({ ...MINIMUM, images: gallery(5) });
-check('five images publish', r.location, OWNER);
+check('five images publish', r.location?.split('?')[0], OWNER);
 
 /* ---------- each failure names its own field ---------- */
 
@@ -132,10 +132,10 @@ check('zero price: says price', r.html.includes(SAYS.price), true);
 
 // A Sorani seller types ٢٥٠٠٠ as readily as 25000; both must publish.
 r = await publish({ ...MINIMUM, price: '٢٥٠٠٠' });
-check('arabic-indic digits publish', r.location, OWNER);
+check('arabic-indic digits publish', r.location?.split('?')[0], OWNER);
 
 r = await publish({ ...MINIMUM, price: '25,000' });
-check('thousands separators publish', r.location, OWNER);
+check('thousands separators publish', r.location?.split('?')[0], OWNER);
 
 /* ---------- an image key from another shop is refused ---------- */
 
@@ -189,7 +189,7 @@ check('with no trace of the retired list',
   /manager-filters|class="manager-row"/.test(ownerHome), false);
 
 const asHidden = await publish({ ...MINIMUM, status: 'hidden' });
-check('publishing a hidden product goes to the owner view too', asHidden.location, OWNER);
+check('publishing a hidden product goes to the owner view too', asHidden.location?.split('?')[0], OWNER);
 
 /* ---------- the regression itself ---------- */
 
@@ -199,7 +199,7 @@ check('publishing a hidden product goes to the owner view too', asHidden.locatio
 
 const published = await publish(MINIMUM);
 
-check('a visible product goes to the owner view', published.location, OWNER);
+check('a visible product goes to the owner view', published.location?.split('?')[0], OWNER);
 // Named explicitly rather than inferred from the check above: the point
 // is which places publishing must not use, not just "some other path".
 check('publishing never lands on the public product page',
@@ -269,8 +269,8 @@ for (const path of ['/app/new', '/app/profile']) {
 // The storefront is still public and still cacheable — that is correct
 // for a customer, and is exactly why a seller must not be sent there.
 const storefront = await fetch(`${APP}${PUBLIC}`);
-check('the public product page is still served publicly',
-  (storefront.headers.get('cache-control') || '').includes('public'), true);
+check('the customer product page avoids stale entitlement caching',
+  (storefront.headers.get('cache-control') || '').includes('no-store'), true);
 
 // The management list is untouched by this change and still reachable.
 const managerPage = await fetch(`${APP}${MANAGER}`, { headers: { cookie: COOKIE } });

@@ -69,9 +69,9 @@ const MINIMUM = { images: gallery(), title: 'کراسی کوردی', price: '250
 /** The currency of the last row the Worker sent to the products table. */
 async function lastWrittenCurrency() {
   const all = await writes();
-  const rows = all.filter((w) => /products/.test(w.table ?? w.path ?? '')
+  const rows = all.filter((w) => ['rpc/publish_product','rpc/update_product'].includes(w.table ?? w.path ?? '')
                                  && (w.method === 'POST' || w.method === 'PATCH'));
-  const body = rows[rows.length - 1]?.body;
+  const body = rows[rows.length - 1]?.body?.p_values;
   return body ? { has: 'currency' in body, value: body.currency, price: body.price } : null;
 }
 
@@ -159,18 +159,18 @@ check('and nothing offering a conversion',
 
 await resetCalls();
 let r = await publish(MINIMUM);
-check('publishing with no currency named still publishes', r.location, '/app');
+check('publishing with no currency named still publishes', r.location?.split('?')[0], '/app');
 let stored = await lastWrittenCurrency();
 check('and stores IQD', stored?.value, 'IQD');
 
 await resetCalls();
 r = await publish({ ...MINIMUM, currency: 'IQD' });
-check('choosing dinars publishes', r.location, '/app');
+check('choosing dinars publishes', r.location?.split('?')[0], '/app');
 check('and stores IQD', (await lastWrittenCurrency())?.value, 'IQD');
 
 await resetCalls();
 r = await publish({ ...MINIMUM, currency: 'USD', price: '25' });
-check('choosing dollars publishes', r.location, '/app');
+check('choosing dollars publishes', r.location?.split('?')[0], '/app');
 stored = await lastWrittenCurrency();
 check('and stores USD', stored?.value, 'USD');
 check('with the number the seller typed, unconverted', stored?.price, 25);
@@ -179,7 +179,7 @@ check('with the number the seller typed, unconverted', stored?.price, 25);
 await resetCalls();
 await publish({ ...MINIMUM, currency: 'USD', price: '25' });
 const row = (await writes())
-  .filter((w) => w.method === 'POST' && w.table === 'products').pop()?.body ?? {};
+  .filter((w) => w.method === 'POST' && w.table === 'rpc/publish_product').pop()?.body?.p_values ?? {};
 check('the row has one currency key',
   Object.keys(row).filter((k) => /currenc/i.test(k)), ['currency']);
 check('and one price key',
@@ -204,7 +204,7 @@ for (const bad of ['EUR', 'usd', 'iqd', 'GBP', 'USD;DROP', '1', 'null', '["USD"]
 await resetCalls();
 const padded = await publish({ ...MINIMUM, currency: '  USD  ' });
 check('whitespace around a real currency is trimmed, not refused',
-  padded.location, '/app');
+  padded.location?.split('?')[0], '/app');
 check('and the clean value is what gets stored',
   (await lastWrittenCurrency())?.value, 'USD');
 
@@ -312,7 +312,8 @@ check('and still says it was the price that was wrong',
 /* ---------- switching currency never changes the number ---------- */
 
 await resetCalls();
-await publish({ ...MINIMUM, price: '25000', currency: 'USD' });
+const switchedResponse = await publish({ ...MINIMUM, price: '25000', currency: 'USD' });
+check('switching currency still publishes atomically', switchedResponse.status, 303);
 const switched = await lastWrittenCurrency();
 check('a price typed as 25000 and marked USD is stored as 25000',
   switched?.price, 25000);

@@ -179,10 +179,10 @@ const created = await post('/app/new', {
   title: 'کراسی کوردی', price: '25000', currency: 'IQD', visibility: 'profile',
 });
 check('publishing a profile-only product succeeds', created.status, 303);
-const inserts = (await writes()).filter((w) => w.table === 'products' && w.method === 'POST');
-check('and the choice reached the database', inserts[0]?.body?.visibility, 'profile');
+const inserts = (await writes()).filter((w) => w.table === 'rpc/publish_product' && w.method === 'POST');
+check('and the choice reached the database', inserts[0]?.body?.p_values?.visibility, 'profile');
 check('while status stayed active — this is not hiding',
-  inserts[0]?.body?.status, 'active');
+  inserts[0]?.body?.p_values?.status, 'active');
 
 /* ---------- editing it ---------- */
 await control('/__visibility/profile');
@@ -207,19 +207,19 @@ const onFields = new URLSearchParams({
 onFields.append('visibility', 'everyone');
 const edited = await post(`/app/products/${PRODUCT_ID}`, onFields);
 check('changing visibility saves', edited.status, 303);
-const patches = (await writes()).filter((w) => w.table === 'products' && w.method === 'PATCH');
-check('and the new choice reached the database', patches[0]?.body?.visibility, 'everyone');
+const patches = (await writes()).filter((w) => w.table === 'rpc/update_product' && w.method === 'POST');
+check('and the new choice reached the database', patches[0]?.body?.p_values?.visibility, 'everyone');
 
 /* ---------- the editor is still narrow ----------
    Where a product shows is the seller's to change. What it costs is
    not: the restricted editor must still refuse price, currency and
    status even when they are posted by hand. */
-const patched = patches[0]?.body ?? {};
+const patched = patches[0]?.body?.p_values ?? {};
 check('the edit still never writes a price', 'price' in patched, false);
 check('nor a currency', 'currency' in patched, false);
-check('nor a status', 'status' in patched, false);
-check('it writes only title, visibility and market category',
-  Object.keys(patched).sort(), ['platform_category_id', 'title', 'visibility']);
+check('absent status retains existing active status', patched.status, 'active');
+check('it atomically writes title, status, visibility and market category',
+  Object.keys(patched).sort(), ['platform_category_id', 'status', 'title', 'visibility']);
 
 /* ---------- a crafted value is refused, not folded ---------- */
 await control('/__calls/reset');
@@ -256,7 +256,7 @@ check('a Free seller with five products meets the gate, whatever their visibilit
 // app.enforce_free_product_limit counts active rows. Nothing in this
 // change touches that trigger, so there is no way to hold a sixth.
 check('the insert the gate would have made never carried a non-active status',
-  inserts.every((w) => w.body?.status === 'active'), true);
+  inserts.every((w) => w.body?.p_values?.status === 'active'), true);
 
 await control('/__plan/year_1');
 await control('/__sub/20');

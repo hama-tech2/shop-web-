@@ -83,7 +83,7 @@ export async function getFeed(env, { categoryId, query, limit, offset }) {
   return { products: rows.slice(0, limit).map(toCard), hasMore };
 }
 
-function toCard(row) {
+export function toCard(row) {
   const images = (row.product_images ?? [])
     .slice()
     .sort((a, b) => a.position - b.position)

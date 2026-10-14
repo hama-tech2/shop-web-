@@ -69,6 +69,10 @@ const browser = await chromium.launch({ executablePath: process.env.CHROME || '/
 try {
   // Confirmation is server-rendered and remains usable without JavaScript.
   const context = await browser.newContext({ javaScriptEnabled: false });
+  // This regression runs against the local Worker. External font requests
+  // must not make its load event depend on internet availability.
+  await context.route('**/*', route =>
+    new URL(route.request().url()).origin === new URL(APP).origin ? route.continue() : route.abort());
   await context.addCookies([{ name: 'sb-access', value: 'TEST', url: APP }]);
   const page = await context.newPage();
   for (const width of [360, 390, 430]) {

@@ -52,6 +52,7 @@ let created = null;               // a shop made through onboarding
 let isAdmin = false;              // does the session own an admins row
 let adminActive = true;
 const manualGrants = new Map();
+const publishedDrafts = new Set();
 let subDays = 20;                 // days until the subscription expires
 let subPlan = 'trial';            // trial | month_1 | months_6 | year_1 | free (legacy)
 // Days until the FREE MONTH ends. Null means this shop never had one —
@@ -62,7 +63,7 @@ let subPlan = 'trial';            // trial | month_1 | months_6 | year_1 | free 
 let trialDays = 40;
 
 // app.free_product_limit(): products allowed during the free period.
-const FREE_PRODUCTS = 30;
+const FREE_PRODUCTS = 5;
 let suspended = false;            // the admin's stop button
 let productCount = 0;             // how many products the shop has
 let publicCount = 0;              // how many of them are active
@@ -129,7 +130,7 @@ const body = (req) => new Promise((r) => {
   let b = ''; req.on('data', (c) => { b += c; }); req.on('end', () => r(b));
 });
 
-http.createServer(async (req, res) => {
+const stubServer = http.createServer(async (req, res) => {
   const url = new URL(req.url, 'http://x');
   const p = url.pathname;
   const raw = await body(req);
@@ -460,6 +461,24 @@ http.createServer(async (req, res) => {
     return send(rows ? [{ id: CAT_A, name: lastBody.name ?? 'x', sort_order: 10 }] : []);
   }
 
+  if (table === 'rpc/publish_product' || table === 'rpc/update_product') {
+    if (suspended) return send({code:'SW005'},400);
+    const paid = ['month_1','months_6','year_1'].includes(subPlan) && subDays > 0 && !(trialDays > 0);
+    if (table === 'rpc/publish_product' && !paid && productCount >= FREE_PRODUCTS) return send({code:'SW001'},400);
+    if (!rows) return send({code:'P0002'},404);
+    if (lastBody.p_images.length > 5) return send({code:'23514'},400);
+    if (table === 'rpc/publish_product') publishedDrafts.add(lastBody.p_product);
+    return send(lastBody.p_product);
+  }
+  if (table === 'rpc/owner_products') {
+    const base={ price:85000, description:'', shop_id:SHOP.id, sort_order:0,
+      platform_category_id:productPlatformCategory,category_id:CAT_A,product_images:productImages,
+      ...withCurrency(),...withVisibility() };
+    return send(noProduct ? [] : mixedList ? [
+      {...base,id:PRODUCT_ID,title:'کراسی کوردی',status:'active',publicly_eligible:true},
+      {...base,id:'bbbbbbbb-2222-4222-8222-222222222222',title:'کراسی شاراوە',status:'hidden',publicly_eligible:false}
+    ] : [{...base,id:PRODUCT_ID,title:'کراسی کوردی',status:'active',publicly_eligible:true}]);
+  }
   if (table === 'products') {
     // app.enforce_free_product_limit, as far as the Worker can tell the
     // refusals apart. Modelling them here is the point: the Worker asks
@@ -498,6 +517,10 @@ http.createServer(async (req, res) => {
                     message: 'new row violates check constraint "products_currency_allowed"' }, 400);
     }
     if (!write) {
+      if (url.searchParams.get('select') === 'id' && url.searchParams.get('id')?.startsWith('eq.')) {
+        const requested = url.searchParams.get('id').slice(3);
+        return send(publishedDrafts.has(requested) ? [{id:requested}] : []);
+      }
       if (noProduct) return send([]);
       // The Home feed asks for ?visibility=eq.everyone. PostgREST
       // would return no row for a product that does not match, and a
@@ -572,59 +595,22 @@ http.createServer(async (req, res) => {
     }]);
   }
   if (table === 'rpc/subscription_state') {
-    // The row as it is stored. A paid plan whose date has passed still
-    // says year_1/active until expire_lapsed_subscriptions() sweeps it,
-    // which is what lets the account card draw grace and then expired.
-    // /__plan/free is the swept state.
-    const sold = ['month_1', 'months_6', 'year_1'].includes(subPlan);
-    // app.on_trial: a free month that has not run out yet.
-    const onTrial = trialDays !== null && trialDays > 0 && !suspended;
-    // app.has_paid_entitlement: bought, and not yet run out. During the
-    // free month the entitlement date is trial end + the plan, so a sold
-    // plan with days left is held whether or not it has started.
+    const sold = ['month_1','months_6','year_1'].includes(subPlan);
+    const scheduled = sold && subDays > 0 && trialDays !== null && trialDays > 0;
     const held = sold && subDays > 0;
-    // app.plan_tier: trial wins while the free month runs; then paid;
-    // then expired. There is no permanent Free tier any more.
-    const tier = onTrial ? 'trial' : held ? 'paid' : 'expired';
-    // The free month with nothing bought ends entitlement at trial end.
-    const entitlementDays = sold ? subDays : (trialDays ?? 0);
-    const expires = new Date(Date.now() + entitlementDays * 86400000).toISOString();
-    // app.visibility_ends_at: a paid plan keeps its three grace days
-    // (subscriptions.grace_days); the free month has none, so thirty days
-    // free means thirty and the day after it ends the products are gone.
-    const onTrialRow = !sold;
-    const graceDays = onTrialRow ? 0 : 3;
-    const graceEnds = new Date(
-      Date.now() + (entitlementDays + graceDays) * 86400000).toISOString();
-    const legacyFree = subPlan === 'free';
+    const tier = suspended ? 'restricted' : held && !scheduled ? 'paid' : 'free';
+    const grace = sold && subDays <= 0 && subDays > -3 && !suspended;
+    const at = days => new Date(Date.now() + days * 86400000).toISOString();
     return send([{
-      plan: subPlan,
-      status: suspended ? 'suspended'
-            : legacyFree ? 'free'
-            : onTrial ? 'trialing'
-            : held ? 'active'
-            : 'expired',
-      started_at: new Date(Date.now() - 10 * 86400000).toISOString(),
-      expires_at: expires,
-      grace_ends_at: graceEnds,
-      days_left: Math.max(0, Math.ceil(entitlementDays)),
-      total_days: 30,
-      in_grace: entitlementDays <= 0 && entitlementDays > -graceDays,
-      // An expired shop is not public, and neither is a suspended one.
-      // A trial is gone the moment it ends; a paid plan has its grace.
-      publicly_visible: !suspended
-        && (legacyFree || entitlementDays > -graceDays || entitlementDays > 0),
-      // app.can_publish: paid, or on the free month with a slot left.
-      can_publish: !suspended
-        && ((tier === 'paid') || (tier === 'trial' && productCount < FREE_PRODUCTS)),
-      tier,
-      slots_left: tier === 'paid' ? null : Math.max(0, FREE_PRODUCTS - productCount),
-      trial_ends_at: trialDays === null
-        ? null
-        : new Date(Date.now() + trialDays * 86400000).toISOString(),
-      trial_days_left: trialDays === null ? 0 : Math.max(0, Math.ceil(trialDays)),
-      on_trial: onTrial,
-      paid_scheduled: onTrial && held,
+      plan: held || grace ? subPlan : 'free', status: suspended ? 'suspended' : held || grace ? 'active' : 'free',
+      tier, expires_at: held || grace ? at(subDays) : null,
+      started_at: at(-10), grace_ends_at: held || grace ? at(subDays + 3) : null,
+      days_left: held || grace ? Math.max(0,subDays) : null, total_days: held ? 180 : null,
+      publicly_visible: !suspended, in_grace: grace,
+      can_publish: !suspended && (tier === 'paid' || productCount < FREE_PRODUCTS),
+      slots_left: tier === 'paid' ? null : Math.max(0,FREE_PRODUCTS - productCount),
+      on_trial: scheduled, paid_scheduled: scheduled,
+      trial_ends_at: scheduled ? at(trialDays) : null, trial_days_left: scheduled ? trialDays : 0,
     }]);
   }
   // Null on a paid plan means unlimited, which is what the app checks.
@@ -797,3 +783,7 @@ http.createServer(async (req, res) => {
   if (table.startsWith('rpc/')) return send(null);
   return send([]);
 }).listen(8899, '127.0.0.1', () => console.log('stub on 8899'));
+// Long browser suites reuse the Worker's HTTP pool. Avoid idle socket
+// retirement racing a synthetic POST (Node's default is only five seconds).
+stubServer.keepAliveTimeout = 60_000;
+stubServer.headersTimeout = 65_000;

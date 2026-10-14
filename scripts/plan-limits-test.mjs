@@ -102,9 +102,9 @@ check('the image limit the app shows is the one the database enforces',
  */
 check('app.trial_days is defined in a migration',
       scalarFunctionFromSql('app', 'trial_days') !== null, true);
-check('the free month the app shows is the one the database grants',
+check('historical trial duration is retained for old records',
       TRIAL_DAYS, scalarFunctionFromSql('app', 'trial_days'));
-check('and it is sixty days — two months', scalarFunctionFromSql('app', 'trial_days'), 60);
+check('the historical trial was sixty days; new shops use permanent Free', scalarFunctionFromSql('app', 'trial_days'), 60);
 
 /**
  * public.start_trial stays dropped, and that is not an oversight.

@@ -1,9 +1,28 @@
 /* Seller publishing: local image preparation, cover order, and existing upload contract. */
-(function () {
+(async function () {
   'use strict';
   var form = document.getElementById('product-form');
   if (!form) return;
   var D = form.dataset, max = Number(D.max) || 5, storageMax = Number(D.storageMax) || max, coverOnly = D.coverOnly === 'true';
+  var draftOwner = D.mode === 'new' ? D.owner : null;
+  form.inert = true;
+  var restored = null, storageFailed = false, alreadyPublished = false, saveTimer, savingDraft = Promise.resolve();
+  if (draftOwner && window.ProductDrafts) {
+    try {
+      restored = await ProductDrafts.get(draftOwner);
+      alreadyPublished = await ProductDrafts.completed(draftOwner, D.draft);
+      if (restored && D.formError !== 'true') {
+        D.draft = restored.id; form.elements.draft_id.value = restored.id;
+        Object.keys(restored.fields).forEach(function (name) {
+          var controls = form.querySelectorAll('[name="' + name + '"]');
+          controls.forEach(function (control) {
+            if (control.type === 'radio' || control.type === 'checkbox') control.checked = control.value === restored.fields[name];
+            else control.value = restored.fields[name];
+          });
+        });
+      } else if (restored && restored.id !== D.draft) restored = null;
+    } catch (_) { storageFailed = true; }
+  }
   var thumbs = document.getElementById('thumbs');
   var add = document.getElementById('add-photo');
   var input = document.getElementById('photo-input');
@@ -15,6 +34,7 @@
   var serial = 0, busy = false, preparing = 0;
   var items = [];
   try { items = JSON.parse(imagesField.value || '[]'); } catch (e) { items = []; }
+  if (restored) items = restored.items || items;
   var storedSlots = items.length;
   var urls = [];
   var normalSaveLabel = save.textContent;
@@ -25,8 +45,46 @@
       URL.revokeObjectURL(item.preview); urls = urls.filter(function (url) { return url !== item.preview; });
     }
   }
-  items.forEach(function (item) { item.id = String(++serial); item.preview = imageUrl(item.card); });
+  for (var item of items) {
+    item.id = String(++serial);
+    // Draft R2 objects can expire; keep the original local Blobs for recovery.
+    if (restored && item.card && item.backupCard) {
+      try {
+        var exists = await fetch(imageUrl(item.card), { cache: 'no-store' });
+        if (!exists.ok) { item.card = null; item.full = null; item.cardBlob = item.backupCard; item.fullBlob = item.backupFull; }
+      } catch (_) { /* Existing keys are validated again while saving. */ }
+    }
+    item.preview = item.card ? imageUrl(item.card) : item.cardBlob ? localUrl(item.cardBlob) : null;
+  }
+  storedSlots = items.filter(function (item) { return item.card; }).length;
   function say(text) { message.textContent = text || ''; message.hidden = !text; }
+  function persistDraft() {
+    if (!draftOwner || !window.ProductDrafts) return Promise.resolve();
+    var fields = {};
+    new FormData(form).forEach(function (value, key) { if (typeof value === 'string' && key !== 'images') fields[key] = value; });
+    var snapshot = { id: D.draft, fields: fields, items: items.filter(function (item) { return !item.loading; }).map(function (item) {
+      var copy = Object.assign({}, item); delete copy.preview; return copy;
+    }) };
+    savingDraft = savingDraft.catch(function () {}).then(async function () {
+      if (await ProductDrafts.completed(draftOwner, D.draft)) return;
+      return ProductDrafts.put(draftOwner, snapshot);
+    });
+    return savingDraft;
+  }
+  function autosave() {
+    clearTimeout(saveTimer);
+    if (preparing) return;
+    saveTimer = setTimeout(function () { persistDraft().catch(function () { storageFailed = true; say('پاشەکەوتکردنی ناتەواوەکە بەردەست نییە؛ پێش جێهێشتنی لاپەڕەکە دووبارە هەوڵ بدەرەوە.'); }); }, 200);
+  }
+  form.addEventListener('input', autosave); form.addEventListener('change', autosave);
+  document.querySelectorAll('[data-draft-upgrade], .publish-head a').forEach(function (link) {
+    link.addEventListener('click', async function (event) {
+      if (!draftOwner || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
+      event.preventDefault();
+      try { await persistDraft(); location.assign(link.href); }
+      catch (_) { say('ناتەواوەکە پاشەکەوت نەکرا؛ تکایە لەم لاپەڕەیە بمێنەرەوە.'); }
+    });
+  });
   function button(label, className, text) {
     var el = document.createElement('button'); el.type = 'button'; el.className = className;
     el.setAttribute('aria-label', label); el.textContent = text; return el;
@@ -55,7 +113,8 @@
       thumbs.insertBefore(wrap, add);
     });
     add.hidden = !coverOnly && items.length >= max;
-    save.disabled = busy || preparing > 0;
+    save.disabled = busy || preparing > 0 || alreadyPublished;
+    autosave();
   }
   function move(id, to) {
     var from = items.findIndex(function (item) { return item.id === id; });
@@ -211,13 +270,15 @@
       xhr.upload.onprogress = function (e) { say('ناردنی وێنە ' + index + ' / ' + total + (e.lengthComputable ? ' · ' + Math.round(e.loaded / e.total * 100) + '%' : '')); };
       xhr.onload = function () {
         if (xhr.status !== 200 || !xhr.response || !xhr.response.card) { reject(new Error(xhr.response && xhr.response.error === 'limit' ? D.msgLimit : D.msgUpload)); return; }
-        item.card = xhr.response.card; item.full = xhr.response.full; item.cardBlob = null; item.fullBlob = null; storedSlots++; resolve();
+        item.card = xhr.response.card; item.full = xhr.response.full;
+        item.backupCard = item.cardBlob; item.backupFull = item.fullBlob;
+        item.cardBlob = null; item.fullBlob = null; storedSlots++; resolve();
       };
       xhr.onerror = xhr.ontimeout = function () { reject(new Error(D.msgUpload)); }; xhr.send(body);
     });
   }
   form.addEventListener('submit', async function (e) {
-    e.preventDefault(); if (busy || preparing) return;
+    e.preventDefault(); if (busy || preparing || alreadyPublished) return;
     if (!items.length) { say('لانیکەم یەک وێنە زیاد بکە.'); add.focus(); return; }
     if (!form.reportValidity()) return;
     var pending = items.filter(function (item) { return !item.card || item.cardBlob; });
@@ -225,10 +286,17 @@
     busy = true; form.inert = true; save.disabled = true; save.textContent = save.dataset.saving;
     try {
       for (var i = 0; i < pending.length; i++) await upload(pending[i], i + 1, pending.length);
-      sync(); HTMLFormElement.prototype.submit.call(form);
+      sync(); await persistDraft(); HTMLFormElement.prototype.submit.call(form);
     } catch (error) { say(error.message || D.msgUpload); busy = false; form.inert = false; save.textContent = normalSaveLabel; sync(); }
   });
-  window.addEventListener('pageshow', function (e) { if (e.persisted) { busy = false; form.inert = false; save.textContent = normalSaveLabel; sync(); } });
+  window.addEventListener('pageshow', async function (e) {
+    if (e.persisted) {
+      if (draftOwner && window.ProductDrafts) alreadyPublished = await ProductDrafts.completed(draftOwner, D.draft);
+      busy = false; form.inert = false; save.textContent = normalSaveLabel; sync();
+    }
+  });
   window.addEventListener('pagehide', function (e) { if (!e.persisted) urls.forEach(function (url) { URL.revokeObjectURL(url); }); });
   sync();
+  form.inert = false; D.ready = 'true';
+  if (storageFailed) say('پاشەکەوتکردنی ناتەواوەکە بەردەست نییە؛ پێش جێهێشتنی لاپەڕەکە دووبارە هەوڵ بدەرەوە.');
 })();

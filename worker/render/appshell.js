@@ -92,7 +92,7 @@ export function planBannerHtml(banner) {
 }
 
 /** Owner controls stay inside the existing authenticated seller area. */
-export function appShell({ shop, origin, banner = null, subscription = null, error = null }) {
+export function appShell({ shop, origin, banner = null, subscription = null, error = null, published = null }) {
   const controls =
     `<nav class="owner-controls" aria-label="بەڕێوەبردنی دوکان">` +
     `<a class="owner-control owner-control--primary" href="/app/profile">دەستکاری پرۆفایل</a>` +
@@ -100,15 +100,15 @@ export function appShell({ shop, origin, banner = null, subscription = null, err
     `<a class="owner-control" id="settings-open" href="#account-settings">ڕێکخستن</a></nav>`;
 
   return (
-    `<div class="page page--shop page--owner">` +
-    planBannerHtml(subscription?.state?.tier === 'free' ? null : banner) +
+    `<div class="page page--shop page--owner" data-draft-owner="${esc(shop.id)}"${published ? ` data-published="${esc(published)}"` : ''}>` +
+    planBannerHtml(banner) +
     // A delete that removed nothing says so here. The card-by-card
     // delete on this page reads the outcome off its own fetch and never
     // reaches this, but the plain form post from the edit screen does,
     // and used to be answered by the manager page that is now gone.
     alert(error) +
     shopHeader({ shop, origin, controls }) +
-    `<section id="owner-products" class="shop-products" data-shop-url="${esc('/@' + shop.slug)}"` +
+    `<section id="owner-products" class="shop-products" data-shop-url="/app/owner-products"` +
     ` data-cat-ui="${esc(CATEGORY_UI)}" aria-label="${esc(PRODUCT.listTitle)}">` +
     `<div class="notice"><a class="owner-preview-link" href="${esc('/@' + shop.slug)}">${esc(PROFILE.viewShop)} ‹</a></div>` +
     `</section></div>` +

@@ -25,7 +25,8 @@ function statusLine(plan, state) {
       return plan.days > 1 ? T.trialDaysLeft(plan.days) : T.trialLastDay;
     case 'scheduled':
       return T.trialScheduled(PLAN_LABEL[plan.scheduledPlan] ?? '');
-    case 'free': return T.trialName;
+    case 'free': return T.freeAllowance(FREE_PRODUCT_LIMIT, FREE_IMAGE_LIMIT);
+    case 'unknown': return 'وردەکاری پلان لە ئێستادا بەردەست نییە.';
     case 'none': return T.warnNone;
     case 'pending': return T.statePending;
     case 'grace': return T.stateGrace(plan.days);
@@ -102,7 +103,7 @@ export function subscriptionPage({ state, selected, intent, payments = [], error
   if (plan && Number.isInteger(state.days_left) && state.tier === 'paid') plan.days = state.days_left;
   const key = state?.status === 'suspended' ? 'suspended' : plan?.key;
   const chosen = PLANS.some((p) => p.key === selected) ? selected : defaultPlan();
-  const hasTime = key === 'active' && plan.days > 0;
+  const hasTime = ['active', 'pending'].includes(key) && plan.days > 0;
   const onTrial = key === 'trial' || key === 'scheduled' || key === 'free';
 
   // The heading names what the seller is on. During the free month that
@@ -111,7 +112,7 @@ export function subscriptionPage({ state, selected, intent, payments = [], error
   // still on its free month would be telling them the wrong date.
   const currentLabel = onTrial
     ? T.trialName
-    : (PLANS.find((p) => p.key === state?.plan) ? planName(PLANS.find((p) => p.key === state?.plan)) : '');
+    : (PLANS.find((p) => p.key === state?.plan) ? planName(PLANS.find((p) => p.key === state?.plan)) : (PLAN_LABEL[state?.plan] || ''));
 
   // A plan bought during the free month starts the day the month ends,
   // and the seller is told which day that is rather than being left to
@@ -124,7 +125,7 @@ export function subscriptionPage({ state, selected, intent, payments = [], error
   // month runs out, because it is the only thing they want to know.
   // Bought and not yet run out, whether it is running or waiting for the
   // free month to end. The database is what decided this.
-  const alreadyHeld = key === 'scheduled' || hasTime;
+  const alreadyHeld = key === 'scheduled' || hasTime || !state || ['unknown','suspended'].includes(key);
 
   const keptNote = key === 'expired'
     ? `<p class="billing-renewal-note">${esc(T.trialOverKept)}</p>`
@@ -142,7 +143,7 @@ export function subscriptionPage({ state, selected, intent, payments = [], error
       : key === 'suspended' ? 'بەشداریکردنەکەت ناچالاکە'
       : hasTime ? `${plan.days} ڕۆژ ماوە`
       : statusLine(plan, state))}</p>` +
-    (hasTime ? `<p class="billing-renewal-note">ماوەی پلانی نوێ دوای کۆتایی ماوەی ئێستات دەست پێ دەکات.</p>` : '') +
+    (key === 'free' && Number.isInteger(state?.slots_left) ? `<p class="billing-renewal-note">${Math.max(0, FREE_PRODUCT_LIMIT - state.slots_left)} / ${FREE_PRODUCT_LIMIT} بەرهەم</p>` : '') +
     scheduledNote + keptNote + `</div>` +
     (error ? `<p class="alert alert--error" role="alert">${esc(error)}</p>` : '') +
     // A shop already holding a plan is offered no way to buy another —

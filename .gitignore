@@ -1,5 +1,6 @@
 node_modules/
 .wrangler/
+.local/
 dist/
 
 # Secrets — never commit. The service_role key lives here and nowhere else.
