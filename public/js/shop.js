@@ -38,10 +38,15 @@
   }
 
   var status = document.querySelector('.share-status');
+  var statusTimer;
+  var doneButton;
   function copied(button) {
+    clearTimeout(statusTimer);
+    if (doneButton) doneButton.classList.remove('is-done');
+    doneButton = button;
     if (status) status.textContent = button.dataset.copied;
     button.classList.add('is-done');
-    setTimeout(function () {
+    statusTimer = setTimeout(function () {
       button.classList.remove('is-done');
       if (status) status.textContent = '';
     }, 2000);

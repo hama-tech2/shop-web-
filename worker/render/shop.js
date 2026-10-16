@@ -1,6 +1,7 @@
 import { APP_NAME, CITY_LABEL, SHOP as T, UI } from '../config.js';
 import { esc } from './html.js';
 import { cardHtml } from './feed.js';
+import { shopSharing } from './shop-sharing.js';
 import {
   iconFacebook, iconInstagram, iconLink, iconPhone, iconPin, iconShare, iconSnapchat,
   iconTiktok, iconWhatsapp,
@@ -15,7 +16,7 @@ const wa = (number) => `https://wa.me/${T.waNumber(number)}`;
    header — banner, logo, name, city, bio, contact
    ============================================================ */
 
-export function shopHeader({ shop, origin, controls = '' }) {
+export function shopHeader({ shop, origin, controls = '', sellerSharing = false }) {
   const url = `${origin}/@${shop.slug}`;
   const city = CITY_LABEL[shop.city] ?? shop.city ?? '';
 
@@ -72,7 +73,7 @@ export function shopHeader({ shop, origin, controls = '' }) {
 
   return (
     `<header class="shop-head">` +
-    `<div class="shop-banner">${banner}${logo}<div class="shop-sharing">${sharing}</div></div>` +
+    `<div class="shop-banner">${banner}${logo}${sellerSharing ? '' : `<div class="shop-sharing">${sharing}</div>`}</div>` +
     `<div class="shop-id">` +
     `<h1 class="shop-name">${esc(shop.name)}</h1>` +
     (city
@@ -81,7 +82,7 @@ export function shopHeader({ shop, origin, controls = '' }) {
     `</div>` +
     (shop.bio ? `<div class="shop-about"><p class="shop-bio" id="shop-bio">${esc(shop.bio)}</p>` +
       `<button class="shop-bio-toggle" type="button" aria-controls="shop-bio" aria-expanded="false" hidden>زیاتر</button></div>` : '') +
-    controls +
+    (sellerSharing ? shopSharing({ shop }) : '') + controls +
     `<div class="shop-actions">` +
     `<a class="btn btn--whatsapp" href="${esc(wa(shop.whatsapp))}"` +
     ` target="_blank" rel="noopener">${iconWhatsapp()}` +

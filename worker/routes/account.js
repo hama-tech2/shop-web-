@@ -13,6 +13,7 @@ import {
 import { layout } from '../render/layout.js';
 import { esc } from '../render/html.js';
 import { profilePage } from '../render/profile.js';
+import { shopQrPage } from '../render/shop-qr.js';
 import { categoriesPage } from '../render/categories.js';
 import { accessGatePage, payPage, subscriptionPage } from '../render/subscription.js';
 import { notifyPending } from '../telegram.js';
@@ -54,6 +55,15 @@ async function guard(request, env, next = '/app') {
   if (!shop) return { redirect: redirect('/onboarding', headers) };
 
   return { user, token, shop, headers };
+}
+
+/** The existing session/owner guard supplies the slug, never request input. */
+export async function qrGet(request, env) {
+  const ctx = await guard(request, env, '/app/qr');
+  if (ctx.redirect) return ctx.redirect;
+  ctx.headers.set('x-robots-tag', 'noindex, nofollow');
+  return page(shopQrPage({ shop: ctx.shop }), 'کۆدی QR ـی دوکان', ctx.headers,
+    ['/js/vendor/qrcode-generator-2.0.4.js', '/js/shop.js', '/js/shop-qr.js']);
 }
 
 async function form(request) {

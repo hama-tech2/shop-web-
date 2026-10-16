@@ -7,6 +7,7 @@ import { esc } from './html.js';
 import { alert, button, field, select } from './forms.js';
 import { bottomNav } from './appshell.js';
 import { cropSheet } from './crop-sheet.js';
+import { publicShopUrl } from './shop-sharing.js';
 import {
   iconBack, iconCamera, iconFacebook, iconInstagram, iconPhone, iconPin,
   iconSnapchat, iconTiktok, iconWhatsapp,
@@ -31,7 +32,7 @@ function socialRow(platform, label, icon, value) {
 
 export function profilePage({ shop, values, origin, error, saved }) {
   const v = values;
-  const url = `${origin}/@${shop.slug}`;
+  const url = publicShopUrl(shop);
 
   const banner = v.cover_key
     ? `<img class="edit-banner__img" id="banner-preview" src="${esc(imgUrl(v.cover_key))}"` +

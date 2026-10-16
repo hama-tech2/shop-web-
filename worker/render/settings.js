@@ -1,7 +1,7 @@
-import { CITY_LABEL, SUBSCRIPTION as S, SUPPORT_WHATSAPP } from '../config.js';
+import { CITY_LABEL, SHOP_SHARING, SUBSCRIPTION as S, SUPPORT_WHATSAPP } from '../config.js';
 import { esc } from './html.js';
 import { iconBack, iconDocument, iconExternal, iconLogout,
-  iconPhone, iconPin, iconShield, iconStore, iconWhatsapp } from './icons.js';
+  iconPhone, iconPin, iconShield, iconStore, iconWhatsapp, iconLink } from './icons.js';
 
 const statusLabels = {
   free: 'بەخۆڕایی',
@@ -99,6 +99,7 @@ export function settingsPanel({ shop, subscription = null }) {
     subscriptionCard(subscription) +
     `<h2 class="settings-heading">هەژمار و دوکان</h2><div class="settings-group">` +
     row('دەستکاری پرۆفایلی دوکان', iconStore(), '/app/profile') +
+    row(SHOP_SHARING.qr, iconLink(), '/app/qr') +
     // "Manage products" used to be a row here, pointing at a screen of
     // its own. That screen is gone: this panel only ever opens on top of
     // /app, which IS the product list, so the row would have been a link

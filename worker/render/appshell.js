@@ -107,7 +107,7 @@ export function appShell({ shop, origin, banner = null, subscription = null, err
     // reaches this, but the plain form post from the edit screen does,
     // and used to be answered by the manager page that is now gone.
     alert(error) +
-    shopHeader({ shop, origin, controls }) +
+    shopHeader({ shop, origin, controls, sellerSharing: true }) +
     `<section id="owner-products" class="shop-products" data-shop-url="/app/owner-products"` +
     ` data-cat-ui="${esc(CATEGORY_UI)}" aria-label="${esc(PRODUCT.listTitle)}">` +
     `<div class="notice"><a class="owner-preview-link" href="${esc('/@' + shop.slug)}">${esc(PROFILE.viewShop)} ‹</a></div>` +
