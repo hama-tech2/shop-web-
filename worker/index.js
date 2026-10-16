@@ -194,6 +194,9 @@ async function routeRequest(request, env, ctx) {
       }
 
       // ---- account screens (before the /app catch-all) ----
+      if (path === '/app/qr') return method === 'GET'
+        ? account.qrGet(request, env)
+        : new Response(null, { status: 405, headers: { allow: 'GET' } });
       if (path === '/app/profile') {
         return method === 'POST'
           ? account.profilePost(request, env, url)

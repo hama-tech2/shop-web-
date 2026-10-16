@@ -161,7 +161,7 @@ check('maps is a real input, not disabled',
 check('maps input exists', /name="maps_url"/.test(profile), true);
 
 /* ============================================================
-   5. @username is gone from every visible surface
+   5. Public pages omit usernames; the owner can discover the sharing URL.
    ============================================================ */
 
 const surfaces = [
@@ -174,7 +174,10 @@ const surfaces = [
 
 for (const [name, path] of surfaces) {
   const html = await page(path);
-  check(`${name}: no @slug in the markup`, html.includes(`@${SLUG}<`), false);
+  // An existing shop visiting onboarding is redirected to its owner screen.
+  const ownerSharing = name === 'owner profile' || name === 'onboarding step 2';
+  check(`${name}: canonical link shown only on the owner sharing surface`,
+        html.includes(`>https://bazarnow.xyz/@${SLUG}<`), ownerSharing);
   check(`${name}: no username element`,
         /shop-username|srch-shop__username|shop-row__username|slug-row__prefix/.test(html), false);
 }

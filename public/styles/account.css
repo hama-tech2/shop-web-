@@ -776,3 +776,21 @@ body:has(#gate-options input[value="year_1"]:checked) .gate-actions [data-choice
 @media (prefers-reduced-motion: reduce) {
   .payment-result__spinner, .payment-result[data-result-state="success"] .payment-result__content { animation: none !important; }
 }
+/* Seller sharing reuses the existing buttons, colours and account navigation. */
+.seller-sharing { margin: 14px 16px 0; padding-top: 12px; border-top: 1px solid var(--surface-2); }
+.seller-sharing__url { display: block; color: var(--accent); overflow-wrap: anywhere; font-size: 14px; text-align: start; }
+.seller-sharing__actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.seller-sharing__actions .btn { flex: 1 1 120px; width: auto; min-height: 44px; padding: 10px 12px; font-size: 12px; margin: 0; }
+.seller-sharing__hint { margin: 10px 0 0; color: var(--muted); font-size: 12px; line-height: 1.9; }
+.seller-sharing__status, .shop-qr__status { color: var(--accent); font-size: 13px; line-height: 1.8; margin: 8px 0 0; }
+.seller-sharing__status:empty, .shop-qr__status:empty { display: none; }
+.shop-qr { max-width: 480px; }
+.shop-qr__print { padding: 20px 0; text-align: center; }
+.shop-qr__print h2 { margin-bottom: 12px; font-size: 21px; overflow-wrap: anywhere; }
+.shop-qr__print p { margin: 10px 0; }
+.shop-qr__print .seller-sharing__url { text-align: center; }
+.shop-qr__brand { color: var(--accent); font-weight: 700; }
+.shop-qr__code { display: block; width: min(100%, 280px); height: auto; margin: 0 auto; background: #fff; image-rendering: pixelated; }
+.shop-qr__code[hidden] { display: none; }
+.shop-qr .settings-head h1 { font-size: 16px; }
+.shop-qr .settings-head { margin-bottom: 0; }

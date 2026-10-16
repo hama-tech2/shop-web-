@@ -5,6 +5,7 @@
   "type": "module",
   "description": "Shop Web — Kurdish (Sorani) social shopping app for sellers in Erbil",
   "scripts": {
+    "test:shop-sharing": "node scripts/run-permanent-free-tests.mjs --only=sharing",
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",
     "r2:create": "wrangler r2 bucket create shop-web-images",
@@ -40,9 +41,10 @@
     "test:permanent-free": "node scripts/run-permanent-free-tests.mjs"
   },
   "devDependencies": {
-    "wrangler": "^4.42.0",
+    "@electric-sql/pglite": "0.5.9",
+    "jsqr": "1.4.0",
     "playwright-core": "^1.49.0",
-    "@electric-sql/pglite": "0.5.9"
+    "wrangler": "^4.42.0"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.58.0"

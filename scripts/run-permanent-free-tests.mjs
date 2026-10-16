@@ -1,6 +1,7 @@
-import {spawn,spawnSync,execFileSync} from 'node:child_process';
+import {spawn,execFileSync} from 'node:child_process';
+import {once} from 'node:events';
 import {randomUUID} from 'node:crypto';
-import {mkdirSync,writeFileSync,createWriteStream} from 'node:fs';
+import {mkdirSync,writeFileSync,createWriteStream,openSync,closeSync} from 'node:fs';
 import {fileURLToPath} from 'node:url';
 import {setTimeout as delay} from 'node:timers/promises';
 const root=fileURLToPath(new URL('../',import.meta.url));
@@ -38,20 +39,26 @@ async function ready(url,child) {
 }
 const results=[];
 const only=process.argv.find(arg=>arg.startsWith('--only='))?.slice(7);
-if(only && !['worker','wayl','retry','profile','publish','currency','visibility','affected','grants','owner','browser'].includes(only))
+if(only && !['worker','wayl','retry','profile','publish','currency','visibility','affected','grants','owner','browser','sharing'].includes(only))
   throw new Error('Unknown isolated suite selector');
-function run(name,args) {
-  const result=spawnSync(process.execPath,args,{cwd:root,env,encoding:'utf8',windowsHide:true});
-  writeFileSync('.local/'+name+'-results.txt',(result.stdout || '')+(result.stderr || ''));
-  const ok=result.status===0;results.push({name,ok,status:result.status});
+async function run(name,args) {
+  // Keep draining the local servers' output while tests run. spawnSync blocks
+  // those pipes and can destabilize a busy local Windows Worker runtime.
+  const output=openSync('.local/'+name+'-results.txt','w');
+  let status;
+  try {
+    const child=spawn(process.execPath,args,{cwd:root,env,windowsHide:true,stdio:['ignore',output,output]});
+    [status]=await once(child,'close');
+  } finally {closeSync(output);}
+  const ok=status===0;results.push({name,ok,status});
   console.log((ok?'PASS ':'FAIL ')+name);
 }
 try {
   if(await reachable(APP) || await reachable(STUB)) throw new Error('Test ports in use. Stop prior local test servers before running this isolated suite.');
   if(!only) {
-    run('database',['--test','scripts/permanent-free-db-test.mjs','scripts/permanent-free-integration-db-test.mjs','scripts/permanent-free-regression-test.mjs']);
-    run('plan-state',['--test','scripts/plan-state-test.mjs']);
-    run('limits',['scripts/plan-limits-test.mjs']);run('hardening',['scripts/security-hardening-test.mjs']);
+    await run('database',['--test','scripts/permanent-free-db-test.mjs','scripts/permanent-free-integration-db-test.mjs','scripts/permanent-free-regression-test.mjs']);
+    await run('plan-state',['--test','scripts/plan-state-test.mjs']);
+    await run('limits',['scripts/plan-limits-test.mjs']);await run('hardening',['scripts/security-hardening-test.mjs']);
   }
   const stub=server(['scripts/stub-supabase.mjs'],'stub');await ready(STUB+'/__mode/shop',stub);
   const worker=server(['node_modules/wrangler/bin/wrangler.js','dev','--config','.local/wrangler-test.json','--local','--port','8810','--ip','127.0.0.1','--persist-to',statePath],'worker');
@@ -63,12 +70,13 @@ try {
     ['currency','product-currency-test.mjs'],['visibility','visibility-test.mjs'],
     ['affected','affected-rows-test.mjs'],['grants','admin-grants-test.mjs'],
     ['owner','owner-product-controls-test.mjs'],['browser','permanent-free-browser-test.mjs'],
+    ['sharing','shop-sharing-test.mjs'],
   ]) {
     if(only && only!==name) continue;
     // Every suite starts from a known synthetic baseline, independent of the
     // preceding suite's controls. No remote data is ever read or written.
     for(const path of ['/__mode/shop','/__rows/1','/__noproduct/0','/__mixed/0','/__suspended/0','/__admin/0','/__admin-active/1','/__intent/none','/__products/0','/__plan/free','/__trial/-100','/__sub/20','/__wayl/reset']) await fetch(STUB+path);
-    run(name,['scripts/'+file,APP,STUB]);
+    await run(name,['scripts/'+file,APP,STUB]);
   }
 } catch(error) {console.error(error.message);process.exitCode=1;}
 finally {
