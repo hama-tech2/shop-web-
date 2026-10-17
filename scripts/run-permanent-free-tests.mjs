@@ -39,7 +39,7 @@ async function ready(url,child) {
 }
 const results=[];
 const only=process.argv.find(arg=>arg.startsWith('--only='))?.slice(7);
-if(only && !['seo','worker','wayl','retry','profile','publish','currency','visibility','affected','grants','owner','browser','sharing'].includes(only))
+if(only && !['seo','worker','wayl','retry','profile','publish','currency','visibility','affected','grants','owner','browser','sharing','categories','category-ui'].includes(only))
   throw new Error('Unknown isolated suite selector');
 async function run(name,args) {
   // Keep draining the local servers' output while tests run. spawnSync blocks
@@ -58,6 +58,7 @@ try {
   if(!only) {
     await run('database',['--test','scripts/permanent-free-db-test.mjs','scripts/permanent-free-integration-db-test.mjs','scripts/permanent-free-regression-test.mjs']);
     await run('image-sitemap',['--test','scripts/image-sitemap-test.mjs']);
+    await run('owner-profile-ui',['scripts/owner-profile-ui-test.mjs']);
     await run('plan-state',['--test','scripts/plan-state-test.mjs']);
     await run('limits',['scripts/plan-limits-test.mjs']);await run('hardening',['scripts/security-hardening-test.mjs']);
   }
@@ -66,6 +67,7 @@ try {
   await ready(APP,worker);
   for(const [name,file] of [
     ['seo','seo-test.mjs'],
+    ['categories','categories-test.mjs'],['category-ui','category-ui-test.mjs'],
     ['worker','permanent-free-worker-test.mjs'],
     ['wayl','wayl-test.mjs'],['retry','checkout-retry-test.mjs'],
     ['profile','profile-test.mjs'],['publish','publish-flow-test.mjs'],

@@ -1,0 +1,68 @@
+{
+  "source": "Public anonymous catalog snapshot, 17 October 2026. Used only in local UI tests; no private account access.",
+  "shop": {
+    "id": "c533c5ae-469f-40f5-a341-3ed371f829c6",
+    "slug": "tosla-home",
+    "name": "TOSLA DESIGN",
+    "bio": null,
+    "city": "erbil",
+    "whatsapp": "07506699853",
+    "phone": null,
+    "instagram": null,
+    "tiktok": null,
+    "facebook": null,
+    "snapchat": null,
+    "maps_url": null,
+    "logo_key": "shops/c533c5ae-469f-40f5-a341-3ed371f829c6/logo-28bb5fe4-8f0d-4b88-9e2f-6d91b56821cb.jpg",
+    "cover_key": null,
+    "products_visible": true
+  },
+  "products": [
+    {
+      "id": "6b986740-dea6-4151-8bf1-0ad38130828a",
+      "title": "کورسی",
+      "price": 45000,
+      "currency": "IQD",
+      "categoryId": "bfb87014-f92c-4540-92b7-6c3db0b2bfd5",
+      "ownCategoryId": "9ecfee22-c32b-4a5f-8605-3e1bc0f7d7e6",
+      "images": [
+        "products/c533c5ae-469f-40f5-a341-3ed371f829c6/6b986740-dea6-4151-8bf1-0ad38130828a/3107632d-f16e-4740-9bc4-b3c0d90481d2-card.webp"
+      ],
+      "shopName": "TOSLA DESIGN",
+      "shopSlug": "tosla-home",
+      "shopLogo": "shops/c533c5ae-469f-40f5-a341-3ed371f829c6/logo-28bb5fe4-8f0d-4b88-9e2f-6d91b56821cb.jpg",
+      "shopWhatsapp": "07506699853",
+      "shopMapsUrl": null
+    },
+    {
+      "id": "0949d30a-19a7-4be1-8310-2fbc0e9e3e85",
+      "title": "تاخم سیسەمی نوست",
+      "price": 450000,
+      "currency": "IQD",
+      "categoryId": "bfb87014-f92c-4540-92b7-6c3db0b2bfd5",
+      "ownCategoryId": null,
+      "images": [
+        "products/c533c5ae-469f-40f5-a341-3ed371f829c6/0949d30a-19a7-4be1-8310-2fbc0e9e3e85/eff551ec-74e3-45a6-874b-1bb4f9edffc1-card.webp"
+      ],
+      "shopName": "TOSLA DESIGN",
+      "shopSlug": "tosla-home",
+      "shopLogo": "shops/c533c5ae-469f-40f5-a341-3ed371f829c6/logo-28bb5fe4-8f0d-4b88-9e2f-6d91b56821cb.jpg",
+      "shopWhatsapp": "07506699853",
+      "shopMapsUrl": null
+    }
+  ],
+  "images": {
+    "shops/c533c5ae-469f-40f5-a341-3ed371f829c6/logo-28bb5fe4-8f0d-4b88-9e2f-6d91b56821cb.jpg": {
+      "file": "image-0.webp",
+      "type": "image/jpeg"
+    },
+    "products/c533c5ae-469f-40f5-a341-3ed371f829c6/6b986740-dea6-4151-8bf1-0ad38130828a/3107632d-f16e-4740-9bc4-b3c0d90481d2-card.webp": {
+      "file": "image-1.webp",
+      "type": "image/webp"
+    },
+    "products/c533c5ae-469f-40f5-a341-3ed371f829c6/0949d30a-19a7-4be1-8310-2fbc0e9e3e85/eff551ec-74e3-45a6-874b-1bb4f9edffc1-card.webp": {
+      "file": "image-2.webp",
+      "type": "image/webp"
+    }
+  }
+}

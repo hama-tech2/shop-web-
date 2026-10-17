@@ -542,6 +542,7 @@ export const CATEGORIES_UI = {
 
   // Inline creation, from inside the product form and the owner profile.
   addInline: '+ بەشی نوێ',
+  ownerAddCategory: '+ زیادکردنی پۆلێن',
   addPlaceholder: 'ناوی بەشی نوێ',
   create: 'دروستکردن',
   cancel: 'پاشگەزبوونەوە',

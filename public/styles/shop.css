@@ -115,3 +115,71 @@
 @media (prefers-reduced-motion: reduce) {
   :is(.page--shop, .page--pdp) * { scroll-behavior: auto; transition: none; }
 }
+
+/* Authenticated owner only: the public shop and product pages keep their layout. */
+.page--owner .shop-head { margin-bottom: 18px; }
+.page--owner .shop-banner { aspect-ratio: 2.4; margin-bottom: 0; }
+.page--owner .shop-banner__img { object-position: center; }
+.page--owner .shop-logo { width: 88px; height: 88px; bottom: -35px; left: 16px; border-width: 5px; }
+.page--owner .shop-id { padding: 15px 16px 0 120px; min-height: 76px; }
+.page--owner .shop-name { font-size: clamp(18px, 5vw, 25px); font-weight: 700; line-height: 1.5; }
+.page--owner .shop-city { color: var(--muted); font-size: 12px; }
+.page--owner .shop-about { margin-top: 6px; }
+.page--owner .shop-bio { font-size: 13px; }
+.page--owner .shop-bio-toggle { min-height: 44px; }
+.page--owner .owner-banner-edit { position: absolute; inset-inline-start: 16px; bottom: 12px; display: inline-flex; align-items: center; gap: 6px; min-height: 44px; max-width: calc(100% - 124px); padding: 8px 12px; border-radius: 999px; background: var(--scrim); color: var(--surface); font-size: 11px; }
+.page--owner .owner-banner-edit svg { flex: none; }
+.page--owner .owner-banner-edit span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.page--owner .seller-sharing { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 7px; margin: 12px 16px 0; padding: 0; border: 0; }
+.page--owner .seller-sharing__url { display: block; min-width: 0; min-height: 44px; padding: 10px; border-radius: 11px; background: var(--surface-2); font-size: 12px; line-height: 24px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.page--owner .seller-sharing__actions { gap: 5px; flex-wrap: nowrap; margin: 0; }
+.page--owner .seller-sharing__actions .btn { flex: none; min-width: 44px; padding: 8px; border-radius: 11px; font-size: 12px; white-space: nowrap; background: var(--surface-2); color: var(--accent); }
+.page--owner .seller-sharing__hint { grid-column: 1 / -1; margin: 0; font-size: 12px; line-height: 1.8; }
+.page--owner .seller-sharing__status { grid-column: 1 / -1; margin: 0; }
+.page--owner .owner-controls { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; padding-top: 14px; }
+.page--owner .owner-control { min-width: 0; min-height: 48px; padding: 9px 12px; border-radius: 13px; font-size: 13px; font-weight: 600; white-space: nowrap; text-decoration: none; border-color: var(--surface-2); }
+.page--owner .owner-control svg { flex: none; }
+.page--owner .owner-control--primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.page--owner .owner-manage { width: clamp(108px, 30vw, 140px); min-width: 0; }
+.page--owner .owner-manage > summary { justify-content: space-between; cursor: pointer; background: var(--surface); }
+.page--owner .owner-manage__chevron { font-family: system-ui, sans-serif; font-size: 18px; transition: transform var(--t-fast); }
+.page--owner .owner-manage[open] .owner-manage__chevron { transform: rotate(180deg); }
+.page--owner .owner-menu { inset-inline-end: 0; width: min(270px, calc(100vw - 32px)); border-color: var(--surface-2); z-index: 12; }
+.page--owner .owner-menu .app-menu__item { justify-content: flex-start; min-height: 44px; border-radius: 8px; font-size: 13px; font-weight: 500; }
+.page--owner .owner-menu .app-menu__item:hover { background: var(--surface-2); }
+.page--owner .owner-draft-slot { margin: 12px 16px 0; }
+.page--owner .owner-draft-slot:empty { display: none; }
+.page--owner .owner-draft { display: flex; align-items: center; gap: 10px; min-height: 76px; padding: 10px 12px; border-radius: 14px; background: var(--surface-2); color: var(--text); }
+.page--owner .owner-draft img { width: 52px; height: 52px; object-fit: cover; border-radius: 9px; flex: none; }
+.page--owner .owner-draft__body { min-width: 0; flex: 1; }
+.page--owner .owner-draft__body strong { display: block; font-size: 13px; font-weight: 700; }
+.page--owner .owner-draft__body > span { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; color: var(--muted); margin-top: 3px; }
+.page--owner .owner-draft > span:last-child:not(.owner-draft__body) { font-size: 24px; color: var(--accent); }
+.page--owner .shop-actions { flex-wrap: nowrap; gap: 8px; overflow-x: auto; padding-top: 12px; scrollbar-width: thin; }
+.page--owner .shop-actions .btn { flex: none; min-height: 44px; padding: 8px 12px; width: auto; background: var(--surface-2); color: var(--accent); }
+.page--owner .round-row { flex-wrap: nowrap; flex: none; }
+.page--owner .round-row .round-btn { background: var(--surface-2); color: var(--accent); }
+.page--owner .shop-products { min-width: 0; }
+.page--owner .chips { flex-wrap: nowrap; overflow-x: auto; gap: 8px; padding-bottom: 12px; scroll-padding-inline: 16px; }
+.page--owner .chip { flex: none; min-height: 44px; padding: 9px 17px; font-size: 13px; white-space: nowrap; }
+.page--owner .chip--manage { color: var(--accent); border: 1px dashed var(--accent); background: transparent; }
+.page--owner .cat-edit { scroll-margin-block: 12px calc(var(--nav-h) + 20px); }
+.page--owner .cat-edit__row { flex-wrap: wrap; }
+.page--owner .cat-edit__name { flex: 1 1 100%; }
+.page--owner .cat-edit .btn { min-height: 44px; }
+.page--owner .cat-edit__done { margin-top: 12px; min-height: 44px; width: auto; padding: 8px 18px; }
+.page--owner .grid { padding-inline: 12px; gap: 12px; }
+.page--owner .card { min-width: 0; background: var(--surface); border-radius: 16px; }
+.page--owner .card__media { border-radius: 16px 16px 0 0; }
+.page--owner .card__body { padding: 10px; }
+.page--owner .card__title { font-size: 13px; line-height: 1.8; }
+.page--owner .card__commercial .card__price { margin-top: 3px; font-weight: 700; }
+.page--owner .owner-product-action { min-height: 44px; }
+.page--owner :is(a, button, summary, input):focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+@media (min-width: 600px) {
+  .page--owner { margin-block: 24px; }
+  .page--owner .shop-banner, .page--owner .shop-banner__img { border-radius: 20px 20px 0 0; }
+  .page--owner .shop-logo { width: 104px; height: 104px; bottom: -42px; }
+  .page--owner .shop-id { padding-left: 140px; min-height: 90px; }
+  .page--owner .owner-control { font-size: 14px; }
+}

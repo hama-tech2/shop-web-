@@ -5,6 +5,43 @@
   if (!target) return;
   var T = {};
   try { T = JSON.parse(target.dataset.catUi || '{}'); } catch (e) { T = {}; }
+  var categoryEditor;
+  var management = document.getElementById('owner-management');
+  var managementToggle = document.getElementById('owner-management-toggle');
+  if (management) {
+    function closeManagement(focus) {
+      management.open = false;
+      if (focus) managementToggle.focus();
+    }
+    management.addEventListener('toggle', function () {
+      managementToggle.setAttribute('aria-expanded', String(management.open));
+    });
+    management.addEventListener('click', function (event) {
+      var link = event.target.closest('a');
+      if (!link) return;
+      if (link.id === 'owner-categories-open' && categoryEditor) {
+        event.preventDefault();
+        categoryEditor(true);
+      }
+      closeManagement(false);
+    });
+    management.addEventListener('keydown', function (event) {
+      if (event.key === 'Escape') { event.preventDefault(); closeManagement(true); return; }
+      if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) return;
+      event.preventDefault(); management.open = true;
+      var links = Array.from(management.querySelectorAll('a'));
+      var index = links.indexOf(document.activeElement);
+      if (event.key === 'Home') index = 0;
+      else if (event.key === 'End') index = links.length - 1;
+      else if (index < 0) index = event.key === 'ArrowDown' ? 0 : links.length - 1;
+      else index = (index + (event.key === 'ArrowDown' ? 1 : -1) + links.length) % links.length;
+      links[index].focus();
+    });
+    management.addEventListener('focusout', function () {
+      setTimeout(function () { if (!management.contains(document.activeElement)) closeManagement(false); }, 0);
+    });
+    document.addEventListener('click', function (event) { if (!management.contains(event.target)) closeManagement(false); });
+  }
 
   function load() {
     var url = new URL(target.dataset.shopUrl, window.location.origin);
@@ -32,14 +69,14 @@
         if (bio) {
           var existingBio = header.querySelector('.shop-about');
           if (existingBio) existingBio.replaceWith(bio);
-          else header.insertBefore(bio, header.querySelector('.owner-controls'));
+          else header.insertBefore(bio, header.querySelector('.seller-sharing') || header.querySelector('.owner-controls'));
         }
         products.querySelectorAll('.chip').forEach(function (chip) {
           var link = new URL(chip.getAttribute('href'), window.location.origin);
           chip.setAttribute('href', '/app' + link.search);
         });
         target.replaceChildren.apply(target, Array.from(products.childNodes));
-        installCategoryEditing(target.querySelector('.chips'));
+        categoryEditor = installCategoryEditing(target.querySelector('.chips'));
         var template = document.getElementById('owner-product-control');
         target.querySelectorAll('[data-fav]').forEach(function (heart) {
           var menu = template.content.firstElementChild.cloneNode(true);
@@ -93,12 +130,16 @@
     toggle.type = 'button';
     toggle.className = 'chip chip--manage';
     toggle.id = 'category-manage';
-    toggle.textContent = T.manage;
+    toggle.textContent = T.ownerAdd;
     toggle.setAttribute('aria-expanded', 'false');
+    toggle.setAttribute('aria-controls', 'owner-category-editor');
     chips.appendChild(toggle);
 
     var editor = document.createElement('div');
     editor.className = 'cat-edit';
+    editor.id = 'owner-category-editor';
+    editor.setAttribute('role', 'region');
+    editor.setAttribute('aria-label', T.manage);
     editor.hidden = true;
     chips.insertAdjacentElement('afterend', editor);
 
@@ -108,6 +149,10 @@
 
     var busy = false;
     var changed = false;
+    var done = document.createElement('button');
+    done.type = 'button'; done.className = 'btn btn--quiet cat-edit__done';
+    done.textContent = T.done;
+    done.addEventListener('click', close);
 
     function say(text) { status.textContent = text || ''; }
     function lock(on) {
@@ -216,31 +261,35 @@
       list.className = 'cat-edit__list';
       rows.forEach(function (entry) { list.appendChild(row(entry)); });
       list.appendChild(adder());
-      editor.replaceChildren(list, status);
+      editor.replaceChildren(list, status, done);
       var focus = editor.querySelector('.cat-edit__row--add input');
       if (focus) focus.focus({ preventScroll: true });
     }
 
     function close() {
       editor.hidden = true;
-      toggle.textContent = T.manage;
       toggle.setAttribute('aria-expanded', 'false');
-      toggle.focus();
+      toggle.focus({ preventScroll: true });
       // Redraw from the shop page so the chips, their links and the
       // filtered grid all agree with what was just saved.
-      if (changed) load();
+      if (changed) load().then(function () {
+        var current = target.querySelector('#category-manage');
+        if (current) current.focus({ preventScroll: true });
+      });
     }
 
-    toggle.addEventListener('click', function () {
+    function open(manage) {
       if (busy) return;
-      if (editor.hidden) {
-        say('');
-        draw();
-        editor.hidden = false;
-        toggle.textContent = T.done;
-        toggle.setAttribute('aria-expanded', 'true');
-      } else close();
+      say(''); editor.hidden = false; draw();
+      toggle.setAttribute('aria-expanded', 'true');
+      var focus = editor.querySelector(manage ? '.cat-edit__name' : '.cat-edit__row--add input');
+      if (focus) { focus.focus({ preventScroll: true }); focus.scrollIntoView({ block: 'nearest', inline: 'nearest' }); }
+    }
+    toggle.addEventListener('click', function () { open(false); });
+    editor.addEventListener('keydown', function (event) {
+      if (event.key === 'Escape' && !busy) { event.preventDefault(); close(); }
     });
+    return open;
   }
 
   target.addEventListener('click', async function (event) {

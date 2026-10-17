@@ -37,6 +37,7 @@ const CATEGORY_UI = JSON.stringify({
   manage: C.manage,
   done: C.done,
   add: C.addInline,
+  ownerAdd: C.ownerAddCategory,
   placeholder: C.addPlaceholder,
   create: C.create,
   cancel: C.cancel,
@@ -95,9 +96,16 @@ export function planBannerHtml(banner) {
 export function appShell({ shop, origin, banner = null, subscription = null, error = null, published = null }) {
   const controls =
     `<nav class="owner-controls" aria-label="بەڕێوەبردنی دوکان">` +
-    `<a class="owner-control owner-control--primary" href="/app/profile">دەستکاری پرۆفایل</a>` +
-    `<a class="owner-control" href="/app/new">${iconPlus(18)}<span>${esc(PRODUCT.add)}</span></a>` +
-    `<a class="owner-control" id="settings-open" href="#account-settings">ڕێکخستن</a></nav>`;
+    `<a class="owner-control owner-control--primary" href="/app/new">${iconPlus(20)}<span>${esc(PRODUCT.add)}</span></a>` +
+    `<details class="owner-manage" id="owner-management">` +
+    `<summary class="owner-control" id="owner-management-toggle" aria-controls="owner-management-links">` +
+    `<span>بەڕێوەبردن</span><span class="owner-manage__chevron" aria-hidden="true">⌄</span></summary>` +
+    `<div class="owner-menu" id="owner-management-links">` +
+    `<a class="app-menu__item" href="/app/profile">دەستکاری پرۆفایل</a>` +
+    `<a class="app-menu__item" id="settings-open" href="#account-settings">ڕێکخستن</a>` +
+    `<a class="app-menu__item" id="owner-categories-open" href="/app/categories">بەڕێوەبردنی پۆلێنەکان</a>` +
+    `<a class="app-menu__item" href="${esc('/@' + shop.slug)}">${esc(PROFILE.viewShop)}</a>` +
+    `</div></details></nav><div class="owner-draft-slot" id="owner-draft-slot"></div>`;
 
   return (
     `<div class="page page--shop page--owner" data-draft-owner="${esc(shop.id)}"${published ? ` data-published="${esc(published)}"` : ''}>` +

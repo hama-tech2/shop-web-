@@ -83,8 +83,8 @@ const NEW_PRODUCT = '/app/new?plan=free';
   await page.waitForSelector('#category-manage');
   const before = navigations.length;
 
-  check('the rail has a manage control',
-        await page.locator('#category-manage').textContent(), 'ڕێکخستن');
+  check('the rail ends with the requested add-category action',
+        await page.locator('#category-manage').textContent(), '+ زیادکردنی پۆلێن');
   check('nothing links away to a manager page',
         await page.locator('a[href*="/app/profile#shop-categories"]').count(), 0);
   check('the editor starts closed', await page.locator('.cat-edit').isHidden(), true);
@@ -93,8 +93,8 @@ const NEW_PRODUCT = '/app/new?plan=free';
   check('tapping it opens the editor', await page.locator('.cat-edit').isVisible(), true);
   check('one row per category', await page.locator('.cat-edit__row:not(.cat-edit__row--add)').count(), 2);
   check('plus a row to add one', await page.locator('.cat-edit__row--add').count(), 1);
-  check('the control now says done',
-        await page.locator('#category-manage').textContent(), 'تەواو');
+  check('the editor has an explicit Done control',
+        await page.locator('.cat-edit__done').textContent(), 'تەواو');
 
   /* ---- rename ---- */
   const first = page.locator('.cat-edit__row').first();
