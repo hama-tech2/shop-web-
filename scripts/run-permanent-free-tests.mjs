@@ -39,7 +39,7 @@ async function ready(url,child) {
 }
 const results=[];
 const only=process.argv.find(arg=>arg.startsWith('--only='))?.slice(7);
-if(only && !['worker','wayl','retry','profile','publish','currency','visibility','affected','grants','owner','browser','sharing'].includes(only))
+if(only && !['seo','worker','wayl','retry','profile','publish','currency','visibility','affected','grants','owner','browser','sharing'].includes(only))
   throw new Error('Unknown isolated suite selector');
 async function run(name,args) {
   // Keep draining the local servers' output while tests run. spawnSync blocks
@@ -57,6 +57,7 @@ try {
   if(await reachable(APP) || await reachable(STUB)) throw new Error('Test ports in use. Stop prior local test servers before running this isolated suite.');
   if(!only) {
     await run('database',['--test','scripts/permanent-free-db-test.mjs','scripts/permanent-free-integration-db-test.mjs','scripts/permanent-free-regression-test.mjs']);
+    await run('image-sitemap',['--test','scripts/image-sitemap-test.mjs']);
     await run('plan-state',['--test','scripts/plan-state-test.mjs']);
     await run('limits',['scripts/plan-limits-test.mjs']);await run('hardening',['scripts/security-hardening-test.mjs']);
   }
@@ -64,6 +65,7 @@ try {
   const worker=server(['node_modules/wrangler/bin/wrangler.js','dev','--config','.local/wrangler-test.json','--local','--port','8810','--ip','127.0.0.1','--persist-to',statePath],'worker');
   await ready(APP,worker);
   for(const [name,file] of [
+    ['seo','seo-test.mjs'],
     ['worker','permanent-free-worker-test.mjs'],
     ['wayl','wayl-test.mjs'],['retry','checkout-retry-test.mjs'],
     ['profile','profile-test.mjs'],['publish','publish-flow-test.mjs'],

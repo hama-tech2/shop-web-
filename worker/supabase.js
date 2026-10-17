@@ -301,10 +301,10 @@ export async function publicShops(env, limit = 49999) {
   }, limit);
 }
 
-/** Every publicly visible product, as the two fields a URL needs. */
+/** Public product URLs and their real images, filtered by anon RLS on both tables. */
 export async function publicProductRefs(env, limit = 49999) {
   return publicRows(env, 'products', {
-    select: 'id,shop_id,updated_at',
+    select: 'id,shop_id,updated_at,product_images(r2_key,r2_key_full,position)',
     status: 'eq.active',
     order: 'updated_at.desc',
   }, limit);

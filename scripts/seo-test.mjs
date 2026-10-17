@@ -50,6 +50,8 @@ const typed = (all, type) => all.flatMap(flatten).find((n) => n['@type'] === typ
 // The stub shop needs the public details the Store block reports.
 await control('/__mode/shop');
 await control('/__rows/1');
+const imageKey = 'products/aaaaaaaa-1111-4111-8111-111111111111/bbbbbbbb-1111-4111-8111-111111111111/real-full.webp';
+await control('/__productimg/' + encodeURIComponent(imageKey));
 
 /* ============================================================
    1. robots.txt
@@ -97,6 +99,11 @@ const sitemap = await text('/sitemap.xml');
 check('sitemap declares XML', sitemap.startsWith('<?xml version="1.0" encoding="UTF-8"?>'), true);
 check('with the sitemaps.org namespace',
   sitemap.includes('xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"'), true);
+check('with Google image namespace', sitemap.includes('xmlns:image="http://www.google.com/schemas/sitemap-image/1.1"'), true);
+check('sitemap advertises the actual product image',
+  sitemap.includes(`<image:loc>${SITE_ORIGIN}/img/${imageKey}</image:loc>`), true);
+check('image sitemap is not cached after eligibility changes',
+  (await fetch(APP + '/sitemap.xml')).headers.get('cache-control'), 'no-store');
 check('tags are balanced',
   (sitemap.match(/<url>/g) || []).length === (sitemap.match(/<\/url>/g) || []).length, true);
 check('and every loc is closed',
@@ -137,6 +144,7 @@ const home = await text('/');
 const homeLd = parsed(home, 'home');
 const website = typed(homeLd, 'WebSite');
 const org = typed(homeLd, 'Organization');
+check('large-preview permission is scoped away from the homepage', home.includes('max-image-preview:large'), false);
 
 check('the homepage carries a WebSite block', Boolean(website), true);
 check('named Bazaro', website?.name, APP_NAME_LATIN);
@@ -213,6 +221,8 @@ const product = typed(all, 'Product');
 const crumbs = typed(all, 'BreadcrumbList');
 
 check('the product page carries a Product block', Boolean(product), true);
+check('public product permits large image previews', productHtml.includes('<meta name="robots" content="max-image-preview:large">'), true);
+check('existing Product image stays aligned with sitemap', product?.image, [`${SITE_ORIGIN}/img/${imageKey}`]);
 check('with the product name', product?.name, 'کراسی کوردی');
 check('and its canonical URL', product?.url, `${SITE_ORIGIN}${PRODUCT_PATH}`);
 check('an Offer', product?.offers?.['@type'], 'Offer');
@@ -260,6 +270,13 @@ await control('/__platformcategory/-');
 check('sitemap lists nothing under /admin', sitemap.toLowerCase().includes('admin'), false);
 const adminRes = await fetch(APP + '/admin', { redirect: 'manual' });
 check('/admin is still the ordinary 404 for a crawler', adminRes.status, 404);
+check('admin error does not gain public preview permission', (await adminRes.text()).includes('max-image-preview:large'), false);
+await control('/__noproduct/1');
+const missingProduct = await fetch(APP + PRODUCT_PATH);
+check('missing product remains 404', missingProduct.status, 404);
+check('missing product does not gain preview permission', (await missingProduct.text()).includes('max-image-preview:large'), false);
+await control('/__noproduct/0');
+await control('/__productimg/-');
 
 /* ---------- report ---------- */
 for (const r of results) {

@@ -11,6 +11,7 @@ export function layout({
   title, description, body, canonical, ogImage,
   ogImageWidth, ogImageHeight, ogType = 'website',
   scripts = ['/js/feed.js'], structuredData = null,
+  largeImagePreview = false,
 }) {
   // Structured data, for Google and for the crawlers behind AI answers.
   // One <script> per block rather than one combined graph: a block with
@@ -49,6 +50,7 @@ export function layout({
     `<meta name="apple-mobile-web-app-title" content="${esc(APP_NAME_LATIN)}">` +
     `<title>${esc(title)}</title>` +
     `<meta name="description" content="${esc(description)}">` +
+    (largeImagePreview ? `<meta name="robots" content="max-image-preview:large">` : '') +
     (canonical ? `<link rel="canonical" href="${esc(canonical)}">` : '') +
 
     `<meta property="og:type" content="${esc(ogType)}">` +
