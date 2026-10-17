@@ -225,7 +225,7 @@ const cases = [
 
 for (const [name, fields] of cases) {
   const out = await publish({ ...MINIMUM, ...fields });
-  check(`publishes with ${name}`, out.location === '/app', true);
+  check(`publishes with ${name}`, out.location, '/app?published=' + DRAFT);
   check(`publishes with ${name}: no save error`, out.html.includes(SAVE_FAILED), false);
 }
 
@@ -236,22 +236,22 @@ for (const [name, fields] of cases) {
    enforce the trigger — the id has to be gone from the insert. */
 await resetCalls();
 await publish({ ...MINIMUM, own_category: CAT_STALE });
-let insert = (await getWrites()).find((w) => w.method === 'POST' && w.table === 'products');
-check('a stale category id reaches the insert as null', insert?.body.category_id, null);
+let insert = (await getWrites()).find((w) => w.method === 'POST' && w.table === 'rpc/publish_product')?.body.p_values;
+check('a stale category id reaches the atomic publish as null', insert?.category_id, null);
 
 await resetCalls();
 await publish({ ...MINIMUM, category: 'no-such-slug' });
-insert = (await getWrites()).find((w) => w.method === 'POST' && w.table === 'products');
+insert = (await getWrites()).find((w) => w.method === 'POST' && w.table === 'rpc/publish_product')?.body.p_values;
 check('an unknown market slug reaches the insert as null',
-      insert?.body.platform_category_id, null);
+      insert?.platform_category_id, null);
 
 /* A category the seller really owns still has to arrive intact. */
 await resetCalls();
 await publish({ ...MINIMUM, own_category: CAT_A, category: 'clothing' });
-insert = (await getWrites()).find((w) => w.method === 'POST' && w.table === 'products');
-check('a real shop category is kept', insert?.body.category_id, CAT_A);
+insert = (await getWrites()).find((w) => w.method === 'POST' && w.table === 'rpc/publish_product')?.body.p_values;
+check('a real shop category is kept', insert?.category_id, CAT_A);
 check('a real market category is kept',
-      insert?.body.platform_category_id, 'cccccccc-1111-4111-8111-111111111111');
+      insert?.platform_category_id, 'cccccccc-1111-4111-8111-111111111111');
 
 const sent = await fetch(`${APP}/api/categories`, { headers: { cookie: COOKIE } });
 check('and the seller\'s real categories are still there',

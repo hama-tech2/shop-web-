@@ -219,7 +219,9 @@ export async function getOwnShop(env, token, userId) {
   if (!userId) return null;
 
   const url = new URL(`${env.SUPABASE_URL}/rest/v1/shops`);
-  url.searchParams.set('select', 'id,slug,name,logo_key,city,whatsapp,status');
+  // The owner header uses the same saved presentation fields as their public
+  // shop. Keep this explicit and owner-scoped; no private account fields.
+  url.searchParams.set('select', 'id,slug,name,logo_key,cover_key,bio,city,whatsapp,phone,instagram,tiktok,facebook,snapchat,maps_url,status');
   url.searchParams.set('owner_id', `eq.${userId}`);
   url.searchParams.set('limit', '1');
 

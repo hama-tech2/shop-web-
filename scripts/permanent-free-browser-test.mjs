@@ -78,6 +78,7 @@ try {
   check('browser Back does not recreate a committed draft',
     await page.locator('.billing--gate').count()===1 || await page.locator('#save-btn').isDisabled());
   await page.goto(APP+'/app');
+  await page.locator('#owner-management-toggle').click();
   await page.locator('#settings-open').click();
   await page.waitForFunction(()=>location.hash==='#account-settings');
   check('existing Settings identity/profile/navigation retained',await page.locator('.settings-identity').isVisible() && await page.locator('#settings-subscription').isVisible());
@@ -115,6 +116,7 @@ try {
   await page.goto(APP+'/app?published='+unfinished);
   await page.waitForSelector('[data-resume-draft]');
   check('an unverified published URL cannot erase unfinished work',true);
+  await page.locator('#owner-management-toggle').click();
   await page.locator('#settings-open').click();
   await page.locator('.settings-logout button').click();
   await page.waitForURL(APP+'/');

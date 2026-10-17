@@ -46,6 +46,7 @@ try {
  await page.locator('#shop-copy').click();
  check('copy uses complete public URL with small success confirmation',await page.evaluate(url=>testClipboard.at(-1)===url,URL)&&await page.locator('.share-status').innerText()==='لینکەکە کۆپی کرا');
  await page.screenshot({path:'.local/sharing-shots/owner-mobile.png',fullPage:true});
+ await page.locator('#owner-management-toggle').click();
  await page.locator('#settings-open').click();
  check('existing Settings identity/subscription/profile/support/logout remain',await page.locator('.settings-identity').isVisible()&&await page.locator('#settings-subscription').isVisible()&&await page.locator('.settings-edit').isVisible()&&await page.locator('.settings-logout').isVisible()&&await page.getByText('پشتیوانی و یاسایی',{exact:true}).isVisible());
  await page.getByRole('link',{name:'کۆدی QR ـی دوکان',exact:true}).click();

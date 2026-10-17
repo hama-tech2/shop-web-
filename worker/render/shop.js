@@ -3,7 +3,7 @@ import { esc } from './html.js';
 import { cardHtml } from './feed.js';
 import { shopSharing } from './shop-sharing.js';
 import {
-  iconFacebook, iconInstagram, iconLink, iconPhone, iconPin, iconShare, iconSnapchat,
+  iconCamera, iconFacebook, iconInstagram, iconLink, iconPhone, iconPin, iconShare, iconSnapchat,
   iconTiktok, iconWhatsapp,
 } from './icons.js';
 
@@ -73,7 +73,9 @@ export function shopHeader({ shop, origin, controls = '', sellerSharing = false 
 
   return (
     `<header class="shop-head">` +
-    `<div class="shop-banner">${banner}${logo}${sellerSharing ? '' : `<div class="shop-sharing">${sharing}</div>`}</div>` +
+    `<div class="shop-banner">${banner}${logo}${sellerSharing
+      ? `<a class="owner-banner-edit" href="/app/profile">${iconCamera(17)}<span>دەستکاری وێنەی پێشەوە</span></a>`
+      : `<div class="shop-sharing">${sharing}</div>`}</div>` +
     `<div class="shop-id">` +
     `<h1 class="shop-name">${esc(shop.name)}</h1>` +
     (city
@@ -82,7 +84,7 @@ export function shopHeader({ shop, origin, controls = '', sellerSharing = false 
     `</div>` +
     (shop.bio ? `<div class="shop-about"><p class="shop-bio" id="shop-bio">${esc(shop.bio)}</p>` +
       `<button class="shop-bio-toggle" type="button" aria-controls="shop-bio" aria-expanded="false" hidden>زیاتر</button></div>` : '') +
-    (sellerSharing ? shopSharing({ shop }) : '') + controls +
+    (sellerSharing ? shopSharing({ shop, compact: true }) : '') + controls +
     `<div class="shop-actions">` +
     `<a class="btn btn--whatsapp" href="${esc(wa(shop.whatsapp))}"` +
     ` target="_blank" rel="noopener">${iconWhatsapp()}` +

@@ -19,7 +19,10 @@
       document.getElementById('settings-title').focus({ preventScroll: true });
       window.scrollTo(0, 0);
     } else if (wasOpen) {
-      if (open) open.focus({ preventScroll: true });
+      if (open) {
+        var returnTo = open.closest('details');
+        (returnTo ? returnTo.querySelector('summary') : open).focus({ preventScroll: true });
+      }
       window.scrollTo(0, 0);
     }
     wasOpen = visible;
