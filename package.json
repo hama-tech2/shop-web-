@@ -5,6 +5,7 @@
   "type": "module",
   "description": "Shop Web — Kurdish (Sorani) social shopping app for sellers in Erbil",
   "scripts": {
+    "test:image-sitemap": "node --test scripts/image-sitemap-test.mjs",
     "test:shop-sharing": "node scripts/run-permanent-free-tests.mjs --only=sharing",
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",

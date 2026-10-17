@@ -9,13 +9,14 @@
  *
  * What counts as public is not decided here. These reads go through
  * PostgREST with the publishable key, so Row Level Security returns
- * exactly the rows an anonymous visitor could already see — the active
- * products of shops whose plan is live. There is no second definition
+ * exactly the rows an anonymous visitor could already see, including
+ * permanent Free and paid grace. There is no second definition
  * of "public" in this file to drift out of step with the first.
  */
 
 import { SITE_ORIGIN } from '../config.js';
 import { publicShops, publicProductRefs } from '../supabase.js';
+import { imageUrl } from '../render/structured-data.js';
 
 /** A sitemap may hold 50,000 URLs; Bazaro is nowhere near, but the cap is real. */
 const MAX_URLS = 50000;
@@ -50,11 +51,32 @@ function lastmod(value) {
   return Number.isNaN(at.getTime()) ? '' : `<lastmod>${at.toISOString()}</lastmod>`;
 }
 
-const urlEntry = ({ path, updated, changefreq, priority }) =>
+// Match the public image route's product prefix/traversal restrictions.
+// A missing or unusable full image can use the existing card; never use a logo.
+const productImageKey = (key) =>
+  typeof key === 'string' && key.startsWith('products/') &&
+  !key.includes('..') && !/[\u0000-\u001f\u007f\\]/.test(key) &&
+  key.split('/').every((part) => part && part !== '.');
+
+function productImageEntries(images) {
+  const urls = (Array.isArray(images) ? images : [])
+    .filter((image) => image && typeof image === 'object')
+    .slice().sort((a, b) => (a.position ?? 0) - (b.position ?? 0))
+    .map((image) => productImageKey(image.r2_key_full) ? image.r2_key_full
+      : productImageKey(image.r2_key) ? image.r2_key : null)
+    .filter(Boolean).map(imageUrl);
+  // Google's extension permits up to 1,000 images for each product URL.
+  return [...new Set(urls)].slice(0, 1000)
+    .map((url) => `<image:image><image:loc>${xmlEscape(url)}</image:loc></image:image>`)
+    .join('');
+}
+
+const urlEntry = ({ path, updated, changefreq, priority, images }) =>
   `<url><loc>${xmlEscape(loc(path))}</loc>` +
   lastmod(updated) +
   (changefreq ? `<changefreq>${changefreq}</changefreq>` : '') +
   (priority ? `<priority>${priority}</priority>` : '') +
+  productImageEntries(images) +
   `</url>`;
 
 /**
@@ -147,12 +169,14 @@ export async function sitemapGet(env) {
           updated: product.updated_at,
           changefreq: 'weekly',
           priority: '0.6',
+          images: product.product_images,
         })),
   ].slice(0, MAX_URLS);
 
   const xml =
     `<?xml version="1.0" encoding="UTF-8"?>` +
-    `<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">` +
+    `<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" ` +
+    `xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">` +
     entries.join('') +
     `</urlset>`;
 

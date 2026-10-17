@@ -29,11 +29,12 @@ const absolute = (origin, key) =>
   `${origin}/img/${key.split('/').map(encodeURIComponent).join('/')}`;
 
 function page({ body, title, description, canonical, ogImage, ogImageWidth,
-                ogImageHeight, ogType, structuredData = null, status = 200 }) {
+                ogImageHeight, ogType, structuredData = null, largeImagePreview = false, status = 200 }) {
   return new Response(
     layout({
       title, description, body, canonical, ogImage,
       ogImageWidth, ogImageHeight, ogType, structuredData,
+      largeImagePreview,
       scripts: ['/js/shop.js', '/js/favorites.js'],
     }),
     {
@@ -170,6 +171,7 @@ export async function productGet(request, env, url, slug, id, ctx) {
     ogImageWidth: ogSource?.size.width,
     ogImageHeight: ogSource?.size.height,
     ogType: 'product',
+    largeImagePreview: true,
     structuredData: [
       productLd({ product, shop: product.shop }),
       productBreadcrumbLd({ product, shop: product.shop }),
