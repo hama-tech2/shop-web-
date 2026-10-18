@@ -24,6 +24,7 @@ import { webhookPost } from './routes/telegram.js';
 import * as payment from './routes/payment.js';
 import { robotsGet, sitemapGet } from './routes/seo.js';
 import { homeLd } from './render/structured-data.js';
+import { productPreviewGet } from './product-preview.js';
 
 const IMG_CACHE = 'public, max-age=31536000, immutable';
 const HTML_CACHE = 'public, max-age=0, s-maxage=60, stale-while-revalidate=300';
@@ -77,6 +78,8 @@ async function routeRequest(request, env, ctx) {
   const path = url.pathname.replace(/\/+$/, '') || '/';
 
       if (path.startsWith('/img/')) return serveImage(request, env, url);
+      const preview = path.match(/^\/preview\/products\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\/([0-9a-f]{32})\.jpg$/i);
+      if (preview) return productPreviewGet(request, env, preview[1], preview[2], ctx);
 
       // The Telegram webhook. Public, so the secret is in the path and
       // checked again in the header before the body is even read; a

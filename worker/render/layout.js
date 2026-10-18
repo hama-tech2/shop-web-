@@ -9,7 +9,7 @@ import { esc } from './html.js';
  */
 export function layout({
   title, description, body, canonical, ogImage,
-  ogImageWidth, ogImageHeight, ogType = 'website',
+  ogImageWidth, ogImageHeight, ogImageType, ogType = 'website',
   scripts = ['/js/feed.js'], structuredData = null,
   largeImagePreview = false,
 }) {
@@ -28,7 +28,7 @@ export function layout({
   // path. A seller's own link never reaches this: /@slug picks their
   // cover, their logo, or their first product first.
   const brandOg = canonical ? new URL(BRAND.ogImage, canonical).toString() : null;
-  const shareImage = ogImage || brandOg;
+  const shareImage = ogImage === false ? null : ogImage || brandOg;
   const shareWidth = ogImage ? ogImageWidth : BRAND.ogWidth;
   const shareHeight = ogImage ? ogImageHeight : BRAND.ogHeight;
   return (
@@ -61,6 +61,7 @@ export function layout({
     (shareImage
       ? `<meta property="og:image" content="${esc(shareImage)}">` +
         `<meta property="og:image:secure_url" content="${esc(shareImage)}">` +
+        (ogImageType ? `<meta property="og:image:type" content="${esc(ogImageType)}">` : '') +
         (shareWidth ? `<meta property="og:image:width" content="${esc(shareWidth)}">` : '') +
         (shareHeight ? `<meta property="og:image:height" content="${esc(shareHeight)}">` : '') +
         `<meta property="og:image:alt" content="${esc(title)}">` +
