@@ -13,6 +13,7 @@ import {
 import { layout } from '../render/layout.js';
 import { shopDescription, shopNotFound, shopPage } from '../render/shop.js';
 import { productDescription, productPage } from '../render/product-page.js';
+import { productPreview, PREVIEW_SIZE } from '../product-preview.js';
 import {
   productBreadcrumbLd, productLd, shopLd, shopProductsLd,
 } from '../render/structured-data.js';
@@ -28,12 +29,12 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const absolute = (origin, key) =>
   `${origin}/img/${key.split('/').map(encodeURIComponent).join('/')}`;
 
-function page({ body, title, description, canonical, ogImage, ogImageWidth,
+function page({ body, title, description, canonical, ogImage, ogImageType, ogImageWidth,
                 ogImageHeight, ogType, structuredData = null, largeImagePreview = false, status = 200 }) {
   return new Response(
     layout({
       title, description, body, canonical, ogImage,
-      ogImageWidth, ogImageHeight, ogType, structuredData,
+      ogImageWidth, ogImageHeight, ogImageType, ogType, structuredData,
       largeImagePreview,
       scripts: ['/js/shop.js', '/js/favorites.js'],
     }),
@@ -153,23 +154,17 @@ export async function productGet(request, env, url, slug, id, ctx) {
   count(request, env, ctx, { product: product.id });
 
   const more = await getMoreFromShop(env, product.shop.id, product.id);
-  const ogSource =
-    (product.images[0]?.full
-      && { key: product.images[0].full, size: IMAGE_VARIANTS.full })
-    || (product.images[0]?.card
-      && { key: product.images[0].card, size: IMAGE_VARIANTS.card })
-    || (shop.cover_key
-      && { key: shop.cover_key, size: PROFILE_VARIANTS.banner })
-    || null;
+  const preview = await productPreview(product);
 
   return page({
     body: productPage({ product, more, origin: url.origin }),
     title: `${product.title} — ${shop.name} | ${APP_NAME_LATIN}`,
     description: productDescription(product),
     canonical: `${SITE_ORIGIN}/@${shop.slug}/p/${product.id}`,
-    ogImage: ogSource ? absolute(SITE_ORIGIN, ogSource.key) : null,
-    ogImageWidth: ogSource?.size.width,
-    ogImageHeight: ogSource?.size.height,
+    ogImage: preview?.url || false,
+    ogImageType: preview ? 'image/jpeg' : null,
+    ogImageWidth: preview ? PREVIEW_SIZE : null,
+    ogImageHeight: preview ? PREVIEW_SIZE : null,
     ogType: 'product',
     largeImagePreview: true,
     structuredData: [

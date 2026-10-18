@@ -49,6 +49,7 @@
     "wrangler": "^4.42.0"
   },
   "dependencies": {
+    "@cf-wasm/photon": "0.4.0",
     "@supabase/supabase-js": "^2.58.0"
   }
 }

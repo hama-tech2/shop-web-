@@ -2,6 +2,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { readFile } from 'node:fs/promises';
+import { createHash } from 'node:crypto';
 import { productWhatsappUrl, shopWhatsappUrl } from '../worker/render/whatsapp.js';
 import { cardHtml, feedHtml } from '../worker/render/feed.js';
 import { productPage } from '../worker/render/product-page.js';
@@ -136,9 +137,13 @@ test('all real public render paths route each product to its own seller; OG uses
       const meta=key=>decode(html.match(new RegExp(`<meta property="${key}" content="([^"]*)"`))?.[1] || '');
       assert.ok(meta('og:title').includes(row.title));
       assert.equal(meta('og:url'),canonical(row));
-      const actualImage='https://bazarnow.xyz/img/'+row.product_images[0].r2_key_full.split('/').map(encodeURIComponent).join('/');
+      const version=createHash('sha256').update('1\n'+row.product_images[0].r2_key_full).digest('hex').slice(0,32);
+      const actualImage=`https://bazarnow.xyz/preview/products/${row.id}/${version}.jpg`;
       assert.equal(meta('og:image'),actualImage);
       assert.equal(meta('og:image:secure_url'),actualImage);
+      assert.equal(meta('og:image:type'),'image/jpeg');
+      assert.equal(meta('og:image:width'),'600');
+      assert.equal(meta('og:image:height'),'600');
       const shopUrl=new URL('https://preview.invalid/@'+row.shops.slug);
       const shopHtml=await (await shopGet(new Request(shopUrl),env,shopUrl,row.shops.slug)).text();
       assert.equal(links(shopHtml)[0],shopWhatsappUrl(row.shops));
