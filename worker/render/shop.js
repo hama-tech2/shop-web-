@@ -2,6 +2,7 @@ import { APP_NAME, CITY_LABEL, SHOP as T, UI } from '../config.js';
 import { esc } from './html.js';
 import { cardHtml } from './feed.js';
 import { shopSharing } from './shop-sharing.js';
+import { shopWhatsappUrl } from './whatsapp.js';
 import {
   iconCamera, iconFacebook, iconInstagram, iconLink, iconPhone, iconPin, iconShare, iconSnapchat,
   iconTiktok, iconWhatsapp,
@@ -9,15 +10,13 @@ import {
 
 const imgUrl = (key) => `/img/${key.split('/').map(encodeURIComponent).join('/')}`;
 
-/** The shop's WhatsApp, with an empty composer. See product-page.js. */
-const wa = (number) => `https://wa.me/${T.waNumber(number)}`;
-
 /* ============================================================
    header — banner, logo, name, city, bio, contact
    ============================================================ */
 
 export function shopHeader({ shop, origin, controls = '', sellerSharing = false }) {
   const url = `${origin}/@${shop.slug}`;
+  const whatsapp = shopWhatsappUrl(shop);
   const city = CITY_LABEL[shop.city] ?? shop.city ?? '';
 
   // The banner is this page's share image and its only picture above
@@ -86,9 +85,9 @@ export function shopHeader({ shop, origin, controls = '', sellerSharing = false 
       `<button class="shop-bio-toggle" type="button" aria-controls="shop-bio" aria-expanded="false" hidden>زیاتر</button></div>` : '') +
     (sellerSharing ? shopSharing({ shop, compact: true }) : '') + controls +
     `<div class="shop-actions">` +
-    `<a class="btn btn--whatsapp" href="${esc(wa(shop.whatsapp))}"` +
+    (whatsapp ? `<a class="btn btn--whatsapp" href="${esc(whatsapp)}"` +
     ` target="_blank" rel="noopener">${iconWhatsapp()}` +
-    `<span>${esc(T.whatsappShop)}</span></a>` +
+    `<span>${esc(T.whatsappShop)}</span></a>` : '') +
     // https-only, enforced by the CHECK on shops.maps_url and again by
     // the save route, so this href can never carry a javascript: URL.
     (shop.maps_url

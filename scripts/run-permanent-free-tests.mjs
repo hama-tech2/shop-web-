@@ -58,6 +58,8 @@ try {
   if(!only) {
     await run('database',['--test','scripts/permanent-free-db-test.mjs','scripts/permanent-free-integration-db-test.mjs','scripts/permanent-free-regression-test.mjs']);
     await run('image-sitemap',['--test','scripts/image-sitemap-test.mjs']);
+    await run('whatsapp',['--test','scripts/whatsapp-test.mjs']);
+    await run('card-actions',['scripts/card-actions-test.mjs']);
     await run('owner-profile-ui',['scripts/owner-profile-ui-test.mjs']);
     await run('plan-state',['--test','scripts/plan-state-test.mjs']);
     await run('limits',['scripts/plan-limits-test.mjs']);await run('hardening',['scripts/security-hardening-test.mjs']);

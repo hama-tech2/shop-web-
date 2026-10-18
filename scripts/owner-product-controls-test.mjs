@@ -33,7 +33,7 @@ const base = {
 };
 const withContact = cardHtml({ ...base, shopWhatsapp: '+9647510000002', shopMapsUrl: 'https://maps.app.goo.gl/shop' }, 0);
 const withoutContact = cardHtml({ ...base, shopWhatsapp: null, shopMapsUrl: null }, 0);
-check('shop WhatsApp creates a direct no-message action', withContact.includes('href="https://wa.me/9647510000002"'));
+check('shop WhatsApp creates a product-message action', withContact.includes('href="https://wa.me/9647510000002?text=') && decodeURIComponent(withContact).includes('بەرهەم: کراسی کوردی'));
 check('shop location creates its action', withContact.includes('card__action--location'));
 check('missing shop WhatsApp hides the action', !withoutContact.includes('card__action--whatsapp'));
 check('missing shop location hides the action', !withoutContact.includes('card__action--location'));

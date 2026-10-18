@@ -3,19 +3,10 @@ import { attr, esc } from './html.js';
 import { moneyHtml } from './money.js';
 import { iconCategory, iconGlobe, iconHeart, iconPin, iconSearch, iconShare, iconWhatsapp } from './icons.js';
 import { bottomNav } from './appshell.js';
+import { productWhatsappUrl } from './whatsapp.js';
 
 /** R2 keys are stored, never URLs. This is the only place one becomes a URL. */
 const imgUrl = (key) => `/img/${key.split('/').map(encodeURIComponent).join('/')}`;
-
-/** Contact data belongs to the joined shop, never to an individual product. */
-function whatsappUrl(raw) {
-  let number = String(raw || '').replace(/[٠-٩۰-۹]/g, (digit) =>
-    String('٠١٢٣٤٥٦٧٨٩'.includes(digit) ? '٠١٢٣٤٥٦٧٨٩'.indexOf(digit) : '۰۱۲۳۴۵۶۷۸۹'.indexOf(digit)))
-    .replace(/[\s()+.-]/g, '');
-  if (number.startsWith('00')) number = number.slice(2);
-  else if (number.startsWith('0')) number = '964' + number.slice(1);
-  return /^[1-9][0-9]{6,14}$/.test(number) ? `https://wa.me/${number}` : null;
-}
 
 export function mapsUrl(raw) {
   if (!raw) return null;
@@ -26,7 +17,7 @@ export function mapsUrl(raw) {
 }
 
 function cardActions(product, href) {
-  const whatsapp = whatsappUrl(product.shopWhatsapp);
+  const whatsapp = productWhatsappUrl(product);
   const maps = mapsUrl(product.shopMapsUrl);
   const link = (kind, url, label, icon) => url
     ? `<a class="card__action card__action--${kind}" href="${esc(url)}" target="_blank" rel="noopener noreferrer" aria-label="${label}"><span>${icon}</span></a>` : '';

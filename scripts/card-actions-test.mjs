@@ -122,7 +122,8 @@ try {
   await page.evaluate(()=>{document.execCommand=()=>{window.legacyCopied=document.querySelector('textarea').value;return true;};});
   await first.locator('[data-fav]').click();check('favorite saves without navigation',await first.locator('[data-fav]').getAttribute('aria-pressed')==='true'&&new URL(page.url()).pathname==='/cards');
   await first.locator('[data-fav]').click();check('favorite unsaves',await first.locator('[data-fav]').getAttribute('aria-pressed')==='false');
-  check('WhatsApp normalized, no message',await first.locator('.card__action--whatsapp').getAttribute('href')==='https://wa.me/9647511234567');
+  const whatsapp = new URL(await first.locator('.card__action--whatsapp').getAttribute('href'));
+  check('WhatsApp normalized with this product and price', whatsapp.pathname==='/9647511234567' && whatsapp.searchParams.get('text').includes(row.title) && whatsapp.searchParams.get('text').includes('75,000 د.ع') && whatsapp.searchParams.get('text').endsWith('https://bazarnow.xyz/@fixture-shop/p/'+id));
   for (const cls of ['whatsapp','location']) {
     const link=first.locator('.card__action--'+cls), href=await link.getAttribute('href');
     // Verify the navigation request, not the third-party site's page lifecycle.
