@@ -51,7 +51,10 @@ try {
       check(`${width} ${screen}: compact height`, await page.locator('.card').first().evaluate(el => el.offsetHeight - el.querySelector('.card__media').offsetHeight <= 120));
       check(`${width} ${screen}: RTL information and one-line titles`, await page.locator('.card__body').evaluateAll(els => els.every(el => getComputedStyle(el).direction === 'rtl' && getComputedStyle(el).textAlign === 'right' && getComputedStyle(el.querySelector('.card__title')).textOverflow === 'ellipsis' && getComputedStyle(el.querySelector('.card__title')).whiteSpace === 'nowrap')));
       check(`${width} ${screen}: conditional locations`, await page.locator('.card__action--location').count() === 3);
-      check(`${width} ${screen}: WhatsApp correct and no text`, await page.locator('.card__action--whatsapp').evaluateAll(els => els.every(el => el.href === 'https://wa.me/9647510000002')));
+      check(`${width} ${screen}: WhatsApp correct with each product`, await page.locator('.card__action--whatsapp').evaluateAll(els => els.every((el, i) => {
+        const url = new URL(el.href), message = url.searchParams.get('text');
+        return url.pathname === '/9647510000002' && message.includes(el.closest('.card').querySelector('.card__title').textContent) && message.endsWith('https://bazarnow.xyz/@fixture-shop/p/' + i);
+      })));
       check(`${width} ${screen}: seller identity only on feed`, await page.locator('.card__shop').count() === (screen === 'home' ? 6 : 0));
       if (screen === 'home') {
         await page.waitForFunction(() => document.querySelector('.seller-prompt').hidden);

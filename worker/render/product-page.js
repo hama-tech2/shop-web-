@@ -2,20 +2,10 @@ import { CITY_LABEL, SHOP as T } from '../config.js';
 import { esc } from './html.js';
 import { moneyHtml, moneyText } from './money.js';
 import { cardHtml, mapsUrl } from './feed.js';
+import { productWhatsappUrl } from './whatsapp.js';
 import { iconBack, iconHeart, iconPin, iconShare, iconWhatsapp } from './icons.js';
 
 const imgUrl = (key) => `/img/${key.split('/').map(encodeURIComponent).join('/')}`;
-
-/**
- * The seller's WhatsApp, with an empty composer.
- *
- * No ?text=. A pre-filled message put Bazaro's words in the customer's
- * mouth — they tapped to ask about a product and WhatsApp opened with a
- * greeting, the product name and a link already typed, which many
- * people send without reading and others delete before they can start.
- * The chat opens empty and the customer writes their own first line.
- */
-const wa = (number) => `https://wa.me/${T.waNumber(number)}`;
 
 /**
  * Product detail.
@@ -28,6 +18,7 @@ export function productPage({ product, more, origin }) {
   const shopUrl = `/@${encodeURIComponent(shop.slug)}`;
   const pageUrl = `${origin}${shopUrl}/p/${product.id}`;
   const location = mapsUrl(shop.maps_url);
+  const whatsapp = productWhatsappUrl(product);
   const city = CITY_LABEL[shop.city] ?? shop.city ?? '';
 
   // Same rule as the card: the first photo carries the product's name
@@ -105,9 +96,9 @@ export function productPage({ product, more, origin }) {
     (location ? `<a class="card__action card__action--location" href="${esc(location)}" target="_blank" rel="noopener noreferrer" aria-label="شوێنی دوکان"><span>${iconPin(18)}</span></a>` : '') + `</div>` +
 
     `<div class="pdp-order">` +
-    `<a class="btn btn--whatsapp" href="${esc(wa(shop.whatsapp))}"` +
+    (whatsapp ? `<a class="btn btn--whatsapp" href="${esc(whatsapp)}"` +
     ` target="_blank" rel="noopener">${iconWhatsapp()}` +
-    `<span>${esc(T.whatsappOrder)}</span></a>` +
+    `<span>${esc(T.whatsappOrder)}</span></a>` : '') +
     `</div></div>` +
 
     moreRow +

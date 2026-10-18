@@ -1,11 +1,10 @@
 /**
- * Bazaro — an empty WhatsApp composer, and where a product is shown.
+ * Bazaro — product-specific WhatsApp contact, and where a product is shown.
  *
  * Two small product rules, both of which fail silently if they break.
  *
- * 1. Tapping WhatsApp opens the seller's chat with NOTHING typed. A
- *    pre-filled message wrote the customer's first line for them, which
- *    many people send unread and others delete before they can start.
+ * 1. WhatsApp opens an editable Sorani product enquiry, or a general
+ *    shop enquiry for the public profile contact. It never sends itself.
  *
  * 2. A product is shown everywhere (Home + search + profile + link) or
  *    kept off Home only (search + profile + link). Profile-only is NOT
@@ -60,7 +59,7 @@ await control(`/__productimg/${encodeURIComponent(img(1).card)}`);
 await control(`/__visibility/${DEFAULT_VISIBILITY}`);
 
 /* ============================================================
-   1. WhatsApp opens empty, everywhere
+   1. WhatsApp contact has editable context everywhere
    ============================================================ */
 
 for (const [label, path] of [
@@ -68,28 +67,25 @@ for (const [label, path] of [
   ['the shop page', SHOP_PATH],
   ['the product page', PRODUCT_PATH],
   ['search results', '/search?q=%DA%A9'],
-  ['saved', '/saved'],
+  ['saved cards', '/api/favorites/cards?ids=' + PRODUCT_ID],
 ]) {
   const links = waLinks(await page(path));
-  check(`${label}: has at least one WhatsApp link or none at all`,
-    Array.isArray(links), true);
-  check(`${label}: no ?text= on any WhatsApp link`,
-    links.some((u) => u.includes('?text=') || u.includes('&text=')), false);
-  check(`${label}: no query string at all`,
-    links.some((u) => u.includes('?')), false);
-  check(`${label}: every link is bare wa.me/<digits>`,
-    links.every((u) => /^https:\/\/wa\.me\/[0-9]+$/.test(u)), true);
+  check(label + ': contact links are actually present', links.length > 0);
+  check(label + ': every contact has an editable greeting and canonical link',
+    links.every(href => {
+      const url = new URL(href), message = url.searchParams.get('text');
+      return url.origin === 'https://wa.me' && /^\/[1-9][0-9]{6,14}$/.test(url.pathname) &&
+        [...url.searchParams.keys()].join() === 'text' && message.startsWith('سڵاو') &&
+        message.includes('https://bazarnow.xyz/@nafin-boutique');
+    }));
 }
 
-// The specific things that used to be typed for the customer.
 const product = await page(PRODUCT_PATH);
 const shop = await page(SHOP_PATH);
-for (const [label, html] of [['product page', product], ['shop page', shop]]) {
-  const joined = waLinks(html).join(' ');
-  check(`${label}: no greeting in the link`, /%D8%B3%DA%B5%D8%A7%D9%88|سڵاو/.test(joined), false);
-  check(`${label}: no product title in the link`, joined.includes('%DA%A9%D8%B1%D8%A7%D8%B3'), false);
-  check(`${label}: no URL smuggled into the link`, /https?%3A|bazarnow|127\.0\.0\.1/.test(joined), false);
-}
+const detailMessage = new URL(waLinks(product).find(href => decodeURIComponent(href).includes('/p/' + PRODUCT_ID))).searchParams.get('text');
+check('detail contact contains actual product name and price', detailMessage.includes('کراسی کوردی') && detailMessage.includes('85,000 د.ع'));
+const shopMessage = new URL(waLinks(shop)[0]).searchParams.get('text');
+check('profile contact is general, not a random product', shopMessage.endsWith('https://bazarnow.xyz' + SHOP_PATH) && !shopMessage.includes('/p/') && !shopMessage.includes('کراسی کوردی'));
 
 // Validation and security are unchanged: digits only, no scheme injection.
 check('the product page link is the shop number, digits only',
