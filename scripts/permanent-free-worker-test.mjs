@@ -10,20 +10,39 @@ const images=n=>JSON.stringify(Array.from({length:n},(_,i)=>({card:`products/${s
 const fields={draft_id:id,title:'Draft survives',price:'1000',currency:'IQD',visibility:'profile',description:'Unfinished text',images:images(5)};
 test('Worker permanent Free and customer regression using localhost stubs',async t=>{
   await set('/__mode/shop');await set('/__rows/1');await set('/__plan/free');await set('/__trial/-100');await set('/__products/4');await set('/__suspended/0');
-  await t.test('fifth can choose Free without payment and submit atomically',async()=>{
-    assert.match(await (await get('/app/new')).text(),/value="free" checked/);
+  await t.test('products one through five open the normal form directly',async()=>{
+    for (let stored=0;stored<5;stored++) {
+      await set('/__products/'+stored);
+      const response=await get('/app/new');const html=await response.text();
+      assert.equal(response.status,200);assert.equal(response.redirected,false);
+      assert.match(html,/id="product-form"/);
+      assert.doesNotMatch(html,/billing--gate|id="start-trial"|\/js\/checkout\.js/);
+    }
+  });
+  await t.test('fifth submits atomically and returns home without an upgrade',async()=>{
+    await set('/__products/4');
     assert.equal((await post('/app/subscription/free',{})).headers.get('location'),'/app/new?plan=free');
     const form=await (await get('/app/new?plan=free')).text();
     assert.match(form,/data-max="5"/);assert.match(form,/data-owner="aaaaaaaa/);
     await set('/__calls/reset');
     const published=await post('/app/new',fields);
     assert.equal(published.status,303);assert.equal(published.headers.get('location'),'/app?published='+id);
+    await set('/__products/5');
+    const landing=await get(published.headers.get('location'));
+    assert.equal(landing.status,200);assert.equal(landing.redirected,false);
+    assert.doesNotMatch(await landing.text(),/billing--gate/);
     const writes=await set('/__writes');
     assert.ok(writes.some(w=>w.table==='rpc/publish_product'));
     assert.ok(!writes.some(w=>w.table==='products' && w.method==='POST'));
   });
   await t.test('sixth blocked with complete draft and upgrade link preserved',async()=>{
     await set('/__products/5');
+    for (const path of ['/app/new','/app/new?plan=free']) {
+      const gate=await (await get(path)).text();
+      assert.match(gate,/billing--gate/);
+      assert.match(gate,/\/app\/subscription\/checkout/);
+      assert.doesNotMatch(gate,/id="product-form"|id="start-trial"/);
+    }
     const response=await post('/app/new',fields);const html=await response.text();
     assert.equal(response.status,200);assert.match(html,/Draft survives/);assert.match(html,/Unfinished text/);
     assert.match(html,new RegExp(id));assert.match(html,/data-draft-upgrade/);

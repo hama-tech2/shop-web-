@@ -450,15 +450,10 @@ export async function newGet(request, env, url) {
   const g = await guard(request, env);
   if (g.redirect) return g.redirect;
 
-  // A paid seller goes straight to the form. A Free one meets the plan
-  // gate on the way in, every time, and comes back through it with
-  // ?plan=free once they have chosen to carry on for nothing.
-  //
-  // That parameter skips a screen and nothing else. It grants no slot:
-  // the count below and the database behind it are what decide.
+  // Open the form while a slot is available. Free sellers only meet the
+  // existing upgrade gate when full; draft recovery remains available.
   const { tier, canPublish, slotsLeft } = await entitlement(env, g.token, g.shop.id);
-  const chosenFree = url?.searchParams?.get('plan') === 'free';
-  if (tier !== 'paid' && (!canPublish || !chosenFree) && !UUID.test(url.searchParams.get('draft') || '')) {
+  if (tier !== 'paid' && !canPublish && !UUID.test(url.searchParams.get('draft') || '')) {
     return gatePage(
       accessGatePage({
         trialAvailable: canPublish,
