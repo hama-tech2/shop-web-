@@ -28,10 +28,12 @@ const waitDraft = async predicate => {
   throw new Error('Draft persistence condition timed out');
 };
 try {
-  await page.goto(APP+'/app/new');
-  check('Free first choice available',await page.locator('input[value="free"]').isChecked());
-  await page.locator('#start-trial').click();
+  await page.goto(APP+'/app');
+  await page.locator('.owner-control--primary').click();
+  await page.waitForURL(APP+'/app/new');
   await page.waitForFunction(()=>document.querySelector('#product-form')?.dataset.ready==='true');
+  check('Add Product opens the fifth product form directly',await page.locator('#product-form').isVisible());
+  check('no subscription choice or checkout script before the fifth product',await page.locator('.billing--gate, #start-trial, script[src="/js/checkout.js"]').count()===0);
   await page.locator('#f-title').fill('Draft browser fixture');
   await page.locator('#f-price').fill('12500');
   await page.locator('#f-description').fill('Keep unfinished text');
@@ -64,9 +66,13 @@ try {
   await page.locator('[data-resume-draft]').click();
   await page.waitForFunction(()=>document.querySelector('#product-form')?.dataset.ready==='true');
   await control('/__products/4');
+  await context.route(APP+'/app?published=*',async route=>{
+    await control('/__products/5'); await route.continue();
+  },{times:1});
   await page.locator('#save-btn').click();
   await page.waitForURL('**/app?published=*');
   await waitDraft(draft=>!draft);
+  check('publishing the fifth returns home without an automatic upgrade',new URL(page.url()).pathname==='/app' && await page.locator('.billing--gate').count()===0);
   check('successful publish clears only the saved owner draft',await page.locator('[data-resume-draft]').count()===0);
   await page.goBack();
   // With no-store, Chrome may reload the existing plan-choice gate instead
@@ -77,6 +83,12 @@ try {
   await waitDraft(draft=>!draft);
   check('browser Back does not recreate a committed draft',
     await page.locator('.billing--gate').count()===1 || await page.locator('#save-btn').isDisabled());
+  await page.goto(APP+'/app');
+  await control('/__products/5');
+  await page.locator('.owner-control--primary').click();
+  await page.waitForSelector('.billing--gate');
+  check('Add Product for the sixth shows the existing upgrade page',await page.locator('#product-form, #start-trial').count()===0 && await page.locator('form[action="/app/subscription/checkout"]').count()>0);
+  await control('/__products/4');
   await page.goto(APP+'/app');
   await page.locator('#owner-management-toggle').click();
   await page.locator('#settings-open').click();
