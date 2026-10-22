@@ -52,6 +52,16 @@ test('Worker permanent Free and customer regression using localhost stubs',async
     assert.match(await (await get('/app/new?plan=free&draft='+id)).text(),/id="product-form"/);
     assert.match(await (await get('/app/new')).text(),/value="free" disabled/);
   });
+  await t.test('editing at the Free quota explains thirty public products and retains five images',async()=>{
+    await set('/__products/30');
+    const response=await get('/app/products/'+id);const html=await response.text();
+    assert.equal(response.status,200);
+    assert.match(html,/name="status"/);
+    assert.match(html,/یەکەم ٣٠ بەرهەمی ئاشکرا/);
+    assert.doesNotMatch(html,/یەکەم (?:پێنج|5|٥|۵) بەرهەم/);
+    assert.match(html,/بەرهەمە شاراوەکانیش لە سنووری پاشەکەوتدا هەژمار دەکرێن/);
+    assert.match(html,/data-max="5"/);
+  });
   await t.test('sixth image refused with filled fields',async()=>{
     await set('/__products/29');
     const html=await (await post('/app/new',{...fields,images:images(6)})).text();

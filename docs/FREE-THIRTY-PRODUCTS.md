@@ -32,3 +32,11 @@ Fresh comprehensive run: **26/26 groups PASS**, database44 checks (including his
 5. Do not roll back the database limit to5 after sellers use the increased allowance: that would restrict visibility/capacity again. Prefer a forward correction if a later problem is found. Preserve every row/object and original paid expiry/grace date.
 
 Next owner action: review the PR. Merge and production release remain separate approvals.
+
+## PR #38 review correction — 23 October 2026
+
+The Edit Product status hint now renders the shared `FREE_PRODUCT_LIMIT` in localized digits (٣٠), replacing the stale first-five wording. The rendered authenticated edit route is regression-tested at thirty stored products, including the status control, hidden-product storage guidance and unchanged five-image allowance. A search of shipped `worker/` and `public/` sources found no other stale customer-facing five-product quota messages; five-image wording remains correct.
+
+Fresh checks for this correction: Worker10/10, publish/edit54/54, both changed JavaScript files' syntax and focused whitespace checks passed. The comprehensive results above belong to the original implementation run, not a new full-suite run. No SQL, production data, payments, deployment or migration was changed by this review correction.
+
+Release preflight: verify a recoverable production backup and baseline record counts/paid expiry and grace dates; verify project `kvwgiobnpwrjwyevadvc`, PostgreSQL17, migration history, helper dependencies/RLS and expected five-or-thirty product/five-image limits; after separate approval, apply only the new forward migration and verify its invariants **before** deploying the matching merged Worker/assets. These production checks remain unexecuted in this PR review.

@@ -135,7 +135,7 @@ function editProductForm({ draftId, categories, values, error, imageLimit }) {
     '<select class="field__input" id="status-field" name="status">' +
     [['active','ئاشکرا'],['hidden','شاراوە'],['archived','ئەرشیفکراو']].map(([key,label]) =>
       '<option value="' + key + '"' + (values.status === key ? ' selected' : '') + '>' + label + '</option>').join('') +
-    '</select><p class="field__hint">لە پلانی بەخۆڕاییدا یەکەم پێنج بەرهەمی ئاشکرا بە ڕیزی دوکان پیشان دەدرێن. بۆ گۆڕینی هەڵبژاردەکان، بەرهەمێک بشارەوە. بەرهەمە شاراوەکانیش لە سنووری پاشەکەوتدا هەژمار دەکرێن.</p></div>' +
+    `</select><p class="field__hint">لە پلانی بەخۆڕاییدا یەکەم ${new Intl.NumberFormat('ar-IQ').format(FREE_PRODUCT_LIMIT)} بەرهەمی ئاشکرا بە ڕیزی دوکان پیشان دەدرێن. بۆ گۆڕینی هەڵبژاردەکان، بەرهەمێک بشارەوە. بەرهەمە شاراوەکانیش لە سنووری پاشەکەوتدا هەژمار دەکرێن.</p></div>` +
     `<div class="publish-save"><button class="btn btn--primary" type="submit" id="save-btn" data-saving="${esc(T.saving)}">${esc(T.save)}</button>` +
     `<p>تەنها کاڤەر، ناو، پۆل، دۆخ و دەرکەوتن پاشەکەوت دەکرێن.</p></div></form>` +
     `</div>` + productCover() + `<script src="/js/product-cover.js" defer></script>`
