@@ -63,7 +63,7 @@ let subPlan = 'trial';            // trial | month_1 | months_6 | year_1 | free 
 let trialDays = 40;
 
 // app.free_product_limit(): products allowed during the free period.
-const FREE_PRODUCTS = 5;
+const FREE_PRODUCTS = 30;
 let suspended = false;            // the admin's stop button
 let productCount = 0;             // how many products the shop has
 let publicCount = 0;              // how many of them are active
@@ -184,12 +184,12 @@ const stubServer = http.createServer(async (req, res) => {
   if (p.startsWith('/__products/')) {
     productCount = Number(p.split('/')[2]);
     // Unless a test says otherwise, every product a shop has is up.
-    publicCount = Math.min(productCount, 5);
+    publicCount = Math.min(productCount, FREE_PRODUCTS);
     return send({ productCount, publicCount });
   }
-  // How many are active, for the one rule only an edit can meet: five
+  // How many are active, for the one rule only an edit can meet: thirty
   // public at once on Free. A lapsed shop has more products than that
-  // and five of them showing.
+  // and thirty of them showing.
   // The share-image ladder: a seller's link must preview the seller.
   // '-' clears one, so a test can walk cover -> logo -> product -> brand.
   if (p.startsWith('/__cover/')) { const v = decodeURIComponent(p.slice(9)); shopCover = v === '-' ? null : v; return send({ shopCover }); }

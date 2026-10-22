@@ -1,4 +1,4 @@
-import { CITY_LABEL, SHOP_SHARING, SUBSCRIPTION as S, SUPPORT_WHATSAPP } from '../config.js';
+import { CITY_LABEL, SHOP_SHARING, SUBSCRIPTION as S, SUPPORT_WHATSAPP, FREE_PRODUCT_LIMIT, FREE_IMAGE_LIMIT } from '../config.js';
 import { esc } from './html.js';
 import { iconBack, iconDocument, iconExternal, iconLogout,
   iconPhone, iconPin, iconShield, iconStore, iconWhatsapp, iconLink } from './icons.js';
@@ -58,6 +58,9 @@ function subscriptionCard(subscription) {
   const warning = ['suspended', 'free'].includes(key) ? null : planWarning(plan);
   const hasTime = ['active', 'pending'].includes(key);
   const renew = key !== 'none' && Boolean(warning);
+  // Free usage is not an upsell surface. Paid history still has billing access.
+  const paidHistory = subscription?.billingHistory || ['month_1', 'months_6', 'year_1'].includes(state?.plan);
+  const billingAccess = key !== 'free' || paidHistory || plan?.pending || state?.can_publish === false;
   return `<section class="settings-plan" aria-labelledby="settings-plan-title"${key ? ` data-status="${esc(key)}"` : ''}>` +
     `<div class="settings-plan__top">` +
     `<div class="settings-plan__identity"><p class="settings-plan__eyebrow">پلانی ئێستا</p>` +
@@ -69,9 +72,9 @@ function subscriptionCard(subscription) {
       : hasTime ? `<p class="settings-plan__remaining">${plan.days} ڕۆژ ماوە</p>` : '') +
     `<p class="settings-plan__date" id="settings-plan-detail">` +
     (date ? `کۆتایی: <time datetime="${esc(date)}" dir="ltr">${date.replaceAll('-', '/')}</time>`
-      : key === 'free' ? 'بەخۆڕایی بێ کۆتایی · تا 5 بەرهەم و 5 وێنە بۆ هەر بەرهەمێک' : !key ? 'وردەکاری پلان لە ئێستادا بەردەست نییە.' : '') + `</p>` +
-    `<a class="settings-plan__action" href="/app/subscription" id="settings-subscription">` +
-    `${renew ? 'نوێکردنەوەی پلان' : 'بینینی پلانەکان'} ${arrow}</a></section>`;
+      : key === 'free' ? `بەخۆڕایی بێ کۆتایی · تا ${FREE_PRODUCT_LIMIT} بەرهەم و ${FREE_IMAGE_LIMIT} وێنە بۆ هەر بەرهەمێک` : !key ? 'وردەکاری پلان لە ئێستادا بەردەست نییە.' : '') + `</p>` +
+    (billingAccess ? `<a class="settings-plan__action" href="/app/subscription" id="settings-subscription">` +
+    `${paidHistory || plan?.pending ? 'بەڕێوەبردنی بەشداریکردن' : renew ? 'نوێکردنەوەی پلان' : 'بینینی پلانەکان'} ${arrow}</a>` : '') + `</section>`;
 }
 
 /** Account stays at the existing protected /app fragment. */

@@ -17,12 +17,12 @@ import { shopPage } from '../render/shop.js';
 /**
  * How close the plan is to running out, for the banner.
  *
- * Three cheap reads: the dates, whether a transfer is waiting on the
+ * Owner-scoped reads: the dates, whether a transfer is waiting on the
  * owner, and which banners this shop has already closed. None of them
  * is allowed to break the dashboard — a failure just means no banner.
  */
 async function planBanner(env, token, shopId) {
-  const [stateRes, intentRes, closedRes] = await Promise.all([
+  const [stateRes, intentRes, closedRes, recordRes] = await Promise.all([
     asUser(env, token, 'rpc/subscription_state', {
       method: 'POST', body: { p_shop: shopId },
     }),
@@ -34,6 +34,11 @@ async function planBanner(env, token, shopId) {
     }),
     asUser(env, token, 'plan_banner_dismissals', {
       search: { select: 'kind,dismissed_at', shop_id: `eq.${shopId}`, limit: '10' },
+    }),
+    // Effective Free intentionally masks an expired paid plan. Read only its
+    // original plan under the owner's RLS to preserve neutral billing access.
+    asUser(env, token, 'subscriptions', {
+      search: { select: 'plan', shop_id: `eq.${shopId}`, limit: '1' },
     }),
   ]);
 
@@ -47,7 +52,8 @@ async function planBanner(env, token, shopId) {
 
   const pending = intentRes.ok ? Boolean(intentRes.data?.length) : false;
   const plan = planState(state, pending);
-  return { banner: bannerFor(plan, PLAN_BANNER, dismissed), subscription: { state, plan } };
+  const billingHistory = recordRes.ok && ['month_1', 'months_6', 'year_1'].includes(recordRes.data?.[0]?.plan);
+  return { banner: state.tier === 'free' ? null : bannerFor(plan, PLAN_BANNER, dismissed), subscription: { state, plan, billingHistory } };
 }
 
 /**

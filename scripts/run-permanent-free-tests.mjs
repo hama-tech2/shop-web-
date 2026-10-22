@@ -56,7 +56,7 @@ async function run(name,args) {
 try {
   if(await reachable(APP) || await reachable(STUB)) throw new Error('Test ports in use. Stop prior local test servers before running this isolated suite.');
   if(!only) {
-    await run('database',['--test','scripts/permanent-free-db-test.mjs','scripts/permanent-free-integration-db-test.mjs','scripts/permanent-free-regression-test.mjs']);
+    await run('database',['--test','scripts/permanent-free-db-test.mjs','scripts/permanent-free-integration-db-test.mjs','scripts/permanent-free-regression-test.mjs','scripts/free-thirty-db-test.mjs']);
     await run('image-sitemap',['--test','scripts/image-sitemap-test.mjs']);
     await run('whatsapp',['--test','scripts/whatsapp-test.mjs']);
     await run('product-preview',['--test','scripts/product-preview-test.mjs']);

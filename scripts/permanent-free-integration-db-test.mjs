@@ -22,12 +22,12 @@ test('atomic owner RPCs execute PostgreSQL transactions and RLS with isolated da
     await denial(()=>publish(1,[images(1)[0],images(1)[0]]),'21000');
     assert.equal((await db.query('select count(*)::int n from public.products')).rows[0].n,0);
   });
-  await t.test('five atomic publishes and retry at full quota work; sixth is blocked',async()=>{
-    for(let n=1;n<=5;n++) await publish(n);
-    await publish(5);
-    await denial(()=>publish(6),'SW001');
-    assert.equal((await db.query('select count(*)::int n from public.products')).rows[0].n,5);
-    assert.equal((await db.query('select count(*)::int n from public.product_images')).rows[0].n,25);
+  await t.test('thirty atomic publishes and retry at full quota work; thirty-first is blocked',async()=>{
+    for(let n=1;n<=30;n++) await publish(n);
+    await publish(30);
+    await denial(()=>publish(31),'SW001');
+    assert.equal((await db.query('select count(*)::int n from public.products')).rows[0].n,30);
+    assert.equal((await db.query('select count(*)::int n from public.product_images')).rows[0].n,150);
   });
   await t.test('conflicting draft retry is rejected without overwriting',async()=>{
     await denial(()=>db.query('select public.publish_product($1,$2,$3,$4)',[id(5),shop,{...values,title:'Different'},images(5)]),'22023');
@@ -38,32 +38,32 @@ test('atomic owner RPCs execute PostgreSQL transactions and RLS with isolated da
   });
   await t.test('status changes preserve Home preference and do not release storage',async()=>{
     await db.query('select public.update_product($1,$2,$3)',[id(1),{title:values.title,status:'archived',visibility:'profile'},images(1)]);
-    await denial(()=>publish(6),'SW001');
+    await denial(()=>publish(31),'SW001');
     const row=(await db.query('select * from public.owner_products($1)',[shop])).rows;
-    assert.equal(row.length,5); assert.equal(row.filter(r=>r.owner_products.publicly_eligible).length,4);
+    assert.equal(row.length,30); assert.equal(row.filter(r=>r.owner_products.publicly_eligible).length,29);
     assert.equal(row[0].owner_products.product_images.length,5);
   });
   await db.exec('commit');
   await t.test('strangers cannot read owner stock, publish or edit; anon cannot call RPC',async()=>{
     await actor(stranger);
     await denial(()=>db.query('select * from public.owner_products($1)',[shop]),'42501');
-    await denial(()=>publish(6),'42501');
+    await denial(()=>publish(31),'42501');
     await denial(()=>db.query('select public.update_product($1,$2,$3)',[id(2),values,images(2)]),'42501');
     await db.exec('rollback; begin; set local role anon');
-    await denial(()=>publish(6),'42501'); await db.exec('rollback');
+    await denial(()=>publish(31),'42501'); await db.exec('rollback');
   });
   await t.test('expiry requires no cleanup and upgrading restores only active candidates',async()=>{
     await db.query("update public.subscriptions set plan='months_6',status='active',paid_starts_at=now()-interval '1 day',expires_at=now()+interval '1 day' where shop_id=$1",[shop]);
-    await actor(owner); await publish(6); await publish(7); await db.exec('commit');
+    await actor(owner); await publish(31); await publish(32); await db.exec('commit');
     await db.query("update public.subscriptions set expires_at=now()-interval '4 days' where shop_id=$1",[shop]);
     await actor(owner);
     const retained=(await db.query('select * from public.owner_products($1)',[shop])).rows;
-    assert.equal(retained.length,7); assert.equal(retained.filter(r=>r.owner_products.publicly_eligible).length,5);
+    assert.equal(retained.length,32); assert.equal(retained.filter(r=>r.owner_products.publicly_eligible).length,30);
     await db.exec('commit');
     await db.query("update public.subscriptions set expires_at=now()+interval '180 days' where shop_id=$1",[shop]);
     await actor(owner);
-    assert.equal((await db.query('select * from public.owner_products($1)',[shop])).rows.filter(r=>r.owner_products.publicly_eligible).length,6);
+    assert.equal((await db.query('select * from public.owner_products($1)',[shop])).rows.filter(r=>r.owner_products.publicly_eligible).length,31);
     await db.exec('commit');
-    assert.equal((await db.query('select count(*)::int n from public.product_images')).rows[0].n,35);
+    assert.equal((await db.query('select count(*)::int n from public.product_images')).rows[0].n,160);
   });
 });

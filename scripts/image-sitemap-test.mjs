@@ -88,9 +88,9 @@ test('sitemap reads preserve anonymous PostgreSQL product/image eligibility thro
   await db.query('insert into auth.users(id) values ($1)', [owner]);
   await db.query("insert into public.shops(id,owner_id,slug,name,whatsapp) values ($1,$2,'synthetic-shop','Synthetic','+9647000000000')", [shop, owner]);
   await db.query("update public.subscriptions set plan='months_6',status='active',paid_starts_at=now()-interval '1 day',expires_at=now()+interval '180 days' where shop_id=$1", [shop]);
-  for (let n = 1; n <= 8; n++) {
+  for (let n = 1; n <= 33; n++) {
     await db.query(`insert into public.products(id,shop_id,title,price,status,visibility,sort_order)
-      values ($1,$2,'Synthetic',1000,$3,$4,$5)`, [id(n), shop, n === 7 ? 'hidden' : n === 8 ? 'archived' : 'active', n === 1 ? 'profile' : 'everyone', n]);
+      values ($1,$2,'Synthetic',1000,$3,$4,$5)`, [id(n), shop, n === 32 ? 'hidden' : n === 33 ? 'archived' : 'active', n === 1 ? 'profile' : 'everyone', n]);
     await db.query('insert into public.product_images(product_id,shop_id,r2_key,position) values ($1,$2,$3,1)', [id(n), shop, key(n)]);
   }
   transport(t, async (table, params) => {
@@ -109,19 +109,19 @@ test('sitemap reads preserve anonymous PostgreSQL product/image eligibility thro
     assert.deepEqual(productLocs(xml).sort(), numbers.map(n => `${origin}/@synthetic-shop/p/${id(n)}`).sort());
     assert.deepEqual(imageLocs(xml).sort(), numbers.map(n => `${origin}/img/${key(n)}`).sort());
   };
-  await assertPublic([1, 2, 3, 4, 5, 6]);
+  await assertPublic(Array.from({length:31},(_,i)=>i+1));
   await db.query("update public.subscriptions set expires_at=now()-interval '1 day',grace_days=3 where shop_id=$1", [shop]);
-  await assertPublic([1, 2, 3, 4, 5, 6]);
+  await assertPublic(Array.from({length:31},(_,i)=>i+1));
   await db.query("update public.subscriptions set expires_at=now()-interval '4 days' where shop_id=$1", [shop]);
-  await assertPublic([1, 2, 3, 4, 5]);
+  await assertPublic(Array.from({length:30},(_,i)=>i+1));
   await db.query("update public.subscriptions set expires_at=now()+interval '180 days' where shop_id=$1", [shop]);
-  await assertPublic([1, 2, 3, 4, 5, 6]);
+  await assertPublic(Array.from({length:31},(_,i)=>i+1));
   for (const status of ['suspended', 'banned']) {
     await db.query('update public.shops set status=$1 where id=$2', [status, shop]);
     await assertPublic([]);
   }
-  assert.equal((await db.query('select count(*)::int n from public.products')).rows[0].n, 8);
-  assert.equal((await db.query('select count(*)::int n from public.product_images')).rows[0].n, 8);
+  assert.equal((await db.query('select count(*)::int n from public.products')).rows[0].n, 33);
+  assert.equal((await db.query('select count(*)::int n from public.product_images')).rows[0].n, 33);
   assert.deepEqual((await db.query('select id,status,visibility from public.products order by sort_order')).rows.map(p => [p.status, p.visibility]),
-    Array.from({ length: 8 }, (_, n) => [n === 6 ? 'hidden' : n === 7 ? 'archived' : 'active', n === 0 ? 'profile' : 'everyone']));
+    Array.from({ length: 33 }, (_, n) => [n === 31 ? 'hidden' : n === 32 ? 'archived' : 'active', n === 0 ? 'profile' : 'everyone']));
 });

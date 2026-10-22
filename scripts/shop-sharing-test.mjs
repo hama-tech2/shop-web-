@@ -48,7 +48,7 @@ try {
  await page.screenshot({path:'.local/sharing-shots/owner-mobile.png',fullPage:true});
  await page.locator('#owner-management-toggle').click();
  await page.locator('#settings-open').click();
- check('existing Settings identity/subscription/profile/support/logout remain',await page.locator('.settings-identity').isVisible()&&await page.locator('#settings-subscription').isVisible()&&await page.locator('.settings-edit').isVisible()&&await page.locator('.settings-logout').isVisible()&&await page.getByText('پشتیوانی و یاسایی',{exact:true}).isVisible());
+ check('existing Settings identity/Free card/profile/support/logout remain without upsell',await page.locator('.settings-identity').isVisible()&&await page.locator('.settings-plan').isVisible()&&await page.locator('#settings-subscription').count()===0&&await page.locator('.settings-edit').isVisible()&&await page.locator('.settings-logout').isVisible()&&await page.getByText('پشتیوانی و یاسایی',{exact:true}).isVisible());
  await page.getByRole('link',{name:'کۆدی QR ـی دوکان',exact:true}).click();
  await page.waitForSelector('#shop-qr-canvas:not([hidden])');
  const response=await fetch(APP+'/app/qr?slug=someone-else&shop_id=foreign',{headers:{cookie:'sb-access=TEST'}});

@@ -99,7 +99,7 @@ export const SITE_IDENTITY = {
   ],
   url: `${SITE_ORIGIN}/`,
   description:
-    'لە بازاڕۆ دوکانێکی ئۆنلاین بەخۆڕایی لە کوردستان دروست بکە؛ ٥ بەرهەم بێ کاتی بەسەرچوون بڵاو بکەوە و لینکی دوکانەکەت یان کۆدی QR هاوبەش بکە. کاڵای دوکانە ناوخۆییەکان ببینە.',
+    'لە بازاڕۆ دوکانێکی ئۆنلاین بەخۆڕایی لە کوردستان دروست بکە؛ ٣٠ بەرهەم بێ کاتی بەسەرچوون بڵاو بکەوە و لینکی دوکانەکەت یان کۆدی QR هاوبەش بکە. کاڵای دوکانە ناوخۆییەکان ببینە.',
 };
 
 /** Products per page. The feed asks for one extra to know if more exist. */
@@ -392,8 +392,8 @@ export const PRODUCT = {
   // seller's to change. Both must say so instead of claiming success.
   errGone: 'ئەم بەرهەمە نەدۆزرایەوە. لەوانەیە پێشتر سڕابێتەوە.',
 
-  // Five products may be public at once on Free. The seller is not
-  // stuck: hiding one of the five makes room for this one, and nothing
+  // Thirty products may be public at once on Free. The seller is not
+  // stuck: hiding one public candidate makes room for another, and nothing
   // they own is going anywhere in the meantime.
   errPublicFull: (n) =>
     `لە ماوە بەخۆڕاییەکەدا تەنها ${n} بەرهەم دەتوانن ئاشکرا بن. ` +
@@ -563,9 +563,9 @@ export const SUBSCRIPTION = {
   stateTrialLast: 'پلانی بەخۆڕایی',
   statePending: 'چاوەڕوانی پشتڕاستکردنەوە',
   stateActive: (d) => `چالاکە تا ${d}`,
-  stateGrace: (n) => `پلانی پارەدراو تەواو بووە. ${n} ڕۆژ لە ماوەی زیادە ماوە؛ پاشان تا 5 بەرهەم ئاشکرا دەبن.`,
+  stateGrace: (n) => `پلانی پارەدراو تەواو بووە. ${n} ڕۆژ لە ماوەی زیادە ماوە؛ پاشان تا 30 بەرهەم ئاشکرا دەبن.`,
   stateExpired: 'پلانەکەت تەواو بووە. بەرهەمەکانت پارێزراون؛ ' +
-    'لە پلانی بەخۆڕاییدا تا 5 بەرهەم ئاشکرا دەبن.',
+    'لە پلانی بەخۆڕاییدا تا 30 بەرهەم ئاشکرا دەبن.',
 
   // ---- the free month ----
   //
@@ -576,7 +576,7 @@ export const SUBSCRIPTION = {
   trialName: 'پلانی بەخۆڕایی',
   trialDaysLeft: (n) => `${n} ڕۆژ لە ماوە بەخۆڕاییەکەت ماوە.`,
   trialLastDay: 'ئەمڕۆ ڕۆژی کۆتایی ماوە بەخۆڕاییەکەتە.',
-  trialThenPay: 'بەخۆڕایی بەبێ کۆتایی؛ تا 5 بەرهەم، هەر بەرهەمێک تا 5 وێنە.',
+  trialThenPay: 'بەخۆڕایی بەبێ کۆتایی؛ تا 30 بەرهەم، هەر بەرهەمێک تا 5 وێنە.',
 
   // Bought during the free month. The plan is theirs; it simply has not
   // started yet, and saying which day it starts is the whole point.
@@ -631,7 +631,7 @@ export const SUBSCRIPTION = {
   payVia: 'پارەدان لە ڕێگەی FIB',
 
   // ---- the Free plan, said where a seller meets one of its two
-  // limits: five products, one image each. Nothing here starts or ends
+  // limits: thirty products, five images each. Nothing here starts or ends
   // anything — Free is where every shop already is. ----
   freeName: 'پلانی بەخۆڕایی',
   freeAllowance: (n, i) => `بەبێ کۆتایی؛ تا ${n} بەرهەم، هەر بەرهەمێک تا ${i} وێنە.`,
@@ -658,7 +658,7 @@ export const SUBSCRIPTION = {
   warnSoon: (n) => `${n} ڕۆژ لە پلانەکەت ماوە.`,
   warnUrgent: (n) => `تەنها ${n} ڕۆژ ماوە.`,
   warnLast: 'سبەی پلانەکەت تەواو دەبێت.',
-  warnExpired: 'پلانی پارەدراوت تەواو بووە. پاش ماوەی زیادە، تا 5 بەرهەم ئاشکرا دەبن؛ هەموو بەرهەمەکانت پارێزراون.',
+  warnExpired: 'پلانی پارەدراوت تەواو بووە. پاش ماوەی زیادە، تا 30 بەرهەم ئاشکرا دەبن؛ هەموو بەرهەمەکانت پارێزراون.',
   warnNone: 'هێشتا پلانێکت نییە.',
   warnAction: 'نوێکردنەوە / بینینی پلانەکان',
   // Renewal is a payment the seller makes, every time. Nothing here
@@ -752,26 +752,18 @@ export const TELEGRAM = {
 export const FIB_NUMBER = '07515298365';
 
 /**
- * Products a shop may publish on the free trial. Paid plans are
- * unlimited.
- *
- * app.trial_product_limit() in the database is the same number and is
- * what actually refuses the insert; scripts/plan-limits-test.mjs fails
- * if the two drift apart.
- */
-/**
  * The permanent Free plan.
  *
  * Not a countdown. Every shop is on Free from the moment it exists: the
  * storefront is public, the link works, and the seller may keep this
  * many products, with this many images each. Delete one and the slot
- * comes back. Paying lifts both.
+ * comes back. Paid storage allowances are unchanged; images stay at five.
  *
  * app.free_product_limit() and app.free_image_limit() in the database
  * hold the same two numbers and are what actually refuse the write;
  * scripts/plan-limits-test.mjs fails if they drift apart.
  */
-export const FREE_PRODUCT_LIMIT = 5;
+export const FREE_PRODUCT_LIMIT = 30;
 
 /**
  * Five images, the same number a paid plan gets — and the same number
@@ -784,7 +776,7 @@ export const FREE_PRODUCT_LIMIT = 5;
  */
 export const FREE_IMAGE_LIMIT = 5;
 
-/** The free period, in days. app.trial_days() must say the same. */
+/** Legacy compatibility values only; permanent Free has no expiration. */
 export const TRIAL_PRODUCT_LIMIT = FREE_PRODUCT_LIMIT;
 export const TRIAL_DAYS = 60;
 
@@ -804,7 +796,7 @@ export const TRIAL_DAYS = 60;
 export const PLAN_BANNER = {
   soon: (n) => `${n} ڕۆژ لە پلانەکەت ماوە`,
   soonOne: 'سبەی پلانەکەت تەواو دەبێت',
-  grace: (n) => `پلانی پارەدراوت تەواو بووە. ${n} ڕۆژ لە ماوەی زیادە ماوە؛ پاشان تا 5 بەرهەم ئاشکرا دەبن. هەموو بەرهەمەکانت پارێزراون.`,
+  grace: (n) => `پلانی پارەدراوت تەواو بووە. ${n} ڕۆژ لە ماوەی زیادە ماوە؛ پاشان تا 30 بەرهەم ئاشکرا دەبن. هەموو بەرهەمەکانت پارێزراون.`,
   hidden: 'پلانی پارەدراوت تەواو بووە. بەرهەمە شاراوەکان پارێزراون؛ خۆت هەڵبژێرە کام بەرهەم ئاشکرا بێت.',
   pending: 'ناردنەکەت لە چاوەڕوانی پشتڕاستکردنەوەدایە.',
   action: 'پارەدان',

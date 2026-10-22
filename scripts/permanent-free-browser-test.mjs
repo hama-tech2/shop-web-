@@ -5,7 +5,7 @@ import { setTimeout as delay } from 'node:timers/promises';
 const APP='http://127.0.0.1:8810',STUB='http://127.0.0.1:8899';
 const owner='aaaaaaaa-1111-4111-8111-111111111111';
 const control=path=>fetch(STUB+path).then(r=>r.json());
-for(const path of ['/__mode/shop','/__plan/free','/__trial/-100','/__products/4','/__rows/1','/__mixed/0','/__suspended/0']) await control(path);
+for(const path of ['/__mode/shop','/__plan/free','/__trial/-100','/__products/29','/__rows/1','/__mixed/0','/__suspended/0']) await control(path);
 const browser=await chromium.launch({executablePath:process.env.CHROME || 'C:/Program Files/Google/Chrome/Application/chrome.exe',args:['--disable-background-networking','--disable-component-update']});
 const context=await browser.newContext({viewport:{width:390,height:844}});
 await context.addCookies([{name:'sb-access',value:'TEST',url:APP}]);
@@ -32,8 +32,8 @@ try {
   await page.locator('.owner-control--primary').click();
   await page.waitForURL(APP+'/app/new');
   await page.waitForFunction(()=>document.querySelector('#product-form')?.dataset.ready==='true');
-  check('Add Product opens the fifth product form directly',await page.locator('#product-form').isVisible());
-  check('no subscription choice or checkout script before the fifth product',await page.locator('.billing--gate, #start-trial, script[src="/js/checkout.js"]').count()===0);
+  check('Add Product opens the thirtieth product form directly',await page.locator('#product-form').isVisible());
+  check('no subscription choice or checkout script before the thirtieth product',await page.locator('.billing--gate, #start-trial, script[src="/js/checkout.js"]').count()===0);
   await page.locator('#f-title').fill('Draft browser fixture');
   await page.locator('#f-price').fill('12500');
   await page.locator('#f-description').fill('Keep unfinished text');
@@ -56,7 +56,7 @@ try {
   check('title survives upgrade navigation',await page.locator('#f-title').inputValue()==='Draft browser fixture');
   check('description survives upgrade navigation',await page.locator('#f-description').inputValue()==='Keep unfinished text');
   check('all five image previews recovered',await page.locator('.publish-photo').count()===5);
-  await control('/__products/5');
+  await control('/__products/30');
   await page.locator('#save-btn').click();
   await page.waitForSelector('[data-draft-upgrade]');
   await page.waitForFunction(()=>document.querySelector('#product-form')?.dataset.ready==='true');
@@ -65,14 +65,14 @@ try {
   await page.waitForSelector('[data-resume-draft]');
   await page.locator('[data-resume-draft]').click();
   await page.waitForFunction(()=>document.querySelector('#product-form')?.dataset.ready==='true');
-  await control('/__products/4');
+  await control('/__products/29');
   await context.route(APP+'/app?published=*',async route=>{
-    await control('/__products/5'); await route.continue();
+    await control('/__products/30'); await route.continue();
   },{times:1});
   await page.locator('#save-btn').click();
   await page.waitForURL('**/app?published=*');
   await waitDraft(draft=>!draft);
-  check('publishing the fifth returns home without an automatic upgrade',new URL(page.url()).pathname==='/app' && await page.locator('.billing--gate').count()===0);
+  check('publishing the thirtieth returns home without an automatic upgrade',new URL(page.url()).pathname==='/app' && await page.locator('.billing--gate').count()===0);
   check('successful publish clears only the saved owner draft',await page.locator('[data-resume-draft]').count()===0);
   await page.goBack();
   // With no-store, Chrome may reload the existing plan-choice gate instead
@@ -84,16 +84,16 @@ try {
   check('browser Back does not recreate a committed draft',
     await page.locator('.billing--gate').count()===1 || await page.locator('#save-btn').isDisabled());
   await page.goto(APP+'/app');
-  await control('/__products/5');
+  await control('/__products/30');
   await page.locator('.owner-control--primary').click();
   await page.waitForSelector('.billing--gate');
-  check('Add Product for the sixth shows the existing upgrade page',await page.locator('#product-form, #start-trial').count()===0 && await page.locator('form[action="/app/subscription/checkout"]').count()>0);
-  await control('/__products/4');
+  check('Add Product for the thirty-first shows the existing upgrade page',await page.locator('#product-form, #start-trial').count()===0 && await page.locator('form[action="/app/subscription/checkout"]').count()>0);
+  await control('/__products/29');
   await page.goto(APP+'/app');
   await page.locator('#owner-management-toggle').click();
   await page.locator('#settings-open').click();
   await page.waitForFunction(()=>location.hash==='#account-settings');
-  check('existing Settings identity/profile/navigation retained',await page.locator('.settings-identity').isVisible() && await page.locator('#settings-subscription').isVisible());
+  check('existing Settings identity/card/navigation retained without a Free upsell',await page.locator('.settings-identity').isVisible() && await page.locator('.settings-plan').isVisible() && await page.locator('#settings-subscription').count()===0);
   await page.locator('#settings-back').click();
   check('Settings Back returns to existing owner screen',await page.locator('.owner-controls').isVisible());
   for(const width of [360,390,430]) {

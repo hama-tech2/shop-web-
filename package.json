@@ -37,7 +37,7 @@
     "test:visibility": "node scripts/visibility-test.mjs",
     "test:visibility-ui": "node scripts/visibility-ui-test.mjs",
     "test:admin-access": "node scripts/admin-access-test.mjs",
-    "test:free-db": "node --test scripts/permanent-free-db-test.mjs scripts/permanent-free-integration-db-test.mjs scripts/permanent-free-regression-test.mjs",
+    "test:free-db": "node --test scripts/permanent-free-db-test.mjs scripts/permanent-free-integration-db-test.mjs scripts/permanent-free-regression-test.mjs scripts/free-thirty-db-test.mjs",
     "test:free-worker": "node --test scripts/plan-state-test.mjs scripts/permanent-free-worker-test.mjs",
     "test:free-browser": "node scripts/permanent-free-browser-test.mjs",
     "test:permanent-free": "node scripts/run-permanent-free-tests.mjs"

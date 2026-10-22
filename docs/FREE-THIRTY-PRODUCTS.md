@@ -1,0 +1,42 @@
+# Permanent Free: thirty stored products
+
+22 October 2026. Base main `c483afca3e2621ef422b605fa722055685fb5b35`, repository `hama-tech2/shop-web-`. Review branch only: no production database, deployment, security setting, payment, account or R2 object changed.
+
+## Audit and implementation
+
+- The current production-version source centralized the five-product quota in `app.free_product_limit()`. Storage insert/transfer triggers, atomic publishing, slots, and derived public product/image RLS already use it. Subscription dates/grace/payment functions do not need rewriting. The existing Add Product GET already opens the normal form whenever authoritative `can_publish` is true; that route needs no behavior change.
+- New **forward-only** migration `20261022120000_free_thirty_products.sql` replaces just that helper with 30, retains its permissions, and updates its comment. It checks for the permanent-Free predecessor/public-entitlement helper and expected quota values before changing anything, within one transaction. Historical SQL is untouched. There is no DML, reset, subscription conversion, new table or product/image backfill.
+- Worker quota becomes 30. Images remain five for everyone, paid limits remain 1,000 stored products, prices remain six months 5,000 IQD and annual 9,000 IQD. Wayl adapter, activation, anti-stacking, callbacks, verification, idempotency, grace and historical one-month/complimentary entitlements are unchanged.
+- Current UI messages, homepage description/WebSite identity, seller prompt and `/free-shop` now say thirty. The landing explains product31 requires Premium or deleting a product. Hidden/archived products count toward storage. Changing visibility/status never creates a storage slot. Deleting a product does.
+- Free owner pages show no subscription banner, checkout popup or Settings promotion under the cap. Settings retains its existing Free summary and all other controls. At full quota its existing plan action is available. Current/scheduled/grace and expired paid sellers, and sellers with an existing pending payment, keep a neutral billing-management action. Because effective subscription state intentionally masks an expired paid plan, the owner page now reads only the original subscription `plan`, with the existing owner's token, shop filter, row limit and RLS. No service-role access or new permission is introduced. Explicit billing URLs remain available.
+- At paid expiry, storage reverts to Free30 immediately; stored public grace still applies exactly as before. After grace, the same stable whole-shop ranking selects at most thirty active eligible products (`sort_order ASC, created_at DESC, id ASC`). Hidden/archived products and seller Home/profile preferences remain untouched. Upgrading restores eligible active products; it does not reactivate seller-hidden items. Suspended/banned shops remain restricted.
+
+## Safety and verification
+
+All database tests use in-memory PostgreSQL/PGlite with the existing synthetic Supabase role/auth shim. They execute real constraints, triggers, RPCs and RLS, but do not verify hosted Supabase JWT/PostgREST, production query plans or true independent-session races. The existing subscription-row locking and payment functions are unchanged; do not claim a mock browser quota race proves production multi-session concurrency.
+
+The new migration tests cover zero-expiry Free30, exact30/31 boundaries, hidden/archived storage accounting, deletion, paid surplus retention, public product/image selection, suspension/bans, historical one-month dates, custom grace, function/ACL preservation, compatibility rejection and transaction rollback after an injected failure. They compare all synthetic public/auth table rows before and after migration and every other database function's definition/permissions. Prepared quota reads are warmed under Free5, then verified to report25 available slots for the same five stored products after the helper changes to30.
+
+The original five-product predecessor migration tests remain explicitly historical and scoped to that migration; they are not presented as current thirty-product coverage. Current atomic integration and image-sitemap tests replay every migration with thirty-product scenarios, including the31st product and surplus visibility after grace. Existing six-month complimentary grant and payment-history tests remain in the historical regression, while the new migration's zero-DML/every-other-function equality tests protect those same records/functions from this change.
+
+Worker/browser tests cover products1–30 directly, successful30th publication without automatic upgrade, explicit31st attempt showing the existing plans, five-image preservation, sixth-image refusal, quota-race draft recovery, no Free promotions, paid/pending billing access, unchanged owner navigation and public/WhatsApp/QR paths. Tests never create production products or payments.
+
+Fresh comprehensive run: **26/26 groups PASS**, database44 checks (including historical predecessor and current30 integration), Wayl128/128, SEO123/123, responsive no-JS discovery42/42, draft/30th/31st browser29/29 and QR sharing39/39. The subsequently expanded migration/prepared-read/owner-RLS tests passed **4/4** separately. Final Worker **9/9 PASS**, including pending-payment billing access. Syntax129/129 files and whitespace checks passed. The full summary is preserved separately under `.local/free-thirty-full-summary.json`. No production schema/backup verification or true multi-session race test is claimed. No failing assertion remains.
+
+## Risks and future release order
+
+1. **Separate production approval required.** This PR does not verify a fresh authenticated production schema/backup or apply a migration. At release, verify the exact existing Supabase project `kvwgiobnpwrjwyevadvc`, latest migration history, helper definitions/dependents and a recoverable backup first. Do not reapply the original permanent-Free migration.
+2. Apply only the new helper migration, verify30/five-image/security/paid-date invariants, then promptly deploy the matching merged Worker/assets. Deploying the Worker first would advertise30 while the database still blocks at5. A short database-first gap can leave old UI wording temporarily stale; keep the release coordinated.
+3. Existing retained active products ranked6–30 can become public under the expanded Free allowance. This is the intended quota growth and respects their existing public eligibility; no hidden/archived product is reactivated. Review that exposure implication with the release, rather than silently changing stored visibility preferences.
+4. Free storage capacity grows up to150 photos per shop, with existing card/full variants. Monitor R2/traffic/CPU costs; do not loosen existing upload/rate/security limits. Paid allowances/prices are not changed to compensate.
+5. Do not roll back the database limit to5 after sellers use the increased allowance: that would restrict visibility/capacity again. Prefer a forward correction if a later problem is found. Preserve every row/object and original paid expiry/grace date.
+
+Next owner action: review the PR. Merge and production release remain separate approvals.
+
+## PR #38 review correction — 23 October 2026
+
+The Edit Product status hint now renders the shared `FREE_PRODUCT_LIMIT` in localized digits (٣٠), replacing the stale first-five wording. The rendered authenticated edit route is regression-tested at thirty stored products, including the status control, hidden-product storage guidance and unchanged five-image allowance. A search of shipped `worker/` and `public/` sources found no other stale customer-facing five-product quota messages; five-image wording remains correct.
+
+Fresh checks for this correction: Worker10/10, publish/edit54/54, both changed JavaScript files' syntax and focused whitespace checks passed. The comprehensive results above belong to the original implementation run, not a new full-suite run. No SQL, production data, payments, deployment or migration was changed by this review correction.
+
+Release preflight: verify a recoverable production backup and baseline record counts/paid expiry and grace dates; verify project `kvwgiobnpwrjwyevadvc`, PostgreSQL17, migration history, helper dependencies/RLS and expected five-or-thirty product/five-image limits; after separate approval, apply only the new forward migration and verify its invariants **before** deploying the matching merged Worker/assets. These production checks remain unexecuted in this PR review.

@@ -243,14 +243,14 @@ check('a form with no visibility field still saves', noField.status, 303);
 
 await control('/__plan/free');
 await control('/__sub/0');
-await control('/__products/5');
+await control('/__products/30');
 const gate = await page('/app/new', true);
-check('a Free seller with five products meets the gate, whatever their visibility',
+check('a Free seller with thirty products meets the gate, whatever their visibility',
   gate.includes('billing--gate') || gate.includes('trial-limit'), true);
 
 // The rule in one line: profile-only is still `status = 'active'`, and
-// app.enforce_free_product_limit counts active rows. Nothing in this
-// change touches that trigger, so there is no way to hold a sixth.
+// app.enforce_free_product_limit counts all stored rows. Nothing in this
+// change touches that trigger, so there is no way to hold a thirty-first.
 check('the insert the gate would have made never carried a non-active status',
   inserts.every((w) => w.body?.p_values?.status === 'active'), true);
 

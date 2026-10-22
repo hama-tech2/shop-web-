@@ -16,7 +16,7 @@ test('historical migrations, deployment configuration and Wayl provider adapter 
   assert.equal(historical.length,45);
   assert.equal(git('diff',BASE,'--',...historical,'worker/wayl.js','worker/cron.js','wrangler.jsonc','supabase/config.toml'), '');
   const files=readdirSync(new URL('../supabase/migrations/',import.meta.url));
-  assert.equal(files.filter(f=>f.endsWith('.sql')).length,46);
+  assert.equal(files.filter(f=>f.endsWith('.sql')).length,47);
 });
 
 test('new migration is forward-only, transactional and contains no product/image/history backfill', () => {

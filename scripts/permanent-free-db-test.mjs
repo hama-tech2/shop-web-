@@ -5,7 +5,7 @@ import { databaseFixture } from './database-fixture.mjs';
 
 const HISTORY_END = '20260927090000_two_months_free.sql';
 const migrations = new URL('../supabase/migrations/', import.meta.url);
-const forward = readdirSync(migrations).filter((f) => f > HISTORY_END && f.endsWith('.sql'));
+const forward = readdirSync(migrations).filter((f) => f > HISTORY_END && f <= '20261013205746_permanent_free_subscription.sql' && f.endsWith('.sql'));
 const id = (n) => `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`;
 const productId = (n) => `10000000-0000-4000-8000-${String(n).padStart(12, '0')}`;
 const actors = { trial: 1, paid: 2, month: 3, lapsed: 4, grace: 5,
@@ -82,7 +82,7 @@ test('new migration rolls back definitions and schema atomically after an inject
   } finally { await db.close(); }
 });
 
-test('permanent Free forward migration and actual PostgreSQL/RLS regression', async (t) => {
+test('historical five-product predecessor migration and PostgreSQL/RLS regression', async (t) => {
   assert.equal(forward.length, 1, 'one new forward-only migration');
   const db = await databaseFixture({ through: HISTORY_END });
   t.after(() => db.close());
