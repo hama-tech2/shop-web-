@@ -99,7 +99,7 @@ export const SITE_IDENTITY = {
   ],
   url: `${SITE_ORIGIN}/`,
   description:
-    'Bazaro — بازاڕۆ (KurdBazaro / Bazarnow)، بازاڕێکی ئۆنلاینە کە دوکانەکان تێیدا بەرهەمەکانیان بڵاو دەکەنەوە و بەستەری دوکانەکەیان هاوبەش دەکەن.',
+    'لە بازاڕۆ دوکانێکی ئۆنلاین بەخۆڕایی لە کوردستان دروست بکە؛ ٥ بەرهەم بێ کاتی بەسەرچوون بڵاو بکەوە و لینکی دوکانەکەت یان کۆدی QR هاوبەش بکە. کاڵای دوکانە ناوخۆییەکان ببینە.',
 };
 
 /** Products per page. The feed asks for one extra to know if more exist. */

@@ -483,6 +483,18 @@ button[data-fav][aria-pressed="true"] svg { fill: currentColor; }
   white-space: nowrap;
 }
 
+.seller-prompt__learn { display: block; min-height: 48px; color: var(--accent); padding-block: 10px; }
+.free-shop { padding: var(--s-5); overflow-wrap: anywhere; }
+.free-shop h1 { font-size: var(--fs-xl); line-height: 1.7; margin: var(--s-5) 0 var(--s-3); }
+.free-shop h2 { font-size: var(--fs-lg); line-height: 1.7; margin-bottom: var(--s-2); }
+.free-shop p, .free-shop li { line-height: 1.9; }
+.free-shop section { margin-block: var(--s-8); }
+.free-shop ol { padding-inline-start: var(--s-6); }
+.free-shop li { margin-block: var(--s-3); }
+.free-shop__back { display: inline-flex; align-items: center; min-height: 44px; color: var(--accent); }
+.free-shop__start { display: inline-flex; align-items: center; min-height: 48px; white-space: normal; margin-top: var(--s-3); }
+.free-shop :is(a):focus-visible, .seller-prompt__learn:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+
 /* Narrow phones: the line wraps above the button rather than squeezing
    both into a strip too tight to read or to tap. */
 @media (max-width: 359px) {

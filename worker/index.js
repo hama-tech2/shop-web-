@@ -23,6 +23,7 @@ import { scheduled } from './cron.js';
 import { webhookPost } from './routes/telegram.js';
 import * as payment from './routes/payment.js';
 import { robotsGet, sitemapGet } from './routes/seo.js';
+import { freeShopGet } from './routes/free-shop.js';
 import { homeLd } from './render/structured-data.js';
 import { productPreviewGet } from './product-preview.js';
 
@@ -129,6 +130,7 @@ async function routeRequest(request, env, ctx) {
       // never behind a session: a crawler has no cookie.
       if (path === '/robots.txt') return robotsGet();
       if (path === '/sitemap.xml') return sitemapGet(env);
+      if (path === '/free-shop' && (method === 'GET' || method === 'HEAD')) return freeShopGet();
       if (path === '/search') return searchGet(env, url);
       if (path === '/saved') return favorites.savedGet(request, env);
       if (path === '/') return feedPage(env, url);
@@ -464,12 +466,18 @@ async function feedPage(env, url) {
     : null;
 
   const isHomepage = !query && !category && !offset;
+  // Tracking/unknown parameters do not create another copy of the feed.
+  // Retain real category, search and pagination views for discovery links.
+  const canonical = new URL('/', SITE_ORIGIN);
+  if (category) canonical.searchParams.set('category', category);
+  if (query) canonical.searchParams.set('q', query);
+  if (offset) canonical.searchParams.set('offset', String(offset));
 
   return new Response(
     layout({
-      title: feedTitle(query),
+      title: feedTitle(query, category),
       description: isHomepage ? SITE_IDENTITY.description : APP_TAGLINE,
-      canonical: new URL(url.pathname + url.search, SITE_ORIGIN).toString(),
+      canonical: canonical.toString(),
       ogImage,
       body,
       scripts: ['/js/feed.js', '/js/favorites.js'],
