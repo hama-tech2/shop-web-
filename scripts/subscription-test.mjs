@@ -346,7 +346,7 @@ for (const [name, path] of [
 await setSub(20);
 
 /* ============================================================
-   4c. five products on the Free plan
+   4c. thirty products on the Free plan
    ============================================================ */
 
 await setPlan('free');

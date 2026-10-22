@@ -208,7 +208,7 @@ function loadMoreHtml({ category, query, nextOffset, hasMore }) {
 const sellerPromptHtml = () =>
   `<aside class="seller-prompt">` +
   `<p class="seller-prompt__text">${esc(UI.sellerPrompt)} ` +
-  `<a class="seller-prompt__learn" href="/free-shop">دوکانی بەخۆڕایی لە کوردستان؛ ٥ بەرهەم و کۆدی QR</a></p>` +
+  `<a class="seller-prompt__learn" href="/free-shop">دوکانی بەخۆڕایی لە کوردستان؛ ٣٠ بەرهەم و کۆدی QR</a></p>` +
   `<a class="seller-prompt__cta" href="/signup">${esc(UI.sellerCta)}</a>` +
   `</aside>`;
 

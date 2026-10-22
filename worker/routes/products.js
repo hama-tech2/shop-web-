@@ -328,11 +328,9 @@ const FREE_FULL = (res) => res.data?.code === 'SW001';
 const SUSPENDED = (res) => res.data?.code === 'SW005';
 
 /**
- * And for "five are already public".
- *
- * Only an edit can meet this one: a Free shop that lapsed from a paid
- * plan keeps everything it had, with five of them up and the rest
- * hidden, and putting a sixth back is the one thing it may not do.
+ * Legacy public-quota error retained for compatibility. Current PostgreSQL
+ * derives the thirty-product public selection without changing stored status
+ * or visibility. Retained surplus products remain editable.
  */
 const PUBLIC_FULL = (res) => res.data?.code === 'SW007';
 
