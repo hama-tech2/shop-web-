@@ -6,7 +6,7 @@
  * Doing it in JavaScript would mean two implementations that drift.
  */
 
-import { PAGE_SIZE, SEARCH as T } from '../config.js';
+import { PAGE_SIZE, SEARCH as T, SITE_ORIGIN } from '../config.js';
 import { layout } from '../render/layout.js';
 import { searchPage, searchTitle } from '../render/search.js';
 import { searchProducts, searchShops } from '../supabase.js';
@@ -44,7 +44,7 @@ export async function searchGet(env, url) {
     layout({
       title: searchTitle(query),
       description: T.placeholder,
-      canonical: new URL(url.pathname + url.search, url).toString(),
+      canonical: new URL(url.pathname + url.search, SITE_ORIGIN).toString(),
       body,
       scripts: ['/js/feed.js', '/js/favorites.js'],
     }),

@@ -168,14 +168,37 @@ check('the WebSite names that Organization as its publisher',
 check('og:site_name is Bazaro', head(home, /og:site_name" content="([^"]*)"/), APP_NAME_LATIN);
 check('the homepage title names the Latin brand',
   (head(home, /<title>([^<]*)<\/title>/) || '').includes(APP_NAME_LATIN), true);
-check('the homepage title carries KurdBazaro',
-  (head(home, /<title>([^<]*)<\/title>/) || '').includes('KurdBazaro'), true);
-check('the homepage title carries the domain identity',
-  (head(home, /<title>([^<]*)<\/title>/) || '').includes('bazarnow.xyz'), true);
+check('the homepage title explains the free online shop',
+  (head(home, /<title>([^<]*)<\/title>/) || '').includes('دوکانی ئۆنلاین بەخۆڕایی'), true);
+check('the homepage title identifies Kurdistan',
+  (head(home, /<title>([^<]*)<\/title>/) || '').includes('کوردستان'), true);
 check('and explains the marketplace',
   head(home, /name="description" content="([^"]*)"/), SITE_IDENTITY.description);
 check('and uses the production canonical',
   head(home, /rel="canonical" href="([^"]*)"/), `${SITE_ORIGIN}/`);
+
+check('homepage links to the public seller explanation', home.includes('href="/free-shop"'), true);
+check('sitemap advertises the public seller explanation', locs.includes(`${SITE_ORIGIN}/free-shop`), true);
+const landingResponse = await fetch(APP + '/free-shop?utm_source=example');
+const landing = await landingResponse.text();
+check('seller landing is public', landingResponse.status, 200);
+check('seller landing canonical ignores tracking', head(landing, /rel="canonical" href="([^"]*)"/), `${SITE_ORIGIN}/free-shop`);
+check('seller landing is indexable', /noindex/i.test(landing + (landingResponse.headers.get('x-robots-tag') || '')), false);
+check('seller landing explains stored-product quota', landing.includes('بەرهەمە شاراوە و ئەرشیفکراوەکانیش'), true);
+check('seller landing explains no expiry', landing.includes('کاتی بەسەرچوونی نییە'), true);
+check('seller landing describes QR downloads', landing.includes('کۆدی QR دابگرە'), true);
+check('seller landing keeps the existing signup route', landing.includes('href="/signup"'), true);
+check('seller landing keeps three navigation tabs', (landing.match(/class="nav__tab"/g) || []).length, 3);
+check('seller landing invents no products or offers', /"@type":"(?:Product|Offer)"/.test(landing), false);
+const trackedHome = await text('/?utm_source=example');
+check('homepage canonical excludes tracking duplicates', head(trackedHome, /rel="canonical" href="([^"]*)"/), `${SITE_ORIGIN}/`);
+const trackedPage = await text('/?offset=6&utm_source=example');
+check('feed canonical retains pagination', head(trackedPage, /rel="canonical" href="([^"]*)"/), `${SITE_ORIGIN}/?offset=6`);
+const clothingFeed = await text('/?category=clothing&utm_source=example');
+check('category title describes its real category', head(clothingFeed, /<title>([^<]*)<\/title>/), `جل و بەرگ — ${APP_NAME_LATIN}`);
+check('category canonical retains its filter only', head(clothingFeed, /rel="canonical" href="([^"]*)"/), `${SITE_ORIGIN}/?category=clothing`);
+const searchHtml = await text('/search?q=test');
+check('search canonical never uses a preview host', head(searchHtml, /rel="canonical" href="([^"]*)"/), `${SITE_ORIGIN}/search?q=test`);
 
 // A filtered view of the feed is the same site, not another one.
 check('a search view carries no second WebSite block',

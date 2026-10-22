@@ -39,7 +39,7 @@ async function ready(url,child) {
 }
 const results=[];
 const only=process.argv.find(arg=>arg.startsWith('--only='))?.slice(7);
-if(only && !['seo','worker','wayl','retry','profile','publish','currency','visibility','affected','grants','owner','browser','sharing','categories','category-ui','preview-worker'].includes(only))
+if(only && !['seo','discovery','worker','wayl','retry','profile','publish','currency','visibility','affected','grants','owner','browser','sharing','categories','category-ui','preview-worker'].includes(only))
   throw new Error('Unknown isolated suite selector');
 async function run(name,args) {
   // Keep draining the local servers' output while tests run. spawnSync blocks
@@ -71,6 +71,7 @@ try {
   for(const [name,file] of [
     ['preview-worker','product-preview-worker-test.mjs'],
     ['seo','seo-test.mjs'],
+    ['discovery','discovery-browser-test.mjs'],
     ['categories','categories-test.mjs'],['category-ui','category-ui-test.mjs'],
     ['worker','permanent-free-worker-test.mjs'],
     ['wayl','wayl-test.mjs'],['retry','checkout-retry-test.mjs'],

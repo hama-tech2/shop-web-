@@ -207,7 +207,8 @@ function loadMoreHtml({ category, query, nextOffset, hasMore }) {
  */
 const sellerPromptHtml = () =>
   `<aside class="seller-prompt">` +
-  `<p class="seller-prompt__text">${esc(UI.sellerPrompt)}</p>` +
+  `<p class="seller-prompt__text">${esc(UI.sellerPrompt)} ` +
+  `<a class="seller-prompt__learn" href="/free-shop">دوکانی بەخۆڕایی لە کوردستان؛ ٥ بەرهەم و کۆدی QR</a></p>` +
   `<a class="seller-prompt__cta" href="/signup">${esc(UI.sellerCta)}</a>` +
   `</aside>`;
 
@@ -233,5 +234,7 @@ export function feedHtml({ products, hasMore, category, query, offset, pageSize 
   );
 }
 
-export const feedTitle = (query) =>
-  query ? `${query} — ${APP_NAME}` : `${APP_NAME_LATIN} (${APP_NAME}) — KurdBazaro | bazarnow.xyz`;
+export const feedTitle = (query, category = null) =>
+  query ? `${query} — ${APP_NAME}`
+    : category ? `${CHIPS.find(chip => chip.slug === category)?.label || APP_NAME} — ${APP_NAME_LATIN}`
+    : `دوکانی ئۆنلاین بەخۆڕایی لە کوردستان | ${APP_NAME_LATIN} (${APP_NAME})`;

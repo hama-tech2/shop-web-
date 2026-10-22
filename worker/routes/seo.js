@@ -144,13 +144,14 @@ export async function sitemapGet(env) {
   // PostgREST commonly caps one response at 1,000 rows. The data helpers
   // page through that cap, while these limits ensure the finished XML
   // can never exceed the sitemap protocol's 50,000-URL ceiling.
-  const shops = await publicShops(env, MAX_URLS - 1);
-  const products = await publicProductRefs(env, MAX_URLS - 1 - shops.length);
+  const shops = await publicShops(env, MAX_URLS - 2);
+  const products = await publicProductRefs(env, MAX_URLS - 2 - shops.length);
 
   const bySlug = new Map(shops.map((shop) => [shop.id, shop.slug]));
 
   const entries = [
     urlEntry({ path: '/', changefreq: 'daily', priority: '1.0' }),
+    urlEntry({ path: '/free-shop' }),
     ...shops.map((shop) =>
       urlEntry({
         path: `/@${shop.slug}`,
